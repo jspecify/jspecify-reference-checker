@@ -1,0 +1,52 @@
+plugins {
+    id 'java'
+    id 'com.diffplug.gradle.spotless' version '4.0.1'
+}
+
+repositories {
+    jcenter()
+}
+
+configurations {
+    errorproneJavac
+}
+
+ext.versions = [
+        checkerFramework: "3.4.1",
+]
+
+sourceCompatibility = 1.8
+def checkerframework_local = false
+
+dependencies {
+    if (checkerframework_local) {
+        implementation files('${CHECKERFRAMEWORK}/checker/dist/checker-qual.jar')
+        implementation files('${CHECKERFRAMEWORK}/checker/dist/checker.jar')
+        implementation files('${CHECKERFRAMEWORK}/checker/dist/jdk8.jar')
+    } else {
+        implementation "org.checkerframework:checker:${versions.checkerFramework}"
+        implementation "com.google.errorprone:javac:9+181-r4173-1"
+    }
+
+    // Testing
+    testImplementation 'junit:junit:4.12'
+    testImplementation "org.checkerframework:framework-test:${versions.checkerFramework}"
+
+    errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
+}
+
+tasks.withType(JavaCompile).all {
+    options.compilerArgs.add("-Xlint:all")
+}
+
+test {
+    if (!JavaVersion.current().java9Compatible) {
+        jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
+    }
+}
+
+spotless {
+    java {
+        googleJavaFormat().aosp()
+    }
+}
