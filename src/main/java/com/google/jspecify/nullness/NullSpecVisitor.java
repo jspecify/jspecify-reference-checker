@@ -14,8 +14,12 @@
 
 package com.google.jspecify.nullness;
 
+import static java.util.Collections.singletonList;
 import static javax.lang.model.element.ElementKind.CLASS;
+import static javax.lang.model.type.TypeKind.DECLARED;
+import static javax.tools.Diagnostic.Kind.ERROR;
 import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
+import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssertTree;
@@ -26,11 +30,18 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
+import java.util.List;
 import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.common.basetype.TypeValidator;
+import org.checkerframework.framework.source.DiagMessage;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.QualifierHierarchy;
 
 // Option to forbid explicit usage of @NoAdditionalNullness (and...?)
 // Option to make @NullAnnotated the default or not
@@ -130,4 +141,38 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     }
 
     // TODO: binary, unary, compoundassign, typecast, ...
+
+    @Override
+    protected TypeValidator createTypeValidator() {
+        return new NullSpecTypeValidator(checker, this, atypeFactory);
+    }
+
+    private static final class NullSpecTypeValidator extends BaseTypeValidator {
+        NullSpecTypeValidator(BaseTypeChecker checker,
+            BaseTypeVisitor<?> visitor,
+            AnnotatedTypeFactory atypeFactory) {
+            super(checker, visitor, atypeFactory);
+        }
+
+        @Override
+        protected List<DiagMessage> isTopLevelValidType(QualifierHierarchy qualifierHierarchy,
+            AnnotatedTypeMirror type) {
+            if (isPrimitive(type.getUnderlyingType()) && hasNullableOrNullnessUnspecified(type)) {
+                return singletonList(new DiagMessage(ERROR, "primitive.annotated"));
+            }
+            if (type.getKind() == DECLARED) {
+                AnnotatedDeclaredType enclosingType =
+                    ((AnnotatedDeclaredType) type).getEnclosingType();
+                if (enclosingType != null && hasNullableOrNullnessUnspecified(enclosingType)) {
+                    return singletonList(new DiagMessage(ERROR, "outer.annotated"));
+                }
+            }
+            return super.isTopLevelValidType(qualifierHierarchy, type);
+        }
+
+        boolean hasNullableOrNullnessUnspecified(AnnotatedTypeMirror type) {
+            return type.hasAnnotation(Nullable.class)
+                || type.hasAnnotation(NullnessUnspecified.class);
+        }
+    }
 }
