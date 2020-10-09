@@ -24,6 +24,7 @@ import static javax.lang.model.type.TypeKind.INTERSECTION;
 import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
+import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
@@ -537,7 +538,7 @@ public final class NullSpecAnnotatedTypeFactory
                  * Setting a default here affects not only this element but also its descendants in
                  * the syntax tree.
                  */
-                // TODO(cpovirk): Default unbounded wildcards' upper bounds to @Nullable.
+                addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
                 addElementDefault(elt, noAdditionalNullness, OTHERWISE);
             }
 

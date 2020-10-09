@@ -8,7 +8,10 @@ It is a prototype. It is not yet suitable for use on real code. To get it
 working properly, we will need to do more work, including proposing new
 configuration hooks in the Checker Framework itself. Running it against the
 regular version of the Checker Framework will behave incorrectly, as we have
-made temporary local edits to our version of the Checker Framework.
+made temporary local edits to our version of the Checker Framework. In fact,
+even _building_ it against the regular version of the Checker Framework does
+not work after
+[8fcc87f5e4e28c2e4511eb8cf26092d935425fea](https://github.com/jspecify/nullness-checker-for-checker-framework/commit/8fcc87f5e4e28c2e4511eb8cf26092d935425fea).
 
 We have made it available so that JSpecify project members can experiment with
 it, collaborate on it, and discuss the easiest way to incorporate changes into
