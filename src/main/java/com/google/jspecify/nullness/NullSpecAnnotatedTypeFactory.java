@@ -28,9 +28,13 @@ import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.type.AnnotatedTypeFormatter;
+import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.util.AnnotationFormatter;
+import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 
@@ -143,5 +147,31 @@ public final class NullSpecAnnotatedTypeFactory
             }
             return unionNull;
         }
+    }
+
+    @Override
+    protected AnnotationFormatter createAnnotationFormatter() {
+        return new DefaultAnnotationFormatter() {
+            @Override
+            public String formatAnnotationString(Collection<? extends AnnotationMirror> annos,
+                boolean printInvisible) {
+                return super.formatAnnotationString(annos, /*printInvisible=*/ false);
+            }
+        };
+    }
+
+    @Override
+    protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
+        return new DefaultAnnotatedTypeFormatter(
+            /*
+             * We would pass the result of getAnnotationFormatter(), but the superclass calls
+             * createAnnotatedTypeFormatter() before it initializes that field.
+             *
+             * Fortunately, it's harmless to use one AnnotationFormatter here and another equivalent
+             * one in createAnnotationFormatter().
+             */
+            createAnnotationFormatter(),
+            // TODO(cpovirk): Permit configuration of these booleans?
+            /*printVerboseGenerics=*/ false, /*defaultPrintInvisibleAnnos=*/ false);
     }
 }
