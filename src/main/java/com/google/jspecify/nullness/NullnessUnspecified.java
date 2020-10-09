@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.jspecify.nullness.qual;
+package com.google.jspecify.nullness;
 
-import java.lang.annotation.ElementType;
+import static java.lang.annotation.ElementType.TYPE_USE;
+import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_UPPER_BOUND;
+
 import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
 
-@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+@Target(TYPE_USE)
+@SubtypeOf(Nullable.class)
 @DefaultQualifierInHierarchy
-@SubtypeOf({Nullable.class})
-public @interface NullnessUnspecified {}
+@interface NullnessUnspecified {}

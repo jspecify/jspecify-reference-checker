@@ -12,15 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.jspecify.nullness.qual;
+package com.google.jspecify.nullness;
 
-import java.lang.annotation.ElementType;
+import static java.lang.annotation.ElementType.TYPE_USE;
+import static org.checkerframework.framework.qual.LiteralKind.PRIMITIVE;
+import static org.checkerframework.framework.qual.LiteralKind.STRING;
+import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
+import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
+
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.LiteralKind;
+import org.checkerframework.framework.qual.DefaultFor;
+import org.checkerframework.framework.qual.InvisibleQualifier;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
 
-@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf({})
-@QualifierForLiterals(LiteralKind.NULL)
-public @interface Nullable {}
+@Target(TYPE_USE)
+@SubtypeOf(NullnessUnspecified.class)
+@DefaultFor({CONSTRUCTOR_RESULT, RECEIVER})
+@QualifierForLiterals({PRIMITIVE, STRING})
+@InvisibleQualifier
+@interface NoAdditionalNullness {}

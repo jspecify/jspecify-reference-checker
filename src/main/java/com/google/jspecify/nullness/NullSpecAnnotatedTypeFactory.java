@@ -14,9 +14,11 @@
 
 package com.google.jspecify.nullness;
 
-import com.google.jspecify.nullness.qual.NoAdditionalNullness;
-import com.google.jspecify.nullness.qual.Nullable;
-import com.google.jspecify.nullness.qual.NullnessUnspecified;
+import static java.util.Arrays.asList;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.lang.annotation.Annotation;
 import javax.lang.model.element.AnnotationMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAnalysis;
@@ -57,6 +59,16 @@ public class NullSpecAnnotatedTypeFactory
         strictNonNull = checker.hasOption("strict");
 
         postInit();
+    }
+
+    @Override
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        /*
+         * TODO(cpovirk): This might not be sufficient to make the annotations work in their new
+         * location.
+         */
+        return new LinkedHashSet<>(
+            asList(Nullable.class, NullnessUnspecified.class, NoAdditionalNullness.class));
     }
 
     @Override

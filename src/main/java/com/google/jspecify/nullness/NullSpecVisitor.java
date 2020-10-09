@@ -14,8 +14,6 @@
 
 package com.google.jspecify.nullness;
 
-import com.google.jspecify.nullness.qual.NoAdditionalNullness;
-import com.google.jspecify.nullness.qual.Nullable;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
