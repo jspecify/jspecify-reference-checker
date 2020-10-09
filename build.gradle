@@ -40,9 +40,14 @@ tasks.withType(JavaCompile).all {
 }
 
 test {
+    inputs.files("tests/nullspec-common")
     if (!JavaVersion.current().java9Compatible) {
         jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
     }
+}
+
+clean.doFirst {
+    delete "${rootDir}/tests/build/"
 }
 
 spotless {
