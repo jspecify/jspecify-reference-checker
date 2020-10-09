@@ -16,6 +16,7 @@ package com.google.jspecify.nullness;
 
 import static java.util.Arrays.asList;
 import static javax.lang.model.element.ElementKind.PACKAGE;
+import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
@@ -46,6 +47,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.StructuralEqualityComparer;
 import org.checkerframework.framework.type.StructuralEqualityVisitHistory;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
+import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
@@ -242,6 +244,12 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
+    public AnnotatedDeclaredType getSelfType(Tree tree) {
+        AnnotatedDeclaredType superResult = super.getSelfType(tree);
+        return superResult == null ? null : withNoAdditionalNullness(superResult);
+    }
+
+    @Override
     protected QualifierDefaults createQualifierDefaults() {
         return new NullSpecQualifierDefaults(elements, this);
     }
@@ -337,6 +345,23 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type,
+        boolean iUseFlow) {
+        // TODO(cpovirk): This helps, but why?
+        super.addComputedTypeAnnotations(tree, type, iUseFlow && type.getKind() != WILDCARD);
+    }
+
+    @Override
+    protected TypeAnnotator createTypeAnnotator() {
+        /*
+         * Override to do nothing. The supermethod adds the top type (@Nullable/unionNull) to the
+         * bound of unbounded wildcards, but we want the ability to sometimes add
+         * @NullnessUnspecified/codeNotNullnessAware instead.
+         */
+        return new TypeAnnotator(this) {};
+    }
+
+    @Override
     protected AnnotationFormatter createAnnotationFormatter() {
         return new DefaultAnnotationFormatter() {
             @Override
@@ -360,5 +385,21 @@ public final class NullSpecAnnotatedTypeFactory
             createAnnotationFormatter(),
             // TODO(cpovirk): Permit configuration of these booleans?
             /*printVerboseGenerics=*/ false, /*defaultPrintInvisibleAnnos=*/ false);
+    }
+
+    @SuppressWarnings("unchecked") // safety guaranteed by API docs
+    private <T extends AnnotatedTypeMirror> T withNoAdditionalNullness(T type) {
+        // Remove the annotation from the *root* type, but preserve other annotations.
+        type = (T) type.deepCopy(/*copyAnnotations=*/ true);
+        type.replaceAnnotation(noAdditionalNullness);
+        return type;
+    }
+
+    @SuppressWarnings("unchecked") // safety guaranteed by API docs
+    private <T extends AnnotatedTypeMirror> T withUnionNull(T type) {
+        // Remove the annotation from the *root* type, but preserve other annotations.
+        type = (T) type.deepCopy(/*copyAnnotations=*/ true);
+        type.replaceAnnotation(unionNull);
+        return type;
     }
 }
