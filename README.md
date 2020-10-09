@@ -6,7 +6,9 @@ for [the Checker Framework](https://checkerframework.org/).
 
 It is a prototype. It is not yet suitable for use on real code. To get it
 working properly, we will need to do more work, including proposing new
-configuration hooks in the Checker Framework itself.
+configuration hooks in the Checker Framework itself. Running it against the
+regular version of the Checker Framework will behave incorrectly, as we have
+made temporary local edits to our version of the Checker Framework.
 
 We have made it available so that JSpecify project members can experiment with
 it, collaborate on it, and discuss the easiest way to incorporate changes into
