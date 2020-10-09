@@ -12,7 +12,7 @@ configurations {
 }
 
 ext.versions = [
-        checkerFramework: "3.4.1",
+        checkerFramework: "3.7.0",
 ]
 
 sourceCompatibility = 1.8

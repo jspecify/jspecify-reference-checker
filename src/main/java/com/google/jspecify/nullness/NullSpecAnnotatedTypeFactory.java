@@ -15,19 +15,22 @@
 package com.google.jspecify.nullness;
 
 import static java.util.Arrays.asList;
+import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.lang.annotation.Annotation;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
-import org.checkerframework.framework.util.MultiGraphQualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 
@@ -77,33 +80,68 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        /*
-         * TODO(cpovirk): This might not be sufficient to make the annotations work in their new
-         * location.
-         */
         return new LinkedHashSet<>(
             asList(Nullable.class, NullnessUnspecified.class, NoAdditionalNullness.class));
     }
 
     @Override
-    public QualifierHierarchy createQualifierHierarchy(
-            MultiGraphQualifierHierarchy.MultiGraphFactory factory) {
-        return new NullSpecQualifierHierarchy(factory, (Object[]) null);
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new NullSpecQualifierHierarchy(getSupportedTypeQualifiers(), elements);
     }
 
-    protected class NullSpecQualifierHierarchy extends MultiGraphQualifierHierarchy {
-        protected NullSpecQualifierHierarchy(MultiGraphFactory f, Object[] arg) {
-            super(f, arg);
+    private final class NullSpecQualifierHierarchy extends ElementQualifierHierarchy {
+        NullSpecQualifierHierarchy(Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
+            super(qualifierClasses, elements);
         }
 
         @Override
         public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-            if (!leastConvenientWorld
-                    && (AnnotationUtils.areSame(subAnno, codeNotNullnessAware)
-                            || AnnotationUtils.areSame(superAnno, codeNotNullnessAware))) {
+            boolean subIsUnspecified = areSame(subAnno, codeNotNullnessAware);
+            boolean superIsUnspecified = areSame(superAnno, codeNotNullnessAware);
+            boolean eitherIsUnspecified = subIsUnspecified || superIsUnspecified;
+            boolean bothAreUnspecified = subIsUnspecified && superIsUnspecified;
+            if (leastConvenientWorld && bothAreUnspecified) {
+                return false;
+            }
+            if (!leastConvenientWorld && eitherIsUnspecified) {
                 return true;
             }
-            return super.isSubtype(subAnno, superAnno);
+            return areSame(subAnno, noAdditionalNullness) || areSame(superAnno, unionNull);
+        }
+
+        @Override
+        public AnnotationMirror leastUpperBound(
+            AnnotationMirror qualifier1, AnnotationMirror qualifier2) {
+            if (!areSame(getTopAnnotation(qualifier1), unionNull) || !areSame(getTopAnnotation(qualifier2),
+                unionNull)) {
+                return null;
+            }
+            if (areSame(qualifier1, unionNull) || areSame(qualifier2, unionNull)) {
+                return unionNull;
+            }
+            if (areSame(qualifier1, codeNotNullnessAware) || areSame(qualifier2,
+                codeNotNullnessAware)) {
+                return codeNotNullnessAware;
+            }
+            return noAdditionalNullness;
+        }
+
+        @Override
+        public AnnotationMirror greatestLowerBound(
+            AnnotationMirror qualifier1, AnnotationMirror qualifier2) {
+            if (!areSame(getTopAnnotation(qualifier1), unionNull) || !areSame(getTopAnnotation(qualifier2),
+                unionNull)) {
+                return null;
+            }
+            if (areSame(qualifier1, noAdditionalNullness) || areSame(qualifier2,
+                noAdditionalNullness)) {
+                return noAdditionalNullness;
+            }
+            if (areSame(qualifier1, codeNotNullnessAware) || areSame(qualifier2,
+                codeNotNullnessAware)) {
+                return codeNotNullnessAware;
+            }
+            return unionNull;
         }
     }
 }
