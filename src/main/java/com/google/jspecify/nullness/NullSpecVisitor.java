@@ -18,11 +18,11 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.EnhancedForLoopTree;
-import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
+import com.sun.source.tree.Tree;
 import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -32,22 +32,18 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 // Option to forbid explicit usage of @NoAdditionalNullness (and...?)
 // Option to make @NullAnnotated the default or not
 public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
-    private final boolean strictNonNull;
     private final boolean checkImpl;
 
     public NullSpecVisitor(BaseTypeChecker checker) {
         super(checker);
-        strictNonNull = checker.hasOption("strict");
         checkImpl = checker.hasOption("checkImpl");
     }
 
-    private void ensureNonNull(ExpressionTree tree, String messagekeypart) {
+    private void ensureNonNull(Tree tree, String messageKeyPart) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        if (strictNonNull && !type.hasEffectiveAnnotation(NoAdditionalNullness.class)) {
-            checker.reportError(tree, "not.nonnull." + messagekeypart);
-        }
-        if (!strictNonNull && type.hasEffectiveAnnotation(Nullable.class)) {
-            checker.reportError(tree, "nullable." + messagekeypart);
+        if (!atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
+            // TODO(cpovirk): Put the type in the body of the message once possible
+            checker.reportError(tree, "possibly.null." + messageKeyPart + ": " + type);
         }
     }
 
