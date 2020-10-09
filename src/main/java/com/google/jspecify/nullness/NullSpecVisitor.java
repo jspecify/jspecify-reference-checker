@@ -14,7 +14,7 @@
 
 package com.google.jspecify.nullness;
 
-import com.google.jspecify.nullness.qual.NonNull;
+import com.google.jspecify.nullness.qual.NoAdditionalNullness;
 import com.google.jspecify.nullness.qual.Nullable;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssertTree;
@@ -31,7 +31,7 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 
-// Option to forbid explicit usage of @NonNull (and...?)
+// Option to forbid explicit usage of @NoAdditionalNullness (and...?)
 // Option to make @NullAnnotated the default or not
 public class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
     private final boolean strictNonNull;
@@ -45,7 +45,7 @@ public class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactor
 
     private void ensureNonNull(ExpressionTree tree, String messagekeypart) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        if (strictNonNull && !type.hasEffectiveAnnotation(NonNull.class)) {
+        if (strictNonNull && !type.hasEffectiveAnnotation(NoAdditionalNullness.class)) {
             checker.reportError(tree, "not.nonnull." + messagekeypart);
         }
         if (!strictNonNull && type.hasEffectiveAnnotation(Nullable.class)) {

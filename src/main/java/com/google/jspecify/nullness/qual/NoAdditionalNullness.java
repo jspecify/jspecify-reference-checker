@@ -14,19 +14,21 @@
 
 package com.google.jspecify.nullness.qual;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import static java.lang.annotation.ElementType.TYPE_USE;
+import static org.checkerframework.framework.qual.LiteralKind.PRIMITIVE;
+import static org.checkerframework.framework.qual.LiteralKind.STRING;
+import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
+import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
+
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.LiteralKind;
+import org.checkerframework.framework.qual.DefaultFor;
+import org.checkerframework.framework.qual.InvisibleQualifier;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.TargetLocations;
-import org.checkerframework.framework.qual.TypeUseLocation;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf({NullnessUnspecified.class})
-@TargetLocations({TypeUseLocation.LOWER_BOUND})
-@QualifierForLiterals({LiteralKind.STRING, LiteralKind.PRIMITIVE})
-public @interface NonNull {}
+@Target(TYPE_USE)
+@SubtypeOf(NullnessUnspecified.class)
+@DefaultFor({CONSTRUCTOR_RESULT, RECEIVER})
+@QualifierForLiterals({PRIMITIVE, STRING})
+@InvisibleQualifier
+public @interface NoAdditionalNullness {}

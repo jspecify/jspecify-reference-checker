@@ -14,7 +14,7 @@
 
 package com.google.jspecify.nullness;
 
-import com.google.jspecify.nullness.qual.NonNull;
+import com.google.jspecify.nullness.qual.NoAdditionalNullness;
 import com.google.jspecify.nullness.qual.Nullable;
 import com.google.jspecify.nullness.qual.NullnessUnspecified;
 import javax.lang.model.element.AnnotationMirror;
@@ -41,17 +41,15 @@ public class NullSpecAnnotatedTypeFactory
     public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
         // Only use flow-sensitive type refinement if implementation code should be checked
         super(checker, checker.hasOption("checkImpl"));
-        NONNULL = AnnotationBuilder.fromClass(elements, NonNull.class);
+        NONNULL = AnnotationBuilder.fromClass(elements, NoAdditionalNullness.class);
         NULLABLE = AnnotationBuilder.fromClass(elements, Nullable.class);
         NULLNESSUNSPECIFIED = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
 
-        addAliasedAnnotation(org.jspecify.annotations.NonNull.class, NONNULL);
         addAliasedAnnotation(org.jspecify.annotations.Nullable.class, NULLABLE);
         addAliasedAnnotation(
                 org.jspecify.annotations.NullnessUnspecified.class, NULLNESSUNSPECIFIED);
 
         if (checker.hasOption("aliasCFannos")) {
-            addAliasedAnnotation(org.checkerframework.checker.nullness.qual.NonNull.class, NONNULL);
             addAliasedAnnotation(
                     org.checkerframework.checker.nullness.qual.Nullable.class, NULLABLE);
         }
