@@ -33,30 +33,44 @@ import org.checkerframework.javacutil.AnnotationUtils;
 
 public final class NullSpecAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
+    private final AnnotationMirror noAdditionalNullness;
+    private final AnnotationMirror unionNull;
+    private final AnnotationMirror codeNotNullnessAware;
 
-    protected final AnnotationMirror NONNULL;
-    protected final AnnotationMirror NULLABLE;
-    protected final AnnotationMirror NULLNESSUNSPECIFIED;
-
-    protected final boolean strictNonNull;
+    private final boolean leastConvenientWorld;
 
     public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
         // Only use flow-sensitive type refinement if implementation code should be checked
         super(checker, checker.hasOption("checkImpl"));
-        NONNULL = AnnotationBuilder.fromClass(elements, NoAdditionalNullness.class);
-        NULLABLE = AnnotationBuilder.fromClass(elements, Nullable.class);
-        NULLNESSUNSPECIFIED = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
 
-        addAliasedAnnotation(org.jspecify.annotations.Nullable.class, NULLABLE);
-        addAliasedAnnotation(
-                org.jspecify.annotations.NullnessUnspecified.class, NULLNESSUNSPECIFIED);
+        /*
+         * The names here ("codeNotNullnessAware", etc.) are less ambiguous than the annotation
+         * names ("NullnessUnspecified," etc.): If a type has nullness codeNotNullnessAware, that
+         * doesn't necessarily mean that it has the @NullnessUnspecified annotation written on it in
+         * source code. The other possibility is that it gets that value from the default in effect.
+         *
+         * Still, for the annotations that are actually printed in error messages (that is, the ones
+         * without @InvisibleQualifier), we want the user-facing class names to match what users at
+         * least *could* write in source code. So we use the less ambiguous names for our fields
+         * here while still using the user-facing names for most of the classes.
+         *
+         * (An alternative would be to write a custom AnnotationFormatter to replace the names, but
+         * that sounds like more trouble than it's worth.)
+         */
+        noAdditionalNullness = AnnotationBuilder.fromClass(elements, NoAdditionalNullness.class);
+        unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
+        codeNotNullnessAware = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
+
+        addAliasedAnnotation(org.jspecify.annotations.Nullable.class, unionNull);
+        addAliasedAnnotation(org.jspecify.annotations.NullnessUnspecified.class,
+            codeNotNullnessAware);
 
         if (checker.hasOption("aliasCFannos")) {
             addAliasedAnnotation(
-                    org.checkerframework.checker.nullness.qual.Nullable.class, NULLABLE);
+                    org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
         }
 
-        strictNonNull = checker.hasOption("strict");
+        leastConvenientWorld = checker.hasOption("strict");
 
         postInit();
     }
@@ -84,9 +98,9 @@ public final class NullSpecAnnotatedTypeFactory
 
         @Override
         public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-            if (!strictNonNull
-                    && (AnnotationUtils.areSame(subAnno, NULLNESSUNSPECIFIED)
-                            || AnnotationUtils.areSame(superAnno, NULLNESSUNSPECIFIED))) {
+            if (!leastConvenientWorld
+                    && (AnnotationUtils.areSame(subAnno, codeNotNullnessAware)
+                            || AnnotationUtils.areSame(superAnno, codeNotNullnessAware))) {
                 return true;
             }
             return super.isSubtype(subAnno, superAnno);
