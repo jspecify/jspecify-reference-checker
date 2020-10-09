@@ -31,7 +31,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 
 // Option to forbid explicit usage of @NoAdditionalNullness (and...?)
 // Option to make @NullAnnotated the default or not
-public class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
+public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
     private final boolean strictNonNull;
     private final boolean checkImpl;
 
@@ -67,7 +67,7 @@ public class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactor
 
     @Override
     public Void visitMemberSelect(MemberSelectTree node, Void p) {
-        ensureNonNull(node.getExpression(), "member.select");
+            ensureNonNull(node.getExpression(), "member.select");
         return super.visitMemberSelect(node, p);
     }
 

@@ -31,4 +31,4 @@ import org.checkerframework.framework.source.SupportedOptions;
  * </ol>
  */
 @SupportedOptions({"strict", "checkImpl", "aliasCFannos"})
-public class NullSpecChecker extends BaseTypeChecker {}
+public final class NullSpecChecker extends BaseTypeChecker {}

@@ -31,7 +31,7 @@ import org.checkerframework.framework.util.MultiGraphQualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 
-public class NullSpecAnnotatedTypeFactory
+public final class NullSpecAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
 
     protected final AnnotationMirror NONNULL;
