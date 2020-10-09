@@ -53,8 +53,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
-// Option to forbid explicit usage of @NoAdditionalNullness (and...?)
-// Option to make @NullAnnotated the default or not
 public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
     private final AnnotationMirror orgJspecifyNullable;
     private final AnnotationMirror orgJspecifyNullnessUnspecified;
@@ -82,6 +80,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
         if (checkImpl) {
             return super.visitBlock(node, p);
         } else {
+            // TODO(cpovirk): Should we still check any classes inside the block (e.g., anonymous)?
             return null;
         }
     }
