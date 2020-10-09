@@ -45,10 +45,10 @@ public class NullSpecAnnotatedTypeFactory
         NULLABLE = AnnotationBuilder.fromClass(elements, Nullable.class);
         NULLNESSUNSPECIFIED = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
 
-        addAliasedAnnotation(org.jspecify.experimental.NonNull.class, NONNULL);
-        addAliasedAnnotation(org.jspecify.experimental.Nullable.class, NULLABLE);
+        addAliasedAnnotation(org.jspecify.annotations.NonNull.class, NONNULL);
+        addAliasedAnnotation(org.jspecify.annotations.Nullable.class, NULLABLE);
         addAliasedAnnotation(
-                org.jspecify.experimental.NullnessUnspecified.class, NULLNESSUNSPECIFIED);
+                org.jspecify.annotations.NullnessUnspecified.class, NULLNESSUNSPECIFIED);
 
         if (checker.hasOption("aliasCFannos")) {
             addAliasedAnnotation(org.checkerframework.checker.nullness.qual.NonNull.class, NONNULL);
