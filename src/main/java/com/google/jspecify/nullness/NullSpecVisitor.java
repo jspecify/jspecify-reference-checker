@@ -92,6 +92,19 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     }
 
     @Override
+    protected void commonAssignmentCheck(AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType,
+        Tree valueTree, String errorKey, Object... extraArgs) {
+        /*
+         * TODO(cpovirk): Remove this check (and this override entirely) once we integrate dataflow,
+         * which should handle primitives more generally.
+         */
+        if (isPrimitive(valueType.getUnderlyingType())) {
+            return;
+        }
+        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+    }
+
+    @Override
     public Void visitMemberSelect(MemberSelectTree node, Void p) {
         if (elementFromTree(node).getKind() != CLASS) {
             ensureNonNull(node.getExpression(), "member.select");
