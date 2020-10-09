@@ -29,10 +29,13 @@ import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -146,6 +149,28 @@ public final class NullSpecAnnotatedTypeFactory
                 return codeNotNullnessAware;
             }
             return unionNull;
+        }
+    }
+
+    @Override
+    protected TypeVariableSubstitutor createTypeVariableSubstitutor() {
+        return new NullSpecTypeVariableSubstitutor();
+    }
+
+    private final class NullSpecTypeVariableSubstitutor extends TypeVariableSubstitutor {
+        @Override
+        protected AnnotatedTypeMirror substituteTypeVariable(AnnotatedTypeMirror argument,
+            AnnotatedTypeVariable use) {
+            // TODO(cpovirk): Delegate to leastUpperBound?
+            AnnotatedTypeMirror substitute = argument.deepCopy(/*copyAnnotations=*/ true);
+            if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
+                substitute.replaceAnnotation(unionNull);
+            } else if (argument.hasAnnotation(codeNotNullnessAware) || use
+                .hasAnnotation(codeNotNullnessAware)) {
+                substitute.replaceAnnotation(codeNotNullnessAware);
+            }
+
+            return substitute;
         }
     }
 
