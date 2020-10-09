@@ -17,6 +17,7 @@ package com.google.jspecify.nullness;
 import static java.lang.annotation.ElementType.TYPE_USE;
 import static org.checkerframework.framework.qual.LiteralKind.PRIMITIVE;
 import static org.checkerframework.framework.qual.LiteralKind.STRING;
+import static org.checkerframework.framework.qual.TypeUseLocation.ENUM_CONSTANT;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
 import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 
@@ -28,7 +29,11 @@ import org.checkerframework.framework.qual.SubtypeOf;
 
 @Target(TYPE_USE)
 @SubtypeOf(NullnessUnspecified.class)
-@DefaultFor({CONSTRUCTOR_RESULT, RECEIVER})
+/*
+ * TODO(cpovirk): Remove ENUM_CONSTANT (and all our CF added logic for ENUM_CONSTANT) once dataflow
+ * handles that.
+ */
+@DefaultFor({CONSTRUCTOR_RESULT, ENUM_CONSTANT, RECEIVER})
 @QualifierForLiterals({PRIMITIVE, STRING})
 @InvisibleQualifier
 @interface NoAdditionalNullness {}
