@@ -14,6 +14,9 @@
 
 package com.google.jspecify.nullness;
 
+import static javax.lang.model.element.ElementKind.CLASS;
+import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
+
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
@@ -63,7 +66,28 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
     @Override
     public Void visitMemberSelect(MemberSelectTree node, Void p) {
+        if (elementFromTree(node).getKind() != CLASS) {
             ensureNonNull(node.getExpression(), "member.select");
+            /*
+             * By contrast, if it's CLASS, the select must be on a type, like `Foo.Baz` or
+             * `Foo<Bar>.Baz`. We don't need to check that the type is non-null because the code is
+             * not actually dereferencing anything.
+             *
+             * In fact, a check that the type is non-null is currently not *safe*: The outer type
+             * appears to default to NullnessUnspecified in non-null-aware code.
+             *
+             * Note that our defaulting of enclosing types in
+             * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help
+             * even when I retrieve the type of the entire MemberSelectTree (and then pull out the
+             * outer type from that).
+             *
+             * The code path that we end up in appears to be looking specifically at the class
+             * referenced by the MemberSelectTree, without regard to any annotations on, e.g., the
+             * VariableTree that it is the type for. We end up in AnnotatedTypeFactory.fromElement.
+             * Possibly that's bogus: Not every MemberSelectTree is an "expression" in the usual
+             * sense. Perhaps it's our job not to call getAnnotatedType on such trees? So let's not.
+             */
+        }
         return super.visitMemberSelect(node, p);
     }
 
