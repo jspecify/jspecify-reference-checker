@@ -15,22 +15,30 @@
 package com.google.jspecify.nullness;
 
 import static java.util.Arrays.asList;
+import static javax.lang.model.element.ElementKind.PACKAGE;
+import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
+import com.sun.source.tree.Tree;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.lang.annotation.Annotation;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
@@ -38,10 +46,12 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.StructuralEqualityComparer;
 import org.checkerframework.framework.type.StructuralEqualityVisitHistory;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
+import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
-import org.checkerframework.javacutil.AnnotationUtils;
+import org.jspecify.annotations.DefaultNonNull;
 
 public final class NullSpecAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
@@ -229,6 +239,101 @@ public final class NullSpecAnnotatedTypeFactory
 
             return substitute;
         }
+    }
+
+    @Override
+    protected QualifierDefaults createQualifierDefaults() {
+        return new NullSpecQualifierDefaults(elements, this);
+    }
+
+    private final class NullSpecQualifierDefaults extends QualifierDefaults {
+        NullSpecQualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
+            super(elements, atypeFactory);
+        }
+
+        @Override
+        public void annotate(Element elt, AnnotatedTypeMirror type) {
+            if (elt == null) {
+                super.annotate(elt, type);
+                return;
+            }
+
+            writeDefaultsCommonToNullAwareAndNonNullAwareCode(type);
+
+            /*
+             * XXX: When adding support for NotNullAware, be sure that each of those annotations on
+             * a *class* overrides the other on the *package*.
+             */
+            boolean hasNullAwareAnnotation = elt.getAnnotation(DefaultNonNull.class) != null || (
+                elt.getEnclosingElement().getKind() == PACKAGE &&
+                    elt.getEnclosingElement().getAnnotation(DefaultNonNull.class) != null);
+            if (hasNullAwareAnnotation) {
+                /*
+                 * Setting a default here affects not only this element but also its descendants in
+                 * the syntax tree.
+                 */
+                // TODO(cpovirk): Default unbounded wildcards' upper bounds to @Nullable.
+                addElementDefault(elt, noAdditionalNullness, OTHERWISE);
+            }
+
+            super.annotate(elt, type);
+        }
+
+        @Override
+        public void annotate(Tree tree, AnnotatedTypeMirror type) {
+            writeDefaultsCommonToNullAwareAndNonNullAwareCode(type);
+            super.annotate(tree, type);
+        }
+
+        void writeDefaultsCommonToNullAwareAndNonNullAwareCode(AnnotatedTypeMirror type) {
+            new AnnotatedTypeScanner<Void, Void>() {
+                @Override
+                public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
+                    AnnotatedDeclaredType enclosingType = type.getEnclosingType();
+                    if (enclosingType != null) {
+                        addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
+                    }
+                    return super.visitDeclared(type, p);
+                }
+
+                @Override
+                public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
+                    addIfNoAnnotationPresent(type, noAdditionalNullness);
+                    return super.visitPrimitive(type, p);
+                }
+
+                @Override
+                public Void visitWildcard(AnnotatedWildcardType type, Void p) {
+                    if (type.getUnderlyingType().getSuperBound() != null) {
+                        addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
+                    }
+                    return super.visitWildcard(type, p);
+                }
+            }.visit(type);
+        }
+
+        void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
+            if (!type.isAnnotatedInHierarchy(unionNull)) {
+                type.addAnnotation(annotation);
+            }
+        }
+
+        @Override
+        protected DefaultApplierElement createDefaultApplierElement(
+            AnnotatedTypeFactory atypeFactory, Element annotationScope,
+            AnnotatedTypeMirror type,
+            boolean applyToTypeVar) {
+            return new DefaultApplierElement(atypeFactory, annotationScope, type,
+                applyToTypeVar) {
+                @Override
+                protected boolean shouldBeAnnotated(AnnotatedTypeMirror type,
+                    boolean applyToTypeVar) {
+                    return super.shouldBeAnnotated(type, /*applyToTypeVar=*/ true);
+                }
+            };
+        }
+
+        // TODO(cpovirk): Should I override applyConservativeDefaults to always return false?
     }
 
     @Override
