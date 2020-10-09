@@ -35,6 +35,8 @@ import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.type.StructuralEqualityComparer;
+import org.checkerframework.framework.type.StructuralEqualityVisitHistory;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
@@ -149,6 +151,61 @@ public final class NullSpecAnnotatedTypeFactory
                 return codeNotNullnessAware;
             }
             return unionNull;
+        }
+    }
+
+    private final class NullSpecEqualityComparer extends StructuralEqualityComparer {
+        NullSpecEqualityComparer(StructuralEqualityVisitHistory typeargVisitHistory) {
+            super(typeargVisitHistory);
+        }
+
+        @Override
+        protected boolean checkOrAreEqual(AnnotatedTypeMirror type1,
+            AnnotatedTypeMirror type2) {
+            Boolean pastResult = visitHistory.result(type1, type2, /*hierarchy=*/ unionNull);
+            if (pastResult != null) {
+                return pastResult;
+            }
+
+            boolean result = areEqual(type1, type2);
+            this.visitHistory.add(type1, type2, /*hierarchy=*/ unionNull, result);
+            return result;
+        }
+
+        @Override
+        public boolean areEqualInHierarchy(AnnotatedTypeMirror type1,
+            AnnotatedTypeMirror type2, AnnotationMirror top) {
+            return areEqual(type1, type2);
+        }
+
+        private boolean areEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
+            /*
+             * I'd like to use the spec definition here: "type1 is a subtype of type2 and vice
+             * versa." However, that produces infinite recursion in some cases.
+             */
+            boolean type1IsUnspecified = type1.hasAnnotation(codeNotNullnessAware);
+            boolean type2IsUnspecified = type2.hasAnnotation(codeNotNullnessAware);
+            boolean bothAreUnspecified = type1IsUnspecified && type2IsUnspecified;
+            boolean eitherIsUnspecified = type1IsUnspecified || type2IsUnspecified;
+            if (leastConvenientWorld && bothAreUnspecified) {
+                return false;
+            }
+            if (!leastConvenientWorld && eitherIsUnspecified) {
+                return true;
+            }
+            AnnotationMirror a1 = type1.getAnnotationInHierarchy(unionNull);
+            AnnotationMirror a2 = type2.getAnnotationInHierarchy(unionNull);
+            return a1 == a2 || (a1 != null && a2 != null && areSame(a1, a2));
+            /*
+             * TODO(cpovirk): Do we care about the base type, or is looking at annotations
+             * enough? super.visitDeclared_Declared has a TODO with a similar question.
+             * Err, presumably normal Java type-checking has done that job. A more interesting
+             * question may be why we don't look at type args. The answer might be simply:
+             * "That's the contract, even though it is surprising, given the names of the class
+             * and its methods." (Granted, the docs of super.visitDeclared_Declared also say
+             * that it checks that "The types are of the same class/interfaces," so the contract
+             * isn't completely clear.)
+             */
         }
     }
 
