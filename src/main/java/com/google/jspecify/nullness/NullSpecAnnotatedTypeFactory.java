@@ -525,11 +525,18 @@ public final class NullSpecAnnotatedTypeFactory
             }
 
             /*
-             * XXX: When adding support for NotNullAware, be sure that each of those annotations on
-             * a *class* overrides the other on the *package*.
+             * CF has some built-in support for package-level defaults. However, it is primarily
+             * intended to support @DefaultQualifier (and it can't easily be extended to recognize
+             * @DefaultNonNull).
              *
-             * TODO(cpovirk): CF has some built-in support for package-level defaults. Could we use
-             * it here?
+             * If we really wanted to, we could explicit set defaults for a package here, when
+             * scanning a class in that package (addElementDefault(elt.getEnclosingElement(), ...)).
+             * But the code is simpler if we just read the package default and set it as the default
+             * for the class.
+             *
+             * XXX: When adding support for DefaultNullnessUnspecified, be sure that NotNullAware on a *class*
+             * overrides DefaultNonNull on the *package* (and vice versa). Maybe then it will be simpler
+             * to set a proper package default.
              */
             boolean hasNullAwareAnnotation = elt.getAnnotation(DefaultNonNull.class) != null || (
                 elt.getEnclosingElement().getKind() == PACKAGE &&
