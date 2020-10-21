@@ -14,9 +14,11 @@
 
 package com.google.jspecify.nullness;
 
+import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
+import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
@@ -26,8 +28,13 @@ import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
+import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
+import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
@@ -63,6 +70,8 @@ import org.checkerframework.framework.type.StructuralEqualityComparer;
 import org.checkerframework.framework.type.StructuralEqualityVisitHistory;
 import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
+import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
+import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
@@ -625,10 +634,59 @@ public final class NullSpecAnnotatedTypeFactory
       }
       return super.visitWildcard(type, p);
     }
+  }
 
-    void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
-      if (!type.isAnnotatedInHierarchy(unionNull)) {
-        type.addAnnotation(annotation);
+  @Override
+  protected TreeAnnotator createTreeAnnotator() {
+    return new ListTreeAnnotator(
+        asList(new NullSpecTreeAnnotator(this), super.createTreeAnnotator()));
+  }
+
+  private final class NullSpecTreeAnnotator extends TreeAnnotator {
+    NullSpecTreeAnnotator(AnnotatedTypeFactory typeFactory) {
+      super(typeFactory);
+    }
+
+    @Override
+    public Void visitLiteral(LiteralTree node, AnnotatedTypeMirror type) {
+      if (node.getKind().asInterface() == LiteralTree.class) {
+        type.addAnnotation(node.getKind() == NULL_LITERAL ? unionNull : noAdditionalNullness);
+      }
+
+      return super.visitLiteral(node, type);
+    }
+
+    @Override
+    public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
+      annotateIfEnumConstant(node, type);
+
+      return super.visitIdentifier(node, type);
+    }
+
+    @Override
+    public Void visitMemberSelect(MemberSelectTree node, AnnotatedTypeMirror type) {
+      annotateIfEnumConstant(node, type);
+
+      return super.visitMemberSelect(node, type);
+    }
+
+    private void annotateIfEnumConstant(ExpressionTree node, AnnotatedTypeMirror type) {
+      Element element = elementFromUse(node);
+      if (element != null && element.getKind() == ENUM_CONSTANT) {
+        /*
+         * Even if it was annotated before, override it. There are 2 cases:
+         *
+         * 1. The declaration had an annotation on it in source. That will still get reported as an
+         * error when we visit the declaration (assuming we're compiling the code with the
+         * declaration): Anything we do here affects the *usage* but not the declaration. And we
+         * know that the usage isn't really @Nullable/@NullnessUnspecified, even if the author of
+         * the declaration said so.
+         *
+         * 2. The declaration had no annotation on it in source, but it was in non-null-aware code.
+         * And consequently, defaults.visit(...), which ran before us, applied a default of
+         * codeNotNullnessAware. Again, that default isn't correct, so we override it here.
+         */
+        type.replaceAnnotation(noAdditionalNullness);
       }
     }
   }
@@ -658,6 +716,12 @@ public final class NullSpecAnnotatedTypeFactory
         // TODO(cpovirk): Permit configuration of these booleans?
         /*printVerboseGenerics=*/ false,
         /*defaultPrintInvisibleAnnos=*/ false);
+  }
+
+  private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
+    if (!type.isAnnotatedInHierarchy(unionNull)) {
+      type.addAnnotation(annotation);
+    }
   }
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs

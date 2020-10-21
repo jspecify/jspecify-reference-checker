@@ -15,13 +15,10 @@
 package com.google.jspecify.nullness;
 
 import static java.lang.annotation.ElementType.TYPE_USE;
-import static org.checkerframework.framework.qual.LiteralKind.NULL;
 
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 @Target(TYPE_USE)
 @SubtypeOf({})
-@QualifierForLiterals(NULL)
 @interface Nullable {}
