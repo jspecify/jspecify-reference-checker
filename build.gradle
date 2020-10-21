@@ -16,17 +16,10 @@ ext.versions = [
 ]
 
 sourceCompatibility = 1.8
-def checkerframework_local = false
 
 dependencies {
-    if (checkerframework_local) {
-        implementation files('${CHECKERFRAMEWORK}/checker/dist/checker-qual.jar')
-        implementation files('${CHECKERFRAMEWORK}/checker/dist/checker.jar')
-        implementation files('${CHECKERFRAMEWORK}/checker/dist/jdk8.jar')
-    } else {
-        implementation "org.checkerframework:checker:${versions.checkerFramework}"
-        implementation "com.google.errorprone:javac:9+181-r4173-1"
-    }
+    implementation files('../checker-framework/checker/dist/checker-qual.jar')
+    implementation files('../checker-framework/checker/dist/checker.jar')
 
     // Testing
     testImplementation 'junit:junit:4.12'
