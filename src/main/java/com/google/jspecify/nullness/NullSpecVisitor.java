@@ -19,10 +19,12 @@ import static com.sun.source.tree.Tree.Kind.SUPER_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Collections.singletonList;
 import static javax.lang.model.element.ElementKind.CLASS;
+import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTree;
+import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 
@@ -38,9 +40,11 @@ import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.VariableTree;
 import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -218,6 +222,15 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
       checkNoNullnessAnnotations(node, annotationsFromTree(node), "wildcard.annotated");
     }
     return super.visitAnnotatedType(node, p);
+  }
+
+  @Override
+  public Void visitVariable(VariableTree node, Void p) {
+    VariableElement element = elementFromDeclaration(node);
+    if (element.getKind() == ENUM_CONSTANT) {
+      checkNoNullnessAnnotations(node, element.getAnnotationMirrors(), "enum.constant.annotated");
+    }
+    return super.visitVariable(node, p);
   }
 
   private void checkNoNullnessAnnotations(
