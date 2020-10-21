@@ -17,8 +17,8 @@ package com.google.jspecify.nullness;
 import static java.lang.annotation.ElementType.TYPE_USE;
 import static org.checkerframework.framework.qual.LiteralKind.PRIMITIVE;
 import static org.checkerframework.framework.qual.LiteralKind.STRING;
-import static org.checkerframework.framework.qual.TypeUseLocation.ENUM_CONSTANT;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
+import static org.checkerframework.framework.qual.TypeUseLocation.ENUM_CONSTANT;
 import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 
 import java.lang.annotation.Target;
