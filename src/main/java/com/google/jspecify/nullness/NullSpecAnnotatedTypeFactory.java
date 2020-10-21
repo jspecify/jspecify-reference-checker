@@ -532,7 +532,7 @@ public final class NullSpecAnnotatedTypeFactory
        * But the code is simpler if we just read the package default and set it as the default
        * for the class.
        *
-       * XXX: When adding support for DefaultNullnessUnspecified, be sure that NotNullAware on a *class*
+       * XXX: When adding support for DefaultNullnessUnspecified, be sure that DefaultNullnessUnspecified on a *class*
        * overrides DefaultNonNull on the *package* (and vice versa). Maybe then it will be simpler
        * to set a proper package default.
        */
