@@ -561,6 +561,14 @@ public final class NullSpecAnnotatedTypeFactory
       return new DefaultApplierElement(atypeFactory, annotationScope, type, applyToTypeVar) {
         @Override
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type, boolean applyToTypeVar) {
+          /*
+           * TODO(cpovirk): Are our goals in applying defaults to _all_ type variables compatible
+           * with the goals that the dataflow analysis has in applying defaults to type variables
+           * only if they are the top-level type of a local variable? In particular, are we going to
+           * see problems from our defaulting them to noAdditionalNullness/codeNotNullnessAware,
+           * since it seems as if dataflow would want to default them to TOP (unionNull)? But I'm
+           * not sure where it would even be doing that.
+           */
           return super.shouldBeAnnotated(type, /*applyToTypeVar=*/ true);
         }
       };
@@ -587,36 +595,42 @@ public final class NullSpecAnnotatedTypeFactory
      * (@Nullable/unionNull) to the bound of unbounded wildcards, but we want the ability to
      * sometimes add @NullnessUnspecified/codeNotNullnessAware instead.
      */
-    return new TypeAnnotator(this) {
-      @Override
-      public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
-        AnnotatedDeclaredType enclosingType = type.getEnclosingType();
-        if (enclosingType != null) {
-          addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
-        }
-        return super.visitDeclared(type, p);
-      }
+    return new NullSpecTypeAnnotator(this);
+  }
 
-      @Override
-      public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
-        addIfNoAnnotationPresent(type, noAdditionalNullness);
-        return super.visitPrimitive(type, p);
-      }
+  private final class NullSpecTypeAnnotator extends TypeAnnotator {
+    NullSpecTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+      super(typeFactory);
+    }
 
-      @Override
-      public Void visitWildcard(AnnotatedWildcardType type, Void p) {
-        if (type.getUnderlyingType().getSuperBound() != null) {
-          addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
-        }
-        return super.visitWildcard(type, p);
+    @Override
+    public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
+      AnnotatedDeclaredType enclosingType = type.getEnclosingType();
+      if (enclosingType != null) {
+        addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
       }
+      return super.visitDeclared(type, p);
+    }
 
-      void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
-        if (!type.isAnnotatedInHierarchy(unionNull)) {
-          type.addAnnotation(annotation);
-        }
+    @Override
+    public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
+      addIfNoAnnotationPresent(type, noAdditionalNullness);
+      return super.visitPrimitive(type, p);
+    }
+
+    @Override
+    public Void visitWildcard(AnnotatedWildcardType type, Void p) {
+      if (type.getUnderlyingType().getSuperBound() != null) {
+        addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
       }
-    };
+      return super.visitWildcard(type, p);
+    }
+
+    void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
+      if (!type.isAnnotatedInHierarchy(unionNull)) {
+        type.addAnnotation(annotation);
+      }
+    }
   }
 
   @Override
