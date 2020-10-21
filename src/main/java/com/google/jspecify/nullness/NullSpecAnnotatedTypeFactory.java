@@ -345,7 +345,7 @@ public final class NullSpecAnnotatedTypeFactory
         }
         /*
          * TODO(cpovirk): Do we need to explicitly handle aliases here (and elsewhere, including
-         * in NullSpecVisitor, especially for NullAware)?
+         * in NullSpecVisitor, especially for DefaultNonNull)?
          */
         return type.hasAnnotation(unionNull) || (!leastConvenientWorld && type
             .hasAnnotation(codeNotNullnessAware));
@@ -524,11 +524,12 @@ public final class NullSpecAnnotatedTypeFactory
                 return;
             }
 
-            writeDefaultsCommonToNullAwareAndNonNullAwareCode(type);
-
             /*
              * XXX: When adding support for NotNullAware, be sure that each of those annotations on
              * a *class* overrides the other on the *package*.
+             *
+             * TODO(cpovirk): CF has some built-in support for package-level defaults. Could we use
+             * it here?
              */
             boolean hasNullAwareAnnotation = elt.getAnnotation(DefaultNonNull.class) != null || (
                 elt.getEnclosingElement().getKind() == PACKAGE &&
@@ -543,45 +544,6 @@ public final class NullSpecAnnotatedTypeFactory
             }
 
             super.annotate(elt, type);
-        }
-
-        @Override
-        public void annotate(Tree tree, AnnotatedTypeMirror type) {
-            writeDefaultsCommonToNullAwareAndNonNullAwareCode(type);
-            super.annotate(tree, type);
-        }
-
-        void writeDefaultsCommonToNullAwareAndNonNullAwareCode(AnnotatedTypeMirror type) {
-            new AnnotatedTypeScanner<Void, Void>() {
-                @Override
-                public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
-                    AnnotatedDeclaredType enclosingType = type.getEnclosingType();
-                    if (enclosingType != null) {
-                        addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
-                    }
-                    return super.visitDeclared(type, p);
-                }
-
-                @Override
-                public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
-                    addIfNoAnnotationPresent(type, noAdditionalNullness);
-                    return super.visitPrimitive(type, p);
-                }
-
-                @Override
-                public Void visitWildcard(AnnotatedWildcardType type, Void p) {
-                    if (type.getUnderlyingType().getSuperBound() != null) {
-                        addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
-                    }
-                    return super.visitWildcard(type, p);
-                }
-            }.visit(type);
-        }
-
-        void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
-            if (!type.isAnnotatedInHierarchy(unionNull)) {
-                type.addAnnotation(annotation);
-            }
         }
 
         @Override
@@ -612,11 +574,45 @@ public final class NullSpecAnnotatedTypeFactory
     @Override
     protected TypeAnnotator createTypeAnnotator() {
         /*
-         * Override to do nothing. The supermethod adds the top type (@Nullable/unionNull) to the
-         * bound of unbounded wildcards, but we want the ability to sometimes add
-         * @NullnessUnspecified/codeNotNullnessAware instead.
+         * Override to:
+         *
+         * - write some defaults that are common to null-aware and non-null-aware code. Some of
+         * these defaults are difficult to express with the @DefaultFor and addElementDefault APIs.
+         *
+         * - *not* do what the supermethod does. Specifically, the supermethod adds the top type
+         * (@Nullable/unionNull) to the bound of unbounded wildcards, but we want the ability to
+         * sometimes add @NullnessUnspecified/codeNotNullnessAware instead.
          */
-        return new TypeAnnotator(this) {};
+        return new TypeAnnotator(this) {
+            @Override
+            public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
+                AnnotatedDeclaredType enclosingType = type.getEnclosingType();
+                if (enclosingType != null) {
+                    addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
+                }
+                return super.visitDeclared(type, p);
+            }
+
+            @Override
+            public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
+                addIfNoAnnotationPresent(type, noAdditionalNullness);
+                return super.visitPrimitive(type, p);
+            }
+
+            @Override
+            public Void visitWildcard(AnnotatedWildcardType type, Void p) {
+                if (type.getUnderlyingType().getSuperBound() != null) {
+                    addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
+                }
+                return super.visitWildcard(type, p);
+            }
+
+            void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
+                if (!type.isAnnotatedInHierarchy(unionNull)) {
+                    type.addAnnotation(annotation);
+                }
+            }
+        };
     }
 
     @Override
