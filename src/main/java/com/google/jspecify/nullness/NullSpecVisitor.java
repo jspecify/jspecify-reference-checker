@@ -14,7 +14,9 @@
 
 package com.google.jspecify.nullness;
 
+import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
+import static com.sun.source.tree.Tree.Kind.PRIMITIVE_TYPE;
 import static com.sun.source.tree.Tree.Kind.SUPER_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Collections.singletonList;
@@ -23,18 +25,21 @@ import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
-import static org.checkerframework.javacutil.TreeUtils.annotationsFromTree;
+import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 
 import com.sun.source.tree.AnnotatedTypeTree;
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
+import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
@@ -43,6 +48,7 @@ import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -113,7 +119,8 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitMemberSelect(MemberSelectTree node, Void p) {
-    if (elementFromTree(node).getKind() != CLASS) {
+    Element element = elementFromTree(node);
+    if (element != null && element.getKind() != CLASS) {
       ensureNonNull(node.getExpression(), "member.select");
       /*
        * By contrast, if it's CLASS, the select must be on a type, like `Foo.Baz` or
@@ -211,7 +218,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitTypeParameter(TypeParameterTree node, Void p) {
-    checkNoNullnessAnnotations(node, annotationsFromTree(node), "type.parameter.annotated");
+    checkNoNullnessAnnotations(node, node.getAnnotations(), "type.parameter.annotated");
     return super.visitTypeParameter(node, p);
   }
 
@@ -219,23 +226,46 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   public Void visitAnnotatedType(AnnotatedTypeTree node, Void p) {
     Kind kind = node.getUnderlyingType().getKind();
     if (kind == UNBOUNDED_WILDCARD || kind == EXTENDS_WILDCARD || kind == SUPER_WILDCARD) {
-      checkNoNullnessAnnotations(node, annotationsFromTree(node), "wildcard.annotated");
+      checkNoNullnessAnnotations(node, node.getAnnotations(), "wildcard.annotated");
+    } else if (kind == PRIMITIVE_TYPE) {
+      checkNoNullnessAnnotations(node, node.getAnnotations(), "primitive.annotated");
     }
     return super.visitAnnotatedType(node, p);
   }
 
   @Override
   public Void visitVariable(VariableTree node, Void p) {
+    if (isPrimitiveOrArrayOfPrimitive(node.getType())) {
+      checkNoNullnessAnnotations(node, node.getModifiers().getAnnotations(), "primitive.annotated");
+    }
+
     VariableElement element = elementFromDeclaration(node);
     if (element.getKind() == ENUM_CONSTANT) {
-      checkNoNullnessAnnotations(node, element.getAnnotationMirrors(), "enum.constant.annotated");
+      checkNoNullnessAnnotations(
+          node, node.getModifiers().getAnnotations(), "enum.constant.annotated");
     }
     return super.visitVariable(node, p);
   }
 
+  @Override
+  public Void visitMethod(MethodTree node, Void p) {
+    if (node.getReturnType() != null && isPrimitiveOrArrayOfPrimitive(node.getReturnType())) {
+      checkNoNullnessAnnotations(node, node.getModifiers().getAnnotations(), "primitive.annotated");
+    }
+    return super.visitMethod(node, p);
+  }
+
+  // TODO(cpovirk): Are there any more visit* methods that might run for annotated primitives?
+
+  private boolean isPrimitiveOrArrayOfPrimitive(Tree type) {
+    return type.getKind() == PRIMITIVE_TYPE
+        || (type.getKind() == ARRAY_TYPE
+            && ((ArrayTypeTree) type).getType().getKind() == PRIMITIVE_TYPE);
+  }
+
   private void checkNoNullnessAnnotations(
-      Tree node, List<? extends AnnotationMirror> annotations, String messageKey) {
-    for (AnnotationMirror annotation : annotations) {
+      Tree node, List<? extends AnnotationTree> annotations, String messageKey) {
+    for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
       if (areSameByName(annotation, orgJspecifyNullable)
           || areSameByName(annotation, orgJspecifyNullnessUnspecified)) {
         checker.reportError(node, messageKey);
@@ -268,9 +298,6 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
        * trickier to ensure that we visit *all* annotated types, as discussed in a comment on
        * visitAnnotatedType above.
        */
-      if (isPrimitive(type.getUnderlyingType()) && hasNullableOrNullnessUnspecified(type)) {
-        return singletonList(new DiagMessage(ERROR, "primitive.annotated"));
-      }
       if (type.getKind() == DECLARED) {
         AnnotatedDeclaredType enclosingType = ((AnnotatedDeclaredType) type).getEnclosingType();
         if (enclosingType != null && hasNullableOrNullnessUnspecified(enclosingType)) {
