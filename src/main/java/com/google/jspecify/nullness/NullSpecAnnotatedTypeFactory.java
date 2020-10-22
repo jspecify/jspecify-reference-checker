@@ -29,6 +29,7 @@ import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
+import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
 import com.sun.source.tree.ExpressionTree;
@@ -323,6 +324,9 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     private boolean isNullnessSubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
+      if (isPrimitive(subtype.getUnderlyingType())) {
+        return true;
+      }
       if (subtype.getKind() == NULL && subtype.hasAnnotation(noAdditionalNullness)) {
         // Arises with the *lower* bound of type parameters and wildcards.
         return true;
@@ -617,6 +621,11 @@ public final class NullSpecAnnotatedTypeFactory
     public Void visitDeclared(AnnotatedDeclaredType type, Void p) {
       AnnotatedDeclaredType enclosingType = type.getEnclosingType();
       if (enclosingType != null) {
+        /*
+         * TODO(cpovirk): If NullSpecVisitor starts looking at source trees instead of the derived
+         * AnnotatedTypeMirror objects, then change this code to fill in this value unconditionally
+         * (matching visitPrimitive below).
+         */
         addIfNoAnnotationPresent(enclosingType, noAdditionalNullness);
       }
       return super.visitDeclared(type, p);
@@ -624,7 +633,7 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
-      addIfNoAnnotationPresent(type, noAdditionalNullness);
+      type.replaceAnnotation(noAdditionalNullness);
       return super.visitPrimitive(type, p);
     }
 

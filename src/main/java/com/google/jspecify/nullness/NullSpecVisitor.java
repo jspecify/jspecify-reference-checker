@@ -79,7 +79,9 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   private void ensureNonNull(Tree tree, String messageKeyPart) {
     AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-    if (!atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
+    // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
+    if (!isPrimitive(type.getUnderlyingType())
+        && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
       // TODO(cpovirk): Put the type in the body of the message once possible
       checker.reportError(tree, "possibly.null." + messageKeyPart + ": " + type);
     }
@@ -98,23 +100,6 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   protected void checkConstructorResult(
       AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
     // TODO: ensure no explicit annotations on class & constructor
-  }
-
-  @Override
-  protected void commonAssignmentCheck(
-      AnnotatedTypeMirror varType,
-      AnnotatedTypeMirror valueType,
-      Tree valueTree,
-      String errorKey,
-      Object... extraArgs) {
-    /*
-     * TODO(cpovirk): Remove this check (and this override entirely) once we integrate dataflow,
-     * which should handle primitives more generally.
-     */
-    if (isPrimitive(valueType.getUnderlyingType())) {
-      return;
-    }
-    super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
   }
 
   @Override
