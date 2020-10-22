@@ -576,7 +576,8 @@ public final class NullSpecAnnotatedTypeFactory
            * only if they are the top-level type of a local variable? In particular, are we going to
            * see problems from our defaulting them to noAdditionalNullness/codeNotNullnessAware,
            * since it seems as if dataflow would want to default them to TOP (unionNull)? But I'm
-           * not sure where it would even be doing that.
+           * not sure where it would even be doing that. Oh, I guess STANDARD_CLIMB_DEFAULTS_TOP? Do
+           * I need to default to @Nullable for most of those?
            */
           return super.shouldBeAnnotated(type, /*applyToTypeVar=*/ true);
         }
