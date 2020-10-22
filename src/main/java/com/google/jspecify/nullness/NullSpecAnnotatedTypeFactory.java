@@ -25,7 +25,10 @@ import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.INTERSECTION;
 import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.WILDCARD;
+import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
+import static org.checkerframework.framework.qual.TypeUseLocation.LOCAL_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
+import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
@@ -560,6 +563,19 @@ public final class NullSpecAnnotatedTypeFactory
          */
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, noAdditionalNullness, OTHERWISE);
+
+        /*
+         * Reassert some defaults so that they aren't overridden by OTHERWISE above.
+         *
+         * (@Nullable doesn't list these explicitly as locations for which it is the default, but I
+         * think that addClimbStandardDefaults sets them up (since @Nullable is the top type). Hmm,
+         * that probably also explains why I need an explicit UNBOUNDED_WILDCARD_UPPER_BOUND on
+         * @NullnessUnspecified. TODO(cpovirk): Try removing the CLIMB defaults and then setting the
+         * defaults that I actually want explicitly.)
+         */
+        addElementDefault(elt, unionNull, LOCAL_VARIABLE);
+        addElementDefault(elt, unionNull, RESOURCE_VARIABLE);
+        addElementDefault(elt, unionNull, EXCEPTION_PARAMETER);
       }
 
       super.annotate(elt, type);
