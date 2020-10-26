@@ -17,6 +17,8 @@ package com.google.jspecify.nullness;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
@@ -48,9 +50,11 @@ import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
@@ -73,8 +77,8 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.DefaultTypeHierarchy;
-import org.checkerframework.framework.type.ElementQualifierHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.type.NoElementQualifierHierarchy;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.StructuralEqualityComparer;
 import org.checkerframework.framework.type.StructuralEqualityVisitHistory;
@@ -85,9 +89,13 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
+import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
+import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.NullnessUnspecified;
 
 public final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
@@ -119,9 +127,6 @@ public final class NullSpecAnnotatedTypeFactory
     unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
     codeNotNullnessAware = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
 
-    addAliasedAnnotation(org.jspecify.annotations.Nullable.class, unionNull);
-    addAliasedAnnotation(org.jspecify.annotations.NullnessUnspecified.class, codeNotNullnessAware);
-
     if (checker.hasOption("aliasCFannos")) {
       addAliasedAnnotation(org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
     }
@@ -142,7 +147,7 @@ public final class NullSpecAnnotatedTypeFactory
     return new NullSpecQualifierHierarchy(getSupportedTypeQualifiers(), elements);
   }
 
-  private final class NullSpecQualifierHierarchy extends ElementQualifierHierarchy {
+  private final class NullSpecQualifierHierarchy extends NoElementQualifierHierarchy {
     NullSpecQualifierHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
       super(qualifierClasses, elements);
@@ -176,11 +181,6 @@ public final class NullSpecAnnotatedTypeFactory
       }
       return areSame(subAnno, noAdditionalNullness) || areSame(superAnno, unionNull);
       /*
-       * TODO(cpovirk): Consider overriding createQualifierKindHierarchy and overriding
-       * DefaultQualifierKindHierarchy.createDirectSuperMap. Then see if I can remove my
-       * @SubtypeOf annotations. (The @SubtypeOf annotations work fine as far as I can tell,
-       * but they paint an incomplete picture.)
-       *
        * TODO(cpovirk): Give our package-private annotations source retention (if that
        * actually prevents CF from writing them to bytecode)? (We don't want anyone to depend
        * on the presence of those particular annotations, since they're an implementation
@@ -221,35 +221,34 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
-    public AnnotationMirror leastUpperBound(
-        AnnotationMirror qualifier1, AnnotationMirror qualifier2) {
-      if (!areSame(getTopAnnotation(qualifier1), unionNull)
-          || !areSame(getTopAnnotation(qualifier2), unionNull)) {
-        return null;
-      }
-      if (areSame(qualifier1, unionNull) || areSame(qualifier2, unionNull)) {
-        return unionNull;
-      }
-      if (areSame(qualifier1, codeNotNullnessAware) || areSame(qualifier2, codeNotNullnessAware)) {
-        return codeNotNullnessAware;
-      }
-      return noAdditionalNullness;
-    }
+    protected QualifierKindHierarchy createQualifierKindHierarchy(
+        Collection<Class<? extends Annotation>> qualifierClasses) {
+      return new DefaultQualifierKindHierarchy(qualifierClasses, NoAdditionalNullness.class) {
+        @Override
+        protected Map<DefaultQualifierKind, Set<DefaultQualifierKind>> createDirectSuperMap() {
+          DefaultQualifierKind noAdditionalNullnessKind =
+              nameToQualifierKind.get(NoAdditionalNullness.class.getCanonicalName());
+          DefaultQualifierKind unionNullKind =
+              nameToQualifierKind.get(Nullable.class.getCanonicalName());
+          DefaultQualifierKind codeNotNullnessAwareKind =
+              nameToQualifierKind.get(NullnessUnspecified.class.getCanonicalName());
 
-    @Override
-    public AnnotationMirror greatestLowerBound(
-        AnnotationMirror qualifier1, AnnotationMirror qualifier2) {
-      if (!areSame(getTopAnnotation(qualifier1), unionNull)
-          || !areSame(getTopAnnotation(qualifier2), unionNull)) {
-        return null;
-      }
-      if (areSame(qualifier1, noAdditionalNullness) || areSame(qualifier2, noAdditionalNullness)) {
-        return noAdditionalNullness;
-      }
-      if (areSame(qualifier1, codeNotNullnessAware) || areSame(qualifier2, codeNotNullnessAware)) {
-        return codeNotNullnessAware;
-      }
-      return unionNull;
+          Map<DefaultQualifierKind, Set<DefaultQualifierKind>> supers = new HashMap<>();
+          supers.put(noAdditionalNullnessKind, singleton(codeNotNullnessAwareKind));
+          supers.put(codeNotNullnessAwareKind, singleton(unionNullKind));
+          supers.put(unionNullKind, emptySet());
+          return supers;
+          /*
+           * The rules above are incomplete:
+           *
+           * - In "lenient mode," we treat unionNull as a subtype of codeNotNullnesesAware.
+           *
+           * - In "strict mode," we do *not* treat codeNotNullnesesAware as a subtype of itself.
+           *
+           * This is handled by isSubtype above.
+           */
+        }
+      };
     }
   }
 

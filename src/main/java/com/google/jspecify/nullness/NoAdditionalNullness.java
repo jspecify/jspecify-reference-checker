@@ -18,9 +18,7 @@ import static java.lang.annotation.ElementType.TYPE_USE;
 
 import java.lang.annotation.Target;
 import org.checkerframework.framework.qual.InvisibleQualifier;
-import org.checkerframework.framework.qual.SubtypeOf;
 
 @Target(TYPE_USE)
-@SubtypeOf(NullnessUnspecified.class)
 @InvisibleQualifier
 @interface NoAdditionalNullness {}
