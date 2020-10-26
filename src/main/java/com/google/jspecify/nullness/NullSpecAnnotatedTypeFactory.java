@@ -532,48 +532,45 @@ public final class NullSpecAnnotatedTypeFactory
     return new NullSpecQualifierDefaults(elements, this);
   }
 
-  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
-      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
+  @Override
+  protected void addCheckedStandardDefaults(QualifierDefaults defs) {
+    /*
+     * This method sets up the defaults for *non-null-aware* code.
+     *
+     * All these defaults will be overridden (whether we like it or not) for null-aware code. That
+     * happens when NullSpecQualifierDefaults.annotate(...) sets a new default for OTHERWISE.
+     *
+     * Note that these two methods do not cover *all* defaults. Notably, our TypeAnnotator has
+     * special logic for upper bounds _in the case of `super` wildcards specifically_.
+     */
+
+    // Here's the big default, the "default default":
+    defs.addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE);
+
+    // Some locations are intrinsically non-nullable:
+    defs.addCheckedCodeDefault(noAdditionalNullness, CONSTRUCTOR_RESULT);
+    defs.addCheckedCodeDefault(noAdditionalNullness, RECEIVER);
+
+    // We do want *some* of the CLIMB standard defaults:
+    for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
+      defs.addCheckedCodeDefault(unionNull, location);
+    }
+    defs.addCheckedCodeDefault(noAdditionalNullness, IMPLICIT_LOWER_BOUND);
+
+    // But for exception parameters, we want the default to be noAdditionalNullness:
+    defs.addCheckedCodeDefault(noAdditionalNullness, EXCEPTION_PARAMETER);
+
+    /*
+     * Note one other difference from the CLIMB defaults: We want the default for implicit upper
+     * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull. We
+     * accomplish this simply by not calling the supermethod (which would otherwise call
+     * addClimbStandardDefaults, which would override the "default default").
+     */
+  }
 
   private final class NullSpecQualifierDefaults extends QualifierDefaults {
     NullSpecQualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
       super(elements, atypeFactory);
-    }
-
-    @Override
-    public void addClimbStandardDefaults() {
-      /*
-       * This method sets up the defaults for *non-null-aware* code.
-       *
-       * All these defaults will be overridden (whether we like it or not) for null-aware code. That
-       * happens when annotate(...) sets a new default for OTHERWISE.
-       *
-       * Note that these two methods do not cover *all* defaults. Notably, our TypeAnnotator has
-       * special logic for upper bounds _in the case of `super` wildcards specifically_.
-       */
-
-      // Here's the big default, the "default default":
-      addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE);
-
-      // Some locations are intrinsically non-nullable:
-      addCheckedCodeDefault(noAdditionalNullness, CONSTRUCTOR_RESULT);
-      addCheckedCodeDefault(noAdditionalNullness, RECEIVER);
-
-      // We do want *some* of the CLIMB standard defaults:
-      for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
-        addCheckedCodeDefault(unionNull, location);
-      }
-      addCheckedCodeDefault(noAdditionalNullness, IMPLICIT_LOWER_BOUND);
-
-      // But for exception parameters, we want the default to be noAdditionalNullness:
-      addCheckedCodeDefault(noAdditionalNullness, EXCEPTION_PARAMETER);
-
-      /*
-       * Note one other difference from the CLIMB defaults: We want the default for implicit upper
-       * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull. We
-       * accomplish this simply by not calling the supermethod (which would otherwise override the
-       * "default default").
-       */
     }
 
     @Override
@@ -650,6 +647,9 @@ public final class NullSpecAnnotatedTypeFactory
 
     // TODO(cpovirk): Should I override applyConservativeDefaults to always return false?
   }
+
+  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
+      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
   @Override
   protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
