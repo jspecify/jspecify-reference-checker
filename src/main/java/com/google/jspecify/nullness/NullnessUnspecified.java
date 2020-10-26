@@ -15,15 +15,12 @@
 package com.google.jspecify.nullness;
 
 import static java.lang.annotation.ElementType.TYPE_USE;
-import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_UPPER_BOUND;
 
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 @Target(TYPE_USE)
 @SubtypeOf(Nullable.class)
-@DefaultFor(IMPLICIT_UPPER_BOUND)
 @DefaultQualifierInHierarchy
 @interface NullnessUnspecified {}

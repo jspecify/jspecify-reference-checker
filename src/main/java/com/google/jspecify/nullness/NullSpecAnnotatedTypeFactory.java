@@ -18,6 +18,7 @@ import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
+import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.ARRAY;
@@ -26,6 +27,7 @@ import static javax.lang.model.type.TypeKind.INTERSECTION;
 import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
+import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
 import static org.checkerframework.framework.qual.TypeUseLocation.LOCAL_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIABLE;
@@ -44,6 +46,7 @@ import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,6 +61,7 @@ import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -526,9 +530,35 @@ public final class NullSpecAnnotatedTypeFactory
     return new NullSpecQualifierDefaults(elements, this);
   }
 
+  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
+      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
+
   private final class NullSpecQualifierDefaults extends QualifierDefaults {
     NullSpecQualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
       super(elements, atypeFactory);
+    }
+
+    @Override
+    public void addClimbStandardDefaults() {
+      // This method sets up the defaults for *non-null-aware* code.
+
+      // We do want *some* of the CF standard defaults. We set them up first:
+      for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
+        addCheckedCodeDefault(unionNull, location);
+      }
+      addCheckedCodeDefault(noAdditionalNullness, IMPLICIT_LOWER_BOUND);
+
+      /*
+       * Then:
+       *
+       * - We want the default for implicit *upper* bounds to match the "default default" of
+       * codeNotNullnessAware, not to be top/unionNull. We accomplish this simply by not calling the
+       * supermethod (which would otherwise override the "default default").
+       *
+       * - We want the default for exception parameters to be noAdditionalNullness. We accomplish
+       * this by setting it explicitly below.
+       */
+      addCheckedCodeDefault(noAdditionalNullness, EXCEPTION_PARAMETER);
     }
 
     @Override
@@ -565,17 +595,16 @@ public final class NullSpecAnnotatedTypeFactory
         addElementDefault(elt, noAdditionalNullness, OTHERWISE);
 
         /*
-         * Reassert some defaults so that they aren't overridden by OTHERWISE above.
+         * Some defaults are common to null-aware and non-null-aware code. We reassert some of those
+         * here. If we didn't, then they would be overridden by OTHERWISE above.
          *
-         * (@Nullable doesn't list these explicitly as locations for which it is the default, but I
-         * think that addClimbStandardDefaults sets them up (since @Nullable is the top type). Hmm,
-         * that probably also explains why I need an explicit UNBOUNDED_WILDCARD_UPPER_BOUND on
-         * @NullnessUnspecified. TODO(cpovirk): Try removing the CLIMB defaults and then setting the
-         * defaults that I actually want explicitly.)
+         * (Yes, we set more defaults for more locations than just these. But in the other cases, we
+         * set the per-location default to noAdditionalNullness. Conveniently, that matches our new
+         * OTHERWISE default.)
          */
-        addElementDefault(elt, unionNull, LOCAL_VARIABLE);
-        addElementDefault(elt, unionNull, RESOURCE_VARIABLE);
-        addElementDefault(elt, unionNull, EXCEPTION_PARAMETER);
+        for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
+          addElementDefault(elt, unionNull, location);
+        }
       }
 
       super.annotate(elt, type);

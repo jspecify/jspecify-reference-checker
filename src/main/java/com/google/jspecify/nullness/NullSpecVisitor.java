@@ -19,6 +19,7 @@ import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.PRIMITIVE_TYPE;
 import static com.sun.source.tree.Tree.Kind.SUPER_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static javax.lang.model.element.ElementKind.CLASS;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
@@ -46,7 +47,9 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -295,5 +298,10 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     boolean hasNullableOrNullnessUnspecified(AnnotatedTypeMirror type) {
       return type.hasAnnotation(Nullable.class) || type.hasAnnotation(NullnessUnspecified.class);
     }
+  }
+
+  @Override
+  protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
+    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, NoAdditionalNullness.class)));
   }
 }
