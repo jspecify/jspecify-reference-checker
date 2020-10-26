@@ -26,10 +26,12 @@ import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.INTERSECTION;
 import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.WILDCARD;
+import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
 import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
 import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
 import static org.checkerframework.framework.qual.TypeUseLocation.LOCAL_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
+import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
@@ -542,23 +544,28 @@ public final class NullSpecAnnotatedTypeFactory
     public void addClimbStandardDefaults() {
       // This method sets up the defaults for *non-null-aware* code.
 
-      // We do want *some* of the CF standard defaults. We set them up first:
+      // Here's the big one, the "default default":
+      addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE);
+
+      // Some locations are intrinsically non-nullable:
+      addCheckedCodeDefault(noAdditionalNullness, CONSTRUCTOR_RESULT);
+      addCheckedCodeDefault(noAdditionalNullness, RECEIVER);
+
+      // We do want *some* of the CLIMB standard defaults:
       for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
         addCheckedCodeDefault(unionNull, location);
       }
       addCheckedCodeDefault(noAdditionalNullness, IMPLICIT_LOWER_BOUND);
 
-      /*
-       * Then:
-       *
-       * - We want the default for implicit *upper* bounds to match the "default default" of
-       * codeNotNullnessAware, not to be top/unionNull. We accomplish this simply by not calling the
-       * supermethod (which would otherwise override the "default default").
-       *
-       * - We want the default for exception parameters to be noAdditionalNullness. We accomplish
-       * this by setting it explicitly below.
-       */
+      // But for exception parameters, we want the default to be noAdditionalNullness:
       addCheckedCodeDefault(noAdditionalNullness, EXCEPTION_PARAMETER);
+
+      /*
+       * Note one other difference from the CLIMB defaults: We want the default for implicit upper
+       * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull. We
+       * accomplish this simply by not calling the supermethod (which would otherwise override the
+       * "default default").
+       */
     }
 
     @Override

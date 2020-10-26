@@ -15,16 +15,12 @@
 package com.google.jspecify.nullness;
 
 import static java.lang.annotation.ElementType.TYPE_USE;
-import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
-import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.InvisibleQualifier;
 import org.checkerframework.framework.qual.SubtypeOf;
 
 @Target(TYPE_USE)
 @SubtypeOf(NullnessUnspecified.class)
-@DefaultFor({CONSTRUCTOR_RESULT, RECEIVER})
 @InvisibleQualifier
 @interface NoAdditionalNullness {}
