@@ -542,9 +542,17 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     public void addClimbStandardDefaults() {
-      // This method sets up the defaults for *non-null-aware* code.
+      /*
+       * This method sets up the defaults for *non-null-aware* code.
+       *
+       * All these defaults will be overridden (whether we like it or not) for null-aware code. That
+       * happens when annotate(...) sets a new default for OTHERWISE.
+       *
+       * Note that these two methods do not cover *all* defaults. Notably, our TypeAnnotator has
+       * special logic for upper bounds _in the case of `super` wildcards specifically_.
+       */
 
-      // Here's the big one, the "default default":
+      // Here's the big default, the "default default":
       addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE);
 
       // Some locations are intrinsically non-nullable:
@@ -654,8 +662,9 @@ public final class NullSpecAnnotatedTypeFactory
     /*
      * Override to:
      *
-     * - write some defaults that are common to null-aware and non-null-aware code. Some of
-     * these defaults are difficult to express with the @DefaultFor and addElementDefault APIs.
+     * - write some defaults that are difficult to express with the addCheckedCodeDefault and
+     * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
+     * defaults that are common to null-aware and non-null-aware code!
      *
      * - *not* do what the supermethod does. Specifically, the supermethod adds the top type
      * (@Nullable/unionNull) to the bound of unbounded wildcards, but we want the ability to
