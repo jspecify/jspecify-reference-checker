@@ -111,23 +111,23 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     if (element != null && element.getKind() != CLASS) {
       ensureNonNull(node.getExpression(), "member.select");
       /*
-       * By contrast, if it's CLASS, the select must be on a type, like `Foo.Baz` or
-       * `Foo<Bar>.Baz`. We don't need to check that the type is non-null because the code is
-       * not actually dereferencing anything.
+       * By contrast, if it's CLASS, the select must be on a type, like `Foo.Baz` or `Foo<Bar>.Baz`.
+       * We don't need to check that the type is non-null because the code is not actually
+       * dereferencing anything.
        *
-       * In fact, a check that the type is non-null is currently not *safe*: The outer type
-       * appears to default to NullnessUnspecified in non-null-aware code.
+       * In fact, a check that the type is non-null is currently not *safe*: The outer type appears
+       * to default to NullnessUnspecified in non-null-aware code.
        *
        * Note that our defaulting of enclosing types in
-       * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help
-       * even when I retrieve the type of the entire MemberSelectTree (and then pull out the
-       * outer type from that).
+       * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help even
+       * when I retrieve the type of the entire MemberSelectTree (and then pull out the outer type
+       * from that).
        *
-       * The code path that we end up in appears to be looking specifically at the class
-       * referenced by the MemberSelectTree, without regard to any annotations on, e.g., the
-       * VariableTree that it is the type for. We end up in AnnotatedTypeFactory.fromElement.
-       * Possibly that's bogus: Not every MemberSelectTree is an "expression" in the usual
-       * sense. Perhaps it's our job not to call getAnnotatedType on such trees? So let's not.
+       * The code path that we end up in appears to be looking specifically at the class referenced
+       * by the MemberSelectTree, without regard to any annotations on, e.g., the VariableTree that
+       * it is the type for. We end up in AnnotatedTypeFactory.fromElement. Possibly that's bogus:
+       * Not every MemberSelectTree is an "expression" in the usual sense. Perhaps it's our job not
+       * to call getAnnotatedType on such trees? So let's not.
        */
     }
     return super.visitMemberSelect(node, p);
@@ -180,28 +180,27 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
    * methods are triggered based on javac tree structure, and the return type's annotations get
    * attached to the *method* tree.
    *
-   * Still, visitTypeParameter and visitAnnotatedType are the best places I have found for at
-   * least few specific checks. That's because, for those checks especially, we probably want to
-   * operate on source trees, rather than on derived types. The advantages of operating on source
-   * trees are:
+   * Still, visitTypeParameter and visitAnnotatedType are the best places I have found for at least
+   * few specific checks. That's because, for those checks especially, we probably want to operate
+   * on source trees, rather than on derived types. The advantages of operating on source trees are:
    *
    * - If we instead want to look for annotations on a type parameter or wildcard based on the
-   * derived types, we need to ask CF questions like "What is the lower/upper bound?" since that
-   * is what CF translates such annotations into. That then requires us to carefully distinguish
-   * between implicit upper bounds (like the upper bound of `? super Foo`) and explicit upper
-   * bounds (like the upper bound of `@Nullable ? super Foo`). This is likely to be clumsy at
-   * best, requiring us to effectively look at information in the source code, anyway -- if
-   * sufficient information is even available, especially across compilation boundaries!
+   * derived types, we need to ask CF questions like "What is the lower/upper bound?" since that is
+   * what CF translates such annotations into. That then requires us to carefully distinguish
+   * between implicit upper bounds (like the upper bound of `? super Foo`) and explicit upper bounds
+   * (like the upper bound of `@Nullable ? super Foo`). This is likely to be clumsy at best,
+   * requiring us to effectively look at information in the source code, anyway -- if sufficient
+   * information is even available, especially across compilation boundaries!
    *
    * - IIUC, the visit* methods run only on source code that is compiled by CF. By implementing
    * those methods, we ensure that we don't report problems in our dependencies. (Or might we be
    * able to avoid that by checking isDeclaration()?)
    *
    * - We might also like that the visit* methods can check specifically for the JSpecify
-   * annotations. This means that people can alias annotations like CF's own @Nullable to ours,
-   * and this checker won't produce errors if they're using in non-JSpecify-recognized locations.
-   * (On the other hand, some users might *want* us to produce warnings in such cases so that they
-   * are informed that they're stepping outside of core JSpecify semantics.)
+   * annotations. This means that people can alias annotations like CF's own @Nullable to ours, and
+   * this checker won't produce errors if they're using in non-JSpecify-recognized locations. (On
+   * the other hand, some users might *want* us to produce warnings in such cases so that they are
+   * informed that they're stepping outside of core JSpecify semantics.)
    */
 
   @Override
@@ -276,14 +275,14 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     protected List<DiagMessage> isTopLevelValidType(
         QualifierHierarchy qualifierHierarchy, AnnotatedTypeMirror type) {
       /*
-       * This method is where we report some errors of the form "X should not be annotated."
-       * But note that we report some other errors of that form in NullSpecVisitor methods
-       * like visitAnnotatedType.
+       * This method is where we report some errors of the form "X should not be annotated." But
+       * note that we report some other errors of that form in NullSpecVisitor methods like
+       * visitAnnotatedType.
        *
        * TODO(cpovirk): It might actually make more sense to report *all* such errors in
        * NullSpecVisitor.visit* methods, especially to ensure that we don't report errors for
-       * declarations that appear in library dependencies. However, those methods make it
-       * trickier to ensure that we visit *all* annotated types, as discussed in a comment on
+       * declarations that appear in library dependencies. However, those methods make it trickier
+       * to ensure that we visit *all* annotated types, as discussed in a comment on
        * visitAnnotatedType above.
        */
       if (type.getKind() == DECLARED) {
