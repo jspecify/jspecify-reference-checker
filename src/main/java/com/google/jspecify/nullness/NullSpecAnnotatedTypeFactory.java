@@ -156,18 +156,17 @@ public final class NullSpecAnnotatedTypeFactory
     @Override
     public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
       /*
-       * Since we perform all necessary checking in the isSubtype method in
-       * NullSpecTypeHierarchy, I tried replacing this body with `return true` to avoid
-       * duplicating logic. However, that's a problem because the result of this method is
-       * sometimes cached and used instead of a full call to the isSubtype method in
-       * NullSpecTypeHierarchy.
+       * Since we perform all necessary checking in the isSubtype method in NullSpecTypeHierarchy, I
+       * tried replacing this body with `return true` to avoid duplicating logic. However, that's a
+       * problem because the result of this method is sometimes cached and used instead of a full
+       * call to the isSubtype method in NullSpecTypeHierarchy.
        *
-       * Specifically: DefaultTypeHierarchy.visitDeclared_Declared calls isPrimarySubtype,
-       * which calls isAnnoSubtype, which directly calls NullSpecQualifierHierarchy.isSubtype
-       * (as opposed to NullSpecTypeHierarchy.isSubtype). That's still fine, since we'll
-       * reject the types in NullSpecTypeHierarchy.isSubtype. The problem, though, is that it
-       * also inserts a cache entry for the supposed subtyping relationship, and that entry
-       * can cause future checks to short-circuit. (I think I saw this in isContainedBy.)
+       * Specifically: DefaultTypeHierarchy.visitDeclared_Declared calls isPrimarySubtype, which
+       * calls isAnnoSubtype, which directly calls NullSpecQualifierHierarchy.isSubtype (as opposed
+       * to NullSpecTypeHierarchy.isSubtype). That's still fine, since we'll reject the types in
+       * NullSpecTypeHierarchy.isSubtype. The problem, though, is that it also inserts a cache entry
+       * for the supposed subtyping relationship, and that entry can cause future checks to
+       * short-circuit. (I think I saw this in isContainedBy.)
        */
       boolean subIsUnspecified = areSame(subAnno, codeNotNullnessAware);
       boolean superIsUnspecified = areSame(superAnno, codeNotNullnessAware);
@@ -181,40 +180,30 @@ public final class NullSpecAnnotatedTypeFactory
       }
       return areSame(subAnno, noAdditionalNullness) || areSame(superAnno, unionNull);
       /*
-       * TODO(cpovirk): Give our package-private annotations source retention (if that
-       * actually prevents CF from writing them to bytecode)? (We don't want anyone to depend
-       * on the presence of those particular annotations, since they're an implementation
-       * detail of this checker. And it would of course be very easy for this CF checker
-       * itself to come to depend on such annotations, since it will recognize them by
-       * default!) Or maybe just edit CF to prevent them from being written to the bytecode
-       * regardless of their retention?
+       * TODO(cpovirk): Prevent CF from writing annotations to bytecode? (This may be especially
+       * important for @NoAdditionalNullness, which is a pure implementation detail. But it applies
+       * to all annotations, since any extra annotations written by CF are a difference from other
+       * compilers, one that checkers (including this one!) may come to rely on.)
        *
-       * TODO(cpovirk): And/or eliminate our package-private annotations entirely in favor of
-       * using the standard JSpecify annotations directly? Theoretically it's fine for *those*
-       * to be written to bytecode. Still, it's a little sad that CF would be producing
-       * different bytecode than other compilers. Then tools (including CF itself) might
-       * behave differently depending on how a library was compiled.
-       *
-       * A tricky issue in all this may be NoAdditionalNullness: By default, CF requires
-       * *some* annotation on all types (aside from type-variable usages). But currently,
-       * JSpecify offers no annotation equivalent to NoAdditionalNullness. Fortunately, CF's
-       * requirement for an annotation on all types is overrideable.
+       * A tricky issue in all this may be NoAdditionalNullness: By default, CF requires *some*
+       * annotation on all types (aside from type-variable usages). But currently, JSpecify offers
+       * no annotation equivalent to NoAdditionalNullness. Fortunately, CF's requirement for an
+       * annotation on all types is overrideable.
        *
        * Then there's another concern if we don't write NoAdditionalNullness and Nullable to
-       * bytecode: When CF encounters a wildcard with implicit bounds, will it still write
-       * those bounds explicitly to bytecode? If so, those bounds would likely be "missing"
-       * annotations. For example:
+       * bytecode: When CF encounters a wildcard with implicit bounds, will it still write those
+       * bounds explicitly to bytecode? If so, those bounds would likely be "missing" annotations.
+       * For example:
        *
-       * - For a `? super Foo` wildcard, CF may write `extends [...] Object`, as well. If it
-       * does, we want it to write `@Nullable` -- and it should be the JSpecify @Nullable, not
-       * our internal copy.
+       * - For a `? super Foo` wildcard, CF may write `extends [...] Object`, as well. If it does,
+       * we want it to write `@Nullable` -- and it should be the JSpecify @Nullable, not our
+       * internal copy.
        *
-       * - For a `? extends Foo` wildcard, CF may write `super [...] null`, as well?? (Or not?
-       * Is that even expressible in bytecode?) If so, it sounds OK for there to be no
-       * annotation there: The result should be treated as `super @NoAdditionalNullness null`,
-       * which is correct. However, if the wildcard appeared in code that is *not* null-aware,
-       * then the result would be treated as `super @NullnessUnspecified null`, which is
-       * incorrect.
+       * - For a `? extends Foo` wildcard, CF may write `super [...] null`, as well?? (Or not? Is
+       * that even expressible in bytecode?) If so, it sounds OK for there to be no annotation
+       * there: The result should be treated as `super @NoAdditionalNullness null`, which is
+       * correct. However, if the wildcard appeared in code that is *not* null-aware, then the
+       * result would be treated as `super @NullnessUnspecified null`, which is incorrect.
        *
        * This all needs research.
        */
@@ -279,15 +268,15 @@ public final class NullSpecAnnotatedTypeFactory
     protected boolean visitTypevarSubtype(
         AnnotatedTypeVariable subtype, AnnotatedTypeMirror supertype) {
       /*
-       * The superclass "projects" type-variable usages rather than unioning them.
-       * Consequently, if we delegate directly to the supermethod, it can fail when it
-       * shouldn't.  Fortunately, we already handle the top-level nullness subtyping in
-       * isNullnessSubtype. So all we need to do here is to handle any type arguments. To do
-       * that, we still delegate to the supertype. But first we mark the supertype as
-       * unionNull so that the supertype's top-level check will always succeed.
+       * The superclass "projects" type-variable usages rather than unioning them. Consequently, if
+       * we delegate directly to the supermethod, it can fail when it shouldn't.  Fortunately, we
+       * already handle the top-level nullness subtyping in isNullnessSubtype. So all we need to do
+       * here is to handle any type arguments. To do that, we still delegate to the supertype. But
+       * first we mark the supertype as unionNull so that the supertype's top-level check will
+       * always succeed.
        *
-       * TODO(cpovirk): There are probably many more cases that we could short-circuit. We
-       * might consider doing that in isSubtype rather than with overrides.
+       * TODO(cpovirk): There are probably many more cases that we could short-circuit. We might
+       * consider doing that in isSubtype rather than with overrides.
        */
       return super.visitTypevarSubtype(subtype, withUnionNull(supertype));
     }
@@ -303,9 +292,9 @@ public final class NullSpecAnnotatedTypeFactory
     protected boolean visitTypevarSupertype(
         AnnotatedTypeMirror subtype, AnnotatedTypeVariable supertype) {
       /*
-       * TODO(cpovirk): Why are the supertype cases so different from the subtype cases above?
-       * In particular: Why is it important to replace an argument only conditionally? And why
-       * is it important to replace the subtype instead of the supertype?
+       * TODO(cpovirk): Why are the supertype cases so different from the subtype cases above? In
+       * particular: Why is it important to replace an argument only conditionally? And why is it
+       * important to replace the subtype instead of the supertype?
        */
       return super.visitTypevarSupertype(
           isNullInclusiveUnderEveryParameterization(supertype)
@@ -342,10 +331,9 @@ public final class NullSpecAnnotatedTypeFactory
       if (supertype.getKind() == WILDCARD) {
         /*
          * super.isSubtype already called back into this.isSameType (and thus into
-         * isNullnessSubtype) for the bound. That's fortunate, as we don't define
-         * subtyping rules for wildcards (since the JLS says that they should be capture
-         * converted by this point, or we should be checking their *bounds* for a
-         * containment check).
+         * isNullnessSubtype) for the bound. That's fortunate, as we don't define subtyping rules
+         * for wildcards (since the JLS says that they should be capture converted by this point, or
+         * we should be checking their *bounds* for a containment check).
          */
         return true;
       }
@@ -357,16 +345,16 @@ public final class NullSpecAnnotatedTypeFactory
 
   private boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
     /*
-     * We implement no special case for intersection types because it's not clear that
-     * CF produces them in positions that could be the "supertype" side of a subtyping
-     * check. That's primarily because it (mostly?) doesn't do capture conversion.
+     * We implement no special case for intersection types because it's not clear that CF produces
+     * them in positions that could be the "supertype" side of a subtyping check. That's primarily
+     * because it (mostly?) doesn't do capture conversion.
      */
     if (type.getKind() == INTERSECTION) {
       throw new RuntimeException("Unexpected intersection type: " + type);
     }
     /*
-     * TODO(cpovirk): Do we need to explicitly handle aliases here (and elsewhere, including
-     * in NullSpecVisitor, especially for DefaultNonNull)?
+     * TODO(cpovirk): Do we need to explicitly handle aliases here (and elsewhere, including in
+     * NullSpecVisitor, especially for DefaultNonNull)?
      */
     return type.hasAnnotation(unionNull)
         || (!leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
@@ -380,9 +368,9 @@ public final class NullSpecAnnotatedTypeFactory
   private boolean nullnessEstablishingPathExists(
       AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
     /*
-     * TODO(cpovirk): As an optimization, `return false` if `supertype` is not a type
-     * variable: If it's not a type variable, then the only ways for isNullnessSubtype to
-     * succeed were already checked by isNullInclusiveUnderEveryParameterization and
+     * TODO(cpovirk): As an optimization, `return false` if `supertype` is not a type variable: If
+     * it's not a type variable, then the only ways for isNullnessSubtype to succeed were already
+     * checked by isNullInclusiveUnderEveryParameterization and
      * isNullExclusiveUnderEveryParameterization.
      */
     return nullnessEstablishingPathExists(
@@ -403,10 +391,9 @@ public final class NullSpecAnnotatedTypeFactory
       }
     }
     /*
-     * We don't need to handle the "lower-bound rule" here: The Checker Framework doesn't
-     * perform wildcard capture conversion. (Hmm, but it might see post-capture-conversion
-     * types in some cases....) It compares "? super Foo" against "Bar" by more directly
-     * comparing Foo and Bar.
+     * We don't need to handle the "lower-bound rule" here: The Checker Framework doesn't perform
+     * wildcard capture conversion. (Hmm, but it might see post-capture-conversion types in some
+     * cases....) It compares "? super Foo" against "Bar" by more directly comparing Foo and Bar.
      */
     return false;
   }
@@ -423,8 +410,8 @@ public final class NullSpecAnnotatedTypeFactory
         bounds.addAll(withNoAdditionalNullness(type).directSuperTypes());
 
         /*
-         * We would use `((AnnotatedWildcardType) type).getTypeVariable()`, but it is not
-         * available in all cases that we need.
+         * We would use `((AnnotatedWildcardType) type).getTypeVariable()`, but it is not available
+         * in all cases that we need.
          */
         WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
         TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
@@ -469,8 +456,8 @@ public final class NullSpecAnnotatedTypeFactory
 
     private boolean areEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
       /*
-       * I'd like to use the spec definition here: "type1 is a subtype of type2 and vice
-       * versa." However, that produces infinite recursion in some cases.
+       * I'd like to use the spec definition here: "type1 is a subtype of type2 and vice versa."
+       * However, that produces infinite recursion in some cases.
        */
       boolean type1IsUnspecified = type1.hasAnnotation(codeNotNullnessAware);
       boolean type2IsUnspecified = type2.hasAnnotation(codeNotNullnessAware);
@@ -486,14 +473,13 @@ public final class NullSpecAnnotatedTypeFactory
       AnnotationMirror a2 = type2.getAnnotationInHierarchy(unionNull);
       return a1 == a2 || (a1 != null && a2 != null && areSame(a1, a2));
       /*
-       * TODO(cpovirk): Do we care about the base type, or is looking at annotations
-       * enough? super.visitDeclared_Declared has a TODO with a similar question.
-       * Err, presumably normal Java type-checking has done that job. A more interesting
-       * question may be why we don't look at type args. The answer might be simply:
-       * "That's the contract, even though it is surprising, given the names of the class
-       * and its methods." (Granted, the docs of super.visitDeclared_Declared also say
-       * that it checks that "The types are of the same class/interfaces," so the contract
-       * isn't completely clear.)
+       * TODO(cpovirk): Do we care about the base type, or is looking at annotations enough?
+       * super.visitDeclared_Declared has a TODO with a similar question. Err, presumably normal
+       * Java type-checking has done that job. A more interesting question may be why we don't look
+       * at type args. The answer might be simply: "That's the contract, even though it is
+       * surprising, given the names of the class and its methods." (Granted, the docs of
+       * super.visitDeclared_Declared also say that it checks that "The types are of the same
+       * class/interfaces," so the contract isn't completely clear.)
        */
     }
   }
