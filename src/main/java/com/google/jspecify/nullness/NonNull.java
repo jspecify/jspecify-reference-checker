@@ -21,5 +21,4 @@ import org.checkerframework.framework.qual.InvisibleQualifier;
 
 @Target(TYPE_USE)
 @InvisibleQualifier
-// TODO(cpovirk): Rename back to NonNull :)
-@interface NoAdditionalNullness {}
+@interface NonNull {}

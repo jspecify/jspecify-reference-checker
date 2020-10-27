@@ -39,14 +39,13 @@ import org.jspecify.annotations.Nullable;
 
 public final class NullSpecTransfer extends CFTransfer {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
-  private final AnnotationMirror noAdditionalNullness;
+  private final AnnotationMirror nonNull;
   private final AnnotationMirror unionNull;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
-    noAdditionalNullness =
-        AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NoAdditionalNullness.class);
+    nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
   }
 
@@ -88,13 +87,13 @@ public final class NullSpecTransfer extends CFTransfer {
         || node instanceof LocalVariableNode) {
       Receiver receiver = internalReprOf(atypeFactory, node);
       CFValue oldValue = store.getValue(receiver);
-      storeChanged = !alreadyKnownToBeNoAdditionalNullness(oldValue);
-      store.insertValue(receiver, noAdditionalNullness);
+      storeChanged = !alreadyKnownToBeNonNull(oldValue);
+      store.insertValue(receiver, nonNull);
     }
     return storeChanged;
   }
 
-  private boolean alreadyKnownToBeNoAdditionalNullness(CFValue value) {
+  private boolean alreadyKnownToBeNonNull(CFValue value) {
     if (value == null) {
       return false;
     }
@@ -102,7 +101,7 @@ public final class NullSpecTransfer extends CFTransfer {
         atypeFactory
             .getQualifierHierarchy()
             .findAnnotationInHierarchy(value.getAnnotations(), unionNull);
-    return annotation != null && areSame(annotation, noAdditionalNullness);
+    return annotation != null && areSame(annotation, nonNull);
   }
 
   private static boolean isNullLiteral(Node node) {

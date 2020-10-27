@@ -302,6 +302,6 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, NoAdditionalNullness.class)));
+    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, NonNull.class)));
   }
 }
