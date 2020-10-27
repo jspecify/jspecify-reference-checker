@@ -782,7 +782,7 @@ public final class NullSpecAnnotatedTypeFactory
   private <T extends AnnotatedTypeMirror> T withNoAdditionalNullness(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
-      type.replaceAnnotation(noAdditionalNullness);
+    type.replaceAnnotation(noAdditionalNullness);
     return type;
   }
 
