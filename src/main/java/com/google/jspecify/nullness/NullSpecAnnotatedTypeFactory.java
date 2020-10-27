@@ -26,7 +26,6 @@ import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.INTERSECTION;
-import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
 import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
@@ -87,6 +86,7 @@ import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
@@ -315,6 +315,18 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
+    public Boolean visitTypevar_Typevar(
+        AnnotatedTypeVariable subtype, AnnotatedTypeVariable supertype, Void p) {
+      /*
+       * Everything we need to check will be handled by isNullnessSubtype. That's fortunate, as the
+       * supermethod does not account for our non-standard substitution rules for type variables,
+       * under which a @NullnessUnspecified annotation on a type-variable usage does not affect the
+       * upper bound of that type.
+       */
+      return true;
+    }
+
+    @Override
     protected boolean isSubtype(
         AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, AnnotationMirror top) {
       return super.isSubtype(subtype, supertype, top) && isNullnessSubtype(subtype, supertype);
@@ -322,10 +334,6 @@ public final class NullSpecAnnotatedTypeFactory
 
     private boolean isNullnessSubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
       if (isPrimitive(subtype.getUnderlyingType())) {
-        return true;
-      }
-      if (subtype.getKind() == NULL && subtype.hasAnnotation(noAdditionalNullness)) {
-        // Arises with the *lower* bound of type parameters and wildcards.
         return true;
       }
       if (supertype.getKind() == WILDCARD) {
@@ -357,8 +365,45 @@ public final class NullSpecAnnotatedTypeFactory
   }
 
   boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror subtype) {
-    return nullnessEstablishingPathExists(
-        subtype, t -> t.getKind() == DECLARED || t.getKind() == ARRAY);
+    /*
+     * In most cases, it would be sufficient to check only nullnessEstablishingPathExists. However,
+     * consider a type that meets all 3 of the following criteria:
+     *
+     * 1. a local variable
+     *
+     * 2. whose type is a type variable
+     *
+     * 3. whose corrsponding type parameter permits nullable type arguments
+     *
+     * For such a type, nullnessEstablishingPathExists would always return false. And that makes
+     * sense... until an implementation checks it with `if (foo != null)`. At that point, we need to
+     * store an additional piece of information: Yes, the type written in code can permit null, but
+     * we know from dataflow that this particular value is not null. That additional information is
+     * stored by attaching noAdditionalNullness to the type-variable usage. This produces a type
+     * distinct from all of:
+     *
+     * - `T`: `T` with additional nullness NO_CHANGE
+     *
+     * - `@NullnessUnspecified T`: `T` with additional nullness CODE_NOT_NULLNESS_AWARE
+     *
+     * - `@Nullable T`: `T` with additional nullness UNION_NULL
+     *
+     * It is unfortunate that this forces us to represent type-variable usages differently from how
+     * we represent all other types. For all other types, the way to represent a type with
+     * additional nullness NO_CHANGE is to attach noAdditionalNullness. But again, for type-variable
+     * usages, the way to do it is to attach *no* annotation.
+     *
+     * TODO(cpovirk): Would CF let us get away with attaching no annotation to other types? At least
+     * by default, it requires annotations on all types other than type-variable usages. But it
+     * might be nice to get rid of that requirement for consistency -- and perhaps to help us avoid
+     * writing a package-private @NoAdditionalNullness annotation to class files, as discussed
+     * elsewhere. However, we would still need noAdditionalNullness for the case of null checks in
+     * dataflow. And we might end up violating other CF assumptions and thus causing ourselves more
+     * trouble than we solve.
+     */
+    return subtype.hasAnnotation(noAdditionalNullness)
+        || nullnessEstablishingPathExists(
+            subtype, t -> t.getKind() == DECLARED || t.getKind() == ARRAY);
   }
 
   private boolean nullnessEstablishingPathExists(
@@ -603,6 +648,27 @@ public final class NullSpecAnnotatedTypeFactory
       }
 
       super.annotate(elt, type);
+
+      removeNoAdditionalNullessFromTypeVariableUsages(type);
+    }
+
+    @Override
+    public void annotate(Tree tree, AnnotatedTypeMirror type) {
+      super.annotate(tree, type);
+
+      removeNoAdditionalNullessFromTypeVariableUsages(type);
+    }
+
+    private void removeNoAdditionalNullessFromTypeVariableUsages(AnnotatedTypeMirror type) {
+      new AnnotatedTypeScanner<Void, Void>() {
+        @Override
+        public Void visitTypeVariable(AnnotatedTypeVariable type, Void aVoid) {
+          // For an explanation, see shouldBeAnnotated below.
+          type.removeAnnotation(noAdditionalNullness);
+
+          return super.visitTypeVariable(type, aVoid);
+        }
+      }.visit(type);
     }
 
     @Override
@@ -615,13 +681,24 @@ public final class NullSpecAnnotatedTypeFactory
         @Override
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type, boolean applyToTypeVar) {
           /*
-           * TODO(cpovirk): Are our goals in applying defaults to _all_ type variables compatible
-           * with the goals that the dataflow analysis has in applying defaults to type variables
-           * only if they are the top-level type of a local variable? In particular, are we going to
-           * see problems from our defaulting them to noAdditionalNullness/codeNotNullnessAware,
-           * since it seems as if dataflow would want to default them to TOP (unionNull)? But I'm
-           * not sure where it would even be doing that. Oh, I guess STANDARD_CLIMB_DEFAULTS_TOP? Do
-           * I need to default to @Nullable for most of those?
+           * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code,
+           * we want our default of codeNotNullnessAware to apply even to type variables.
+           *
+           * But there are 2 other things to keep in mind:
+           *
+           * - CF *does* apply defaults to type-variable usages *if* they are local variables.
+           * That's because it will refine their types with dataflow. This CF behavior works fine
+           * for us: Since we want to apply defaults in strictly more cases, we're happy to accept
+           * what CF does for local variables. (We do still need a different default value for that
+           * case. We accomplish that by applying top/unionNull for LOCATIONS_REFINED_BY_DATAFLOW.)
+           *
+           * - Non-null-aware code is easy: We apply codeNotNullnessAware to everything. But
+           * null-aware code more complex. First, set aside local variables, which we handle as
+           * discussed above. After that, we need to apply noAdditionalNullness to most types, but
+           * we do *not* want to apply it to (non-local-variable) type-variable usages. This need is
+           * weird enough that CF doesn't appear to support it directly. So our solution is to apply
+           * noAdditionalNullness to everything but then remove it from any type variables it
+           * appears on. We do that in removeNoAdditionalNullessFromTypeVariableUsages above.
            */
           return super.shouldBeAnnotated(type, /*applyToTypeVar=*/ true);
         }
@@ -782,6 +859,13 @@ public final class NullSpecAnnotatedTypeFactory
   private <T extends AnnotatedTypeMirror> T withNoAdditionalNullness(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
+    /*
+     * TODO(cpovirk): In the case of a type-variable usage, I feel like I should need to *remove*
+     * any existing annotation but then not *add* noAdditionalNullness. (This is because of the
+     * difference between type-variable usages and all other types, as discussed near the end of the
+     * giant comment in isNullExclusiveUnderEveryParameterization.) However, the current code passes
+     * all tests. Figure out whether that makes sense or we need more tests to show why not.
+     */
     type.replaceAnnotation(noAdditionalNullness);
     return type;
   }

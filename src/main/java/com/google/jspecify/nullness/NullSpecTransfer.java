@@ -95,12 +95,14 @@ public final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean alreadyKnownToBeNoAdditionalNullness(CFValue value) {
-    return value != null
-        && areSame(
-            atypeFactory
-                .getQualifierHierarchy()
-                .findAnnotationInHierarchy(value.getAnnotations(), unionNull),
-            noAdditionalNullness);
+    if (value == null) {
+      return false;
+    }
+    AnnotationMirror annotation =
+        atypeFactory
+            .getQualifierHierarchy()
+            .findAnnotationInHierarchy(value.getAnnotations(), unionNull);
+    return annotation != null && areSame(annotation, noAdditionalNullness);
   }
 
   private static boolean isNullLiteral(Node node) {
