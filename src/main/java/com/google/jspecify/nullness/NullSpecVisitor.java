@@ -254,6 +254,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   private void checkNoNullnessAnnotations(
       Tree node, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
+      // TODO(cpovirk): Check for aliases here (and perhaps elsewhere).
       if (areSameByName(annotation, nullable) || areSameByName(annotation, nullnessUnspecified)) {
         checker.reportError(node, messageKey);
       }

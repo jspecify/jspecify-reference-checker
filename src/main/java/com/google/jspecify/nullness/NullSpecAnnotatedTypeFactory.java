@@ -352,10 +352,6 @@ public final class NullSpecAnnotatedTypeFactory
     if (type.getKind() == INTERSECTION) {
       throw new RuntimeException("Unexpected intersection type: " + type);
     }
-    /*
-     * TODO(cpovirk): Do we need to explicitly handle aliases here (and elsewhere, including in
-     * NullSpecVisitor, especially for DefaultNonNull)?
-     */
     return type.hasAnnotation(unionNull)
         || (!leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
   }
@@ -578,6 +574,8 @@ public final class NullSpecAnnotatedTypeFactory
        * XXX: When adding support for DefaultNullnessUnspecified, be sure that DefaultNullnessUnspecified on a *class*
        * overrides DefaultNonNull on the *package* (and vice versa). Maybe then it will be simpler
        * to set a proper package default.
+       *
+       * XXX: When adding support for aliases, make sure to support them here.
        */
       boolean hasNullAwareAnnotation =
           elt.getAnnotation(DefaultNonNull.class) != null
@@ -784,7 +782,7 @@ public final class NullSpecAnnotatedTypeFactory
   private <T extends AnnotatedTypeMirror> T withNoAdditionalNullness(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
-    type.replaceAnnotation(noAdditionalNullness);
+      type.replaceAnnotation(noAdditionalNullness);
     return type;
   }
 
