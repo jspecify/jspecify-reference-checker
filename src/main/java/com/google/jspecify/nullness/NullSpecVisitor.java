@@ -69,16 +69,14 @@ import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
 public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
-  private final AnnotationMirror orgJspecifyNullable;
-  private final AnnotationMirror orgJspecifyNullnessUnspecified;
+  private final AnnotationMirror nullable;
+  private final AnnotationMirror nullnessUnspecified;
   private final boolean checkImpl;
 
   public NullSpecVisitor(BaseTypeChecker checker) {
     super(checker);
-    orgJspecifyNullable =
-        AnnotationBuilder.fromClass(elements, org.jspecify.annotations.Nullable.class);
-    orgJspecifyNullnessUnspecified =
-        AnnotationBuilder.fromClass(elements, org.jspecify.annotations.NullnessUnspecified.class);
+    nullable = AnnotationBuilder.fromClass(elements, Nullable.class);
+    nullnessUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
     checkImpl = checker.hasOption("checkImpl");
   }
 
@@ -256,8 +254,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   private void checkNoNullnessAnnotations(
       Tree node, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
-      if (areSameByName(annotation, orgJspecifyNullable)
-          || areSameByName(annotation, orgJspecifyNullnessUnspecified)) {
+      if (areSameByName(annotation, nullable) || areSameByName(annotation, nullnessUnspecified)) {
         checker.reportError(node, messageKey);
       }
     }
