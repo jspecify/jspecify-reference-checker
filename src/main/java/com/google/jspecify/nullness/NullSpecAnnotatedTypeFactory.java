@@ -326,13 +326,27 @@ public final class NullSpecAnnotatedTypeFactory
   }
 
   private boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
-    /*
-     * We implement no special case for intersection types because it's not clear that CF produces
-     * them in positions that could be the "supertype" side of a subtyping check. That's primarily
-     * because it (mostly?) doesn't do capture conversion.
-     */
     if (type.getKind() == INTERSECTION) {
-      throw new RuntimeException("Unexpected intersection type: " + type);
+      /*
+       * TODO(cpovirk): Think more about intersection types:
+       *
+       * - CF appears to default them like any other type. (Evidence: I've at least seen @NonNull
+       * when I checked in null-aware code. But note that *no* annotation _on the intersection type
+       * as a whole_ shows up in the string representation by default.) I would have expected for
+       * this to make every intersection type always null-exclusive (see method below), but I'm
+       * pretty sure we have tests that would fail if that were the case. What's up?
+       *
+       * - Is it possible for CF to produce an intersection type that has a "meaningful" annotation
+       * on it? If so, this *may* be adequately handled by the check in
+       * nullnessEstablishingPathExists. But is it possible for such a type to appear as the
+       * *supertype* in a check? If so, we may want to perform this intersection-specific check _in
+       * addition to_ the general check below. (The draft subtyping rules are written in a way that
+       * suggests applying both rules, but that's not exactly what they have in mind: Those rules
+       * consider an intersection type to always have an additional-nullness value of NO_CHANGE, so
+       * the unionNull/codeNotNullnessAware condition below would never hold.)
+       */
+      return type.directSuperTypes().stream()
+          .allMatch(this::isNullInclusiveUnderEveryParameterization);
     }
     return type.hasAnnotation(unionNull)
         || (!leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
