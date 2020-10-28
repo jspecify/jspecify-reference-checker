@@ -40,6 +40,7 @@ import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
@@ -184,33 +185,6 @@ public final class NullSpecAnnotatedTypeFactory
         return true;
       }
       return areSame(subAnno, nonNull) || areSame(superAnno, unionNull);
-      /*
-       * TODO(cpovirk): Prevent CF from writing annotations to bytecode? (This may be especially
-       * important for @NonNull, which is a pure implementation detail. But it applies to all
-       * annotations, since any extra annotations written by CF are a difference from other
-       * compilers, one that checkers (including this one!) may come to rely on.)
-       *
-       * But preventing CF from writing the annotations may cause problems of its own. Suppose that
-       * we *don't* write NonNull and Nullable to bytecode. Then, when CF encounters a wildcard with
-       * implicit bounds, will it still write those bounds explicitly to bytecode? If so, those
-       * bounds would likely be "missing" annotations. For example:
-       *
-       * - For a `? super Foo` wildcard, CF may write `extends [...] Object`, as well. If it does,
-       * we need it to also write `@Nullable`.
-       *
-       * - For a `? extends Foo` wildcard, CF may write `super [...] null`, as well?? If so, it
-       * sounds OK for there to be no annotation there: The result should be treated as `super
-       * @NonNull null`, which is correct. However, if the wildcard appeared in code that is *not*
-       * null-aware, then the result would be treated as `super @NullnessUnspecified null`, which is
-       * incorrect. (Or maybe we could override that when we read the annotation? But then all
-       * checkers would potentially need to be aware of that, and so we'd want to write another rule
-       * in the spec.)
-       *
-       * So maybe we would have to disable writing the extra bounds, not just the annotations on
-       * those bounds?
-       *
-       * This all needs research.
-       */
     }
 
     @Override
@@ -853,6 +827,27 @@ public final class NullSpecAnnotatedTypeFactory
         // TODO(cpovirk): Permit configuration of these booleans?
         /*printVerboseGenerics=*/ false,
         /*defaultPrintInvisibleAnnos=*/ false);
+  }
+
+  @Override
+  public void postProcessClassTree(ClassTree tree) {
+    /*
+     * To avoid writing computed annotations into bytecode, do not call the supermethod.
+     *
+     * We don't want to write computed annotations because we don't want for checkers (including
+     * this one!) to depend on those annotations. All core JSpecify nullness information should be
+     * derivable from the originally written annotations.
+     *
+     * (We especially don't want to write @NonNull to bytecode, since it is an implementation detail
+     * of this current checker implementation.)
+     *
+     * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
+     * type.invalid.conflicting.annos error, which I will describe more in the commit message.
+     *
+     * TODO(cpovirk): Report that error upstream if it turns out not to be our fault.
+     *
+     * TODO(cpovirk): Add a sample input that detects this problem, possibly as part of #141.
+     */
   }
 
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
