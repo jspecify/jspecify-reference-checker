@@ -21,7 +21,6 @@ import static com.sun.source.tree.Tree.Kind.SUPER_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static javax.lang.model.element.ElementKind.CLASS;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
@@ -108,15 +107,16 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   @Override
   public Void visitMemberSelect(MemberSelectTree node, Void p) {
     Element element = elementFromTree(node);
-    if (element != null && element.getKind() != CLASS) {
+    if (element != null && !element.getKind().isClass() && !element.getKind().isInterface()) {
       ensureNonNull(node.getExpression(), "member.select");
       /*
-       * By contrast, if it's CLASS, the select must be on a type, like `Foo.Baz` or `Foo<Bar>.Baz`.
-       * We don't need to check that the type is non-null because the code is not actually
-       * dereferencing anything.
+       * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
+       * `Foo<Bar>.Baz`, or it must be a fully qualified type name, like `java.util.List`. In either
+       * case, we don't need to check that the "expression" is non-null because the code is not
+       * actually dereferencing anything.
        *
-       * In fact, a check that the type is non-null is currently not *safe*: The outer type appears
-       * to default to NullnessUnspecified in non-null-aware code.
+       * In fact, a check that the type is non-null is currently not *safe*: The "expression" tree
+       * appears to default to NullnessUnspecified in non-null-aware code.
        *
        * Note that our defaulting of enclosing types in
        * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help even
