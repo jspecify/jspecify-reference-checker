@@ -580,24 +580,17 @@ public final class NullSpecAnnotatedTypeFactory
       }
 
       /*
-       * CF has some built-in support for package-level defaults. However, it is primarily intended
-       * to support @DefaultQualifier (and it can't easily be extended to recognize @DefaultNonNull).
-       *
-       * If we really wanted to, we could explicit set defaults for a package here, when scanning a
-       * class in that package (addElementDefault(elt.getEnclosingElement(), ...)). But the code is
-       * simpler if we just read the package default and set it as the default for the class.
+       * CF has some built-in support for package-level defaults. However, they cascade to
+       * subpackages (see 28.5.2), contrary to our semantics (see
+       * https://github.com/jspecify/jspecify/issues/8). To avoid CF semantics, we never set a
+       * default on a package element itself, only on each top-level class element in the package.
        *
        * XXX: When adding support for DefaultNullnessUnspecified, be sure that DefaultNullnessUnspecified on a *class* overrides
-       * DefaultNonNull on the *package* (and vice versa). Maybe then it will be simpler to set a proper
-       * package default.
+       * DefaultNonNull on the *package* (and vice versa).
        *
        * XXX: When adding support for aliases, make sure to support them here.
        */
-      boolean hasNullAwareAnnotation =
-          elt.getAnnotation(DefaultNonNull.class) != null
-              || (elt.getEnclosingElement().getKind() == PACKAGE
-                  && elt.getEnclosingElement().getAnnotation(DefaultNonNull.class) != null);
-      if (hasNullAwareAnnotation) {
+      if (hasNullAwareAnnotation(elt)) {
         /*
          * Setting a default here affects not only this element but also its descendants in the
          * syntax tree.
@@ -877,5 +870,15 @@ public final class NullSpecAnnotatedTypeFactory
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     type.replaceAnnotation(unionNull);
     return type;
+  }
+
+  private static boolean hasNullAwareAnnotation(Element elt) {
+    if (elt.getAnnotation(DefaultNonNull.class) != null) {
+      return true;
+    }
+    Element enclosingElement = elt.getEnclosingElement();
+    return enclosingElement != null // possible only under `-source 8 -target 8` (i.e., pre-JPMS)?
+        && enclosingElement.getKind() == PACKAGE
+        && enclosingElement.getAnnotation(DefaultNonNull.class) != null;
   }
 }

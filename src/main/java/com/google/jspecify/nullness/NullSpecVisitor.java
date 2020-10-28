@@ -22,6 +22,7 @@ import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
+import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
@@ -107,7 +108,10 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   @Override
   public Void visitMemberSelect(MemberSelectTree node, Void p) {
     Element element = elementFromTree(node);
-    if (element != null && !element.getKind().isClass() && !element.getKind().isInterface()) {
+    if (element != null
+        && !element.getKind().isClass()
+        && !element.getKind().isInterface()
+        && element.getKind() != PACKAGE) {
       ensureNonNull(node.getExpression(), "member.select");
       /*
        * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
