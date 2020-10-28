@@ -834,8 +834,15 @@ public final class NullSpecAnnotatedTypeFactory
      * (We especially don't want to write @NonNull to bytecode, since it is an implementation detail
      * of this current checker implementation.)
      *
+     * "Computed annotations" includes not only annotations added from defaults but also inherited
+     * declaration annotations. JSpecify requires that annotations are not inherited
+     * (https://github.com/jspecify/jspecify/issues/14), but this is academic until we support
+     * aliasing/implies *and* we extend that to declaration annotations (if we even do so:
+     * https://github.com/jspecify/jspecify/issues/124).
+     *
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
-     * type.invalid.conflicting.annos error, which I will describe more in the commit message.
+     * type.invalid.conflicting.annos error, which I have described more in
+     * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
      *
      * TODO(cpovirk): Report that error upstream if it turns out not to be our fault.
      *
