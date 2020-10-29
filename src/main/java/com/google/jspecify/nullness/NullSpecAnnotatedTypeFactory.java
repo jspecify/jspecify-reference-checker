@@ -25,7 +25,6 @@ import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
-import static javax.lang.model.type.TypeKind.INTERSECTION;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
 import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
@@ -328,28 +327,22 @@ public final class NullSpecAnnotatedTypeFactory
   }
 
   private boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
-    if (type.getKind() == INTERSECTION) {
-      /*
-       * TODO(cpovirk): Think more about intersection types:
-       *
-       * - CF appears to default them like any other type. (Evidence: I've at least seen @NonNull
-       * when I checked in null-aware code. But note that *no* annotation _on the intersection type
-       * as a whole_ shows up in the string representation by default.) I would have expected for
-       * this to make every intersection type always null-exclusive (see method below), but I'm
-       * pretty sure we have tests that would fail if that were the case. What's up?
-       *
-       * - Is it possible for CF to produce an intersection type that has a "meaningful" annotation
-       * on it? If so, this *may* be adequately handled by the check in
-       * nullnessEstablishingPathExists. But is it possible for such a type to appear as the
-       * *supertype* in a check? If so, we may want to perform this intersection-specific check _in
-       * addition to_ the general check below. (The draft subtyping rules are written in a way that
-       * suggests applying both rules, but that's not exactly what they have in mind: Those rules
-       * consider an intersection type to always have an additional-nullness value of NO_CHANGE, so
-       * the unionNull/codeNotNullnessAware condition below would never hold.)
-       */
-      return type.directSuperTypes().stream()
-          .allMatch(this::isNullInclusiveUnderEveryParameterization);
-    }
+    /*
+     * Our draft subtyping rules specify a special case for intersection types. However, those rules
+     * make sense only because the rules also specify that an intersection type never has an
+     * additional-nullness value of its own. This is in contrast to CF, which does let an
+     * intersection type have an AnnotationMirror of its own.
+     *
+     * ...well, sort of. As I understand it, what CF does is more that it tries to keep the
+     * AnnotationMirror of the intersecton type in sync with the AnnotationMirror of each of its
+     * components (which should themselves all match). So the intersection type "has" an
+     * AnnotationMirror, but it provides no *additional* information beyond what is already carried
+     * by its components' AnnotationMirrors.
+     *
+     * Nevertheless, the result is that we don't need a special case here: The check below is
+     * redundant with the subsequent check on the intersection's components, but redundancy is
+     * harmless.
+     */
     return type.hasAnnotation(unionNull)
         || (!leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
   }
