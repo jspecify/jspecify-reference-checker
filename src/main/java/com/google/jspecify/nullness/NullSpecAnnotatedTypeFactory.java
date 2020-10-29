@@ -851,37 +851,40 @@ public final class NullSpecAnnotatedTypeFactory
   @Override
   public void postProcessClassTree(ClassTree tree) {
     /*
-     * To avoid writing computed annotations into bytecode, do not call the supermethod.
+     * To avoid writing computed annotations into bytecode (or even into the in-memory javac Element
+     * objects), do not call the supermethod.
      *
-     * We don't want to write computed annotations because we don't want for checkers (including
-     * this one!) to depend on those annotations. All core JSpecify nullness information should be
-     * derivable from the originally written annotations.
+     * We don't want to write computed annotations to bytecode because we don't want for checkers
+     * (including this one!) to depend on those annotations. All core JSpecify nullness information
+     * should be derivable from the originally written annotations.
      *
      * (We especially don't want to write @NonNull to bytecode, since it is an implementation detail
      * of this current checker implementation.)
      *
-     * "Computed annotations" includes not only annotations added from defaults but also inherited
-     * declaration annotations. JSpecify requires that annotations are not inherited
-     * (https://github.com/jspecify/jspecify/issues/14), but this is academic until we support
-     * aliasing/implies *and* we extend that to declaration annotations (if we even do so:
-     * https://github.com/jspecify/jspecify/issues/124).
+     * "Computed annotations" includes not only annotations added from defaults but also any
+     * @Inherited/@InheritedAnnotation declaration annotations copied from supertypes. This could
+     * end up causing us trouble: JSpecify requires that annotations are *not* inherited
+     * (https://github.com/jspecify/jspecify/issues/14). Thankfully, there is no immediate problem:
+     * None of our annotations have @Inherited/@InheritedAnnotation. However someday we expect to
+     * support annotation "aliasing"/"implies." That may let users declare an
+     * @Inherited/@InheritedAnnotation alias for @DefaultNonNull -- and maybe even an
+     * @Inherited/@InheritedAnnotation *declaration* alias for @Nullable
+     * (https://github.com/jspecify/jspecify/issues/124). If so, we'll want to make sure that we not
+     * only prevent writing annotations back to bytecode / Element objects but also prevent even
+     * recognizing them in the first place. To some degree, we already accomplish this by (a)
+     * looking up @DefaultNonNull through the Element API (as opposed to a CF-specific API with special
+     * inheritance logic) and (b) preventing CF from writing the annotations to the Element API. But
+     * we'll likely need to hook into CF at a deeper level to prevent the annotations from being
+     * discovered in the first place. *And* our @DefaultNonNull logic may need to avoid calling even the
+     * javac API element.getAnnotation(...), as it returns any annotation "present" (including those
+     * inherited), in favor of element.getAnnotationMirrors(), which returns only those "directly
+     * present."
+     *
+     * XXX: When we implement aliasing, watch out for this!
      *
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
      * type.invalid.conflicting.annos error, which I have described more in
      * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
-     *
-     * Finally, I wonder if writing annotations back to Element objects (which is technically what
-     * the supermethod does) could cause problems with @DefaultNonNull: We look for @DefaultNonNull through
-     * the Element API. So would CF write an "inherited" @DefaultNonNull annotation back to the Element
-     * that we examine (and do so in time for us to see it)? This might not come up when the
-     * superclass and subclass are in the same compilation unit (or *maybe* even part of the same
-     * "compilation job?"), but I could imagine seeing it when the @DefaultNonNull annotation is in a
-     * library. Then again, surely CF already treats only *some* declaration annotations as
-     * inherited, since surely it doesn't treat, e.g., @AnnotatedFor that way, right?
-     *
-     * TODO(cpovirk): Report that error upstream if it turns out not to be our fault.
-     *
-     * TODO(cpovirk): Add a sample input that detects this problem, possibly as part of #141.
      */
   }
 
