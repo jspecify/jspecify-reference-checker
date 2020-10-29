@@ -693,6 +693,17 @@ public final class NullSpecAnnotatedTypeFactory
       };
     }
 
+    @Override
+    public boolean applyConservativeDefaults(Element annotationScope) {
+      /*
+       * Ignore any command-line flag to request conservative defaults. The principle of
+       * "unspecified nullness" is that we configure conservatism/leniency through changes in our
+       * subtyping rules, rather than changes in how we choose the default annotation / additional
+       * nullness of any type.
+       */
+      return false;
+    }
+
     // TODO(cpovirk): Should I override applyConservativeDefaults to always return false?
   }
 
