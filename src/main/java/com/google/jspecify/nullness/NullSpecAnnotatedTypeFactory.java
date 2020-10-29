@@ -111,8 +111,9 @@ public final class NullSpecAnnotatedTypeFactory
     super(checker, checker.hasOption("checkImpl"));
 
     /*
-     * Under our proposed subtyping rules, every type has an "additional nullness." There are 3
-     * additional-nullness values, and we *mostly* represent each one with an AnnotationMirror.
+     * Under our proposed subtyping rules, every type has  "additional nullness." There are 3
+     * additional-nullness values. In this implementation, we *mostly* represent each one with an
+     * AnnotationMirror.
      *
      * There is one exception: We do not have an AnnotationMirror for the additional nullness
      * NO_CHANGE. When we need to represent NO_CHANGE, we take one of two approaches, depending on
@@ -212,7 +213,8 @@ public final class NullSpecAnnotatedTypeFactory
            *
            * - In "strict mode," we do *not* treat codeNotNullnesesAware as a subtype of itself.
            *
-           * This is handled by isSubtype above.
+           * These subtleties are handled by isSubtype above. The incomplete rules still provide us
+           * with useful implementations of leastUpperBound and greatestLowerBound.
            */
         }
       };
@@ -293,9 +295,9 @@ public final class NullSpecAnnotatedTypeFactory
         AnnotatedTypeVariable subtype, AnnotatedTypeVariable supertype, Void p) {
       /*
        * Everything we need to check will be handled by isNullnessSubtype. That's fortunate, as the
-       * supermethod does not account for our non-standard substitution rules for type variables,
-       * under which a @NullnessUnspecified annotation on a type-variable usage does not affect the
-       * upper bound of that type.
+       * supermethod does not account for our non-standard substitution rules for type variables.
+       * Under those rules, `@NullnessUnspecified T` can still produce a @Nullable value after
+       * substitution.
        */
       return true;
     }
@@ -365,10 +367,10 @@ public final class NullSpecAnnotatedTypeFactory
      *
      * For such a type, nullnessEstablishingPathExists would always return false. And that makes
      * sense... until an implementation checks it with `if (foo != null)`. At that point, we need to
-     * store an additional piece of information: Yes, the type written in code can permit null, but
-     * we know from dataflow that this particular value is not null. That additional information is
-     * stored by attaching nonNull to the type-variable usage. This produces a type distinct from
-     * all of:
+     * store an additional piece of information: Yes, _the type written in code_ can permit null,
+     * but we know from dataflow that _this particular value_ is _not_ null. That additional
+     * information is stored by attaching nonNull to the type-variable usage. This produces a type
+     * distinct from all of:
      *
      * - `T`: `T` with additional nullness NO_CHANGE
      *
@@ -387,6 +389,11 @@ public final class NullSpecAnnotatedTypeFactory
      * writing a package-private @NonNull annotation to class files, as discussed elsewhere.
      * However, we would still need nonNull for the case of null checks in dataflow. And we might
      * end up violating other CF assumptions and thus causing ourselves more trouble than we solve.
+     * *Plus*, we'd want to make sure that our type-variable usages don't end up getting the
+     * "default default" of codeNotNullnessAware, since the "default default" is applied after the
+     * element-scoped defaulting logic. We would probably need to still attach nonNull to them and
+     * then modify removeNonNullFromTypeVariableUsages to remove it from them, just as it removes
+     * nonNull from type-variable usages.
      */
     return subtype.hasAnnotation(nonNull)
         || nullnessEstablishingPathExists(
@@ -553,8 +560,9 @@ public final class NullSpecAnnotatedTypeFactory
      * All these defaults will be overridden (whether we like it or not) for null-aware code. That
      * happens when NullSpecQualifierDefaults.annotate(...) sets a new default for OTHERWISE.
      *
-     * Note that these two methods do not cover *all* defaults. Notably, our TypeAnnotator has
-     * special logic for upper bounds _in the case of `super` wildcards specifically_.
+     * Note that these two methods do not contain the totality of our defaulting logic. For example,
+     * our TypeAnnotator has special logic for upper bounds _in the case of `super` wildcards
+     * specifically_.
      */
 
     // Here's the big default, the "default default":
@@ -857,6 +865,15 @@ public final class NullSpecAnnotatedTypeFactory
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
      * type.invalid.conflicting.annos error, which I have described more in
      * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
+     *
+     * Finally, I wonder if writing annotations back to Element objects (which is technically what
+     * the supermethod does) could cause problems with @DefaultNonNull: We look for @DefaultNonNull through
+     * the Element API. So would CF write an "inherited" @DefaultNonNull annotation back to the Element
+     * that we examine (and do so in time for us to see it)? This might not come up when the
+     * superclass and subclass are in the same compilation unit (or *maybe* even part of the same
+     * "compilation job?"), but I could imagine seeing it when the @DefaultNonNull annotation is in a
+     * library. Then again, surely CF already treats only *some* declaration annotations as
+     * inherited, since surely it doesn't treat, e.g., @AnnotatedFor that way, right?
      *
      * TODO(cpovirk): Report that error upstream if it turns out not to be our fault.
      *
