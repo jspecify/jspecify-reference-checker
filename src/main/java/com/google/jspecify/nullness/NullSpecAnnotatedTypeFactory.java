@@ -19,6 +19,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
@@ -71,6 +72,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -429,13 +431,15 @@ public final class NullSpecAnnotatedTypeFactory
   private List<? extends AnnotatedTypeMirror> getUpperBounds(AnnotatedTypeMirror type) {
     switch (type.getKind()) {
       case INTERSECTION:
+        return withNonNull((AnnotatedIntersectionType) type).getBounds();
+
       case TYPEVAR:
-        return withNonNull(type).directSuperTypes();
+        return singletonList(withNonNull((AnnotatedTypeVariable) type).getUpperBound());
 
       case WILDCARD:
         List<AnnotatedTypeMirror> bounds = new ArrayList<>();
 
-        bounds.addAll(withNonNull(type).directSuperTypes());
+        bounds.add(withNonNull((AnnotatedWildcardType) type).getExtendsBound());
 
         /*
          * We would use `((AnnotatedWildcardType) type).getTypeVariable()`, but it is not available
