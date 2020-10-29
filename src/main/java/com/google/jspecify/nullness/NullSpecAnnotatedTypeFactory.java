@@ -37,6 +37,7 @@ import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIA
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
+import static org.checkerframework.javacutil.TypesUtils.isErasedSubtype;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
@@ -265,8 +266,23 @@ public final class NullSpecAnnotatedTypeFactory
     @Override
     protected boolean visitWildcardSubtype(
         AnnotatedWildcardType subtype, AnnotatedTypeMirror supertype) {
-      // See discussion in visitTypevarSubtype above.
-      return super.visitWildcardSubtype(subtype, withUnionNull(supertype));
+      /*
+       * The supermethod can throw BugInCF if we pass it a wildcard that is "outside its type
+       * parameter's bounds." (We support such wildcards, but the stock CF does not -- hence the
+       * lack of support in the supermethod.) The problem arises when CF can't find a *Java*
+       * subtyping relationship between the subtype and supertype. If we've gotten this far in the
+       * compilation process, there is such a relationship -- but it exist only after capture
+       * conversion of the wildcard, which CF doesn't implement. So we manually loop over all upper
+       * bounds of the subtype wildcard, including those from the corresponding type parameter, to
+       * find one that (hopefully) won't produce a BugInCF when we call isSubtype.
+       */
+      return getUpperBounds(subtype).stream()
+              .anyMatch(
+                  t ->
+                      isErasedSubtype(t.getUnderlyingType(), supertype.getUnderlyingType(), types)
+                          && isSubtype(t, withUnionNull(supertype)))
+          // See discussion in visitTypevarSubtype above.
+          || super.visitWildcardSubtype(subtype, withUnionNull(supertype));
     }
 
     @Override
