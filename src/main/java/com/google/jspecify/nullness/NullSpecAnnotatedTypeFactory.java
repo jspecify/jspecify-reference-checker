@@ -106,7 +106,7 @@ public final class NullSpecAnnotatedTypeFactory
   private final AnnotationMirror unionNull;
   private final AnnotationMirror codeNotNullnessAware;
 
-  private final boolean leastConvenientWorld;
+  private final boolean isLeastConvenientWorld;
 
   public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
     // Only use flow-sensitive type refinement if implementation code should be checked
@@ -141,7 +141,7 @@ public final class NullSpecAnnotatedTypeFactory
       addAliasedAnnotation(org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
     }
 
-    leastConvenientWorld = checker.hasOption("strict");
+    isLeastConvenientWorld = checker.hasOption("strict");
 
     postInit();
   }
@@ -181,10 +181,10 @@ public final class NullSpecAnnotatedTypeFactory
       boolean superIsUnspecified = areSame(superAnno, codeNotNullnessAware);
       boolean eitherIsUnspecified = subIsUnspecified || superIsUnspecified;
       boolean bothAreUnspecified = subIsUnspecified && superIsUnspecified;
-      if (leastConvenientWorld && bothAreUnspecified) {
+      if (isLeastConvenientWorld && bothAreUnspecified) {
         return false;
       }
-      if (!leastConvenientWorld && eitherIsUnspecified) {
+      if (!isLeastConvenientWorld && eitherIsUnspecified) {
         return true;
       }
       return areSame(subAnno, nonNull) || areSame(superAnno, unionNull);
@@ -362,10 +362,10 @@ public final class NullSpecAnnotatedTypeFactory
      * harmless.
      */
     return type.hasAnnotation(unionNull)
-        || (!leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
+        || (!isLeastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
   }
 
-  boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror subtype) {
+  boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
     /*
      * In most cases, it would be sufficient to check only nullnessEstablishingPathExists. However,
      * consider a type that meets all 3 of the following criteria:
@@ -406,9 +406,9 @@ public final class NullSpecAnnotatedTypeFactory
      * then modify removeNonNullFromTypeVariableUsages to remove it from them, just as it removes
      * nonNull from type-variable usages.
      */
-    return subtype.hasAnnotation(nonNull)
+    return type.hasAnnotation(nonNull)
         || nullnessEstablishingPathExists(
-            subtype, t -> t.getKind() == DECLARED || t.getKind() == ARRAY);
+            type, t -> t.getKind() == DECLARED || t.getKind() == ARRAY);
   }
 
   private boolean nullnessEstablishingPathExists(
@@ -447,15 +447,15 @@ public final class NullSpecAnnotatedTypeFactory
   private List<? extends AnnotatedTypeMirror> getUpperBounds(AnnotatedTypeMirror type) {
     switch (type.getKind()) {
       case INTERSECTION:
-        return withNonNull((AnnotatedIntersectionType) type).getBounds();
+        return ((AnnotatedIntersectionType) type).getBounds();
 
       case TYPEVAR:
-        return singletonList(withNonNull((AnnotatedTypeVariable) type).getUpperBound());
+        return singletonList(((AnnotatedTypeVariable) type).getUpperBound());
 
       case WILDCARD:
         List<AnnotatedTypeMirror> bounds = new ArrayList<>();
 
-        bounds.add(withNonNull((AnnotatedWildcardType) type).getExtendsBound());
+        bounds.add(((AnnotatedWildcardType) type).getExtendsBound());
 
         /*
          * We would use `((AnnotatedWildcardType) type).getTypeVariable()`, but it is not available
@@ -476,7 +476,7 @@ public final class NullSpecAnnotatedTypeFactory
 
   private boolean isUnionNullOrEquivalent(AnnotatedTypeMirror type) {
     return type.hasAnnotation(unionNull)
-        || (leastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
+        || (isLeastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
   }
 
   private final class NullSpecEqualityComparer extends StructuralEqualityComparer {
@@ -511,10 +511,10 @@ public final class NullSpecAnnotatedTypeFactory
       boolean type2IsUnspecified = type2.hasAnnotation(codeNotNullnessAware);
       boolean bothAreUnspecified = type1IsUnspecified && type2IsUnspecified;
       boolean eitherIsUnspecified = type1IsUnspecified || type2IsUnspecified;
-      if (leastConvenientWorld && bothAreUnspecified) {
+      if (isLeastConvenientWorld && bothAreUnspecified) {
         return false;
       }
-      if (!leastConvenientWorld && eitherIsUnspecified) {
+      if (!isLeastConvenientWorld && eitherIsUnspecified) {
         return true;
       }
       AnnotationMirror a1 = type1.getAnnotationInHierarchy(unionNull);
@@ -898,7 +898,10 @@ public final class NullSpecAnnotatedTypeFactory
      * discovered in the first place. *And* our @DefaultNonNull logic may need to avoid calling even the
      * javac API element.getAnnotation(...), as it returns any annotation "present" (including those
      * inherited), in favor of element.getAnnotationMirrors(), which returns only those "directly
-     * present."
+     * present." (But arguably then we are violating the contract of @Inherited. Maybe we could
+     * claim that the contract applies only to how certain javac APIs behave, not to whether the
+     * annotation actually affects subclasses? But hpefully no one creates an @Inherited alias in
+     * the first place. And if people do, maybe it's tolerable for them to be inherited after all.)
      *
      * XXX: When we implement aliasing, watch out for this!
      *
