@@ -23,7 +23,6 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
-import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.WILDCARD;
@@ -89,7 +88,6 @@ import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
-import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
@@ -568,37 +566,47 @@ public final class NullSpecAnnotatedTypeFactory
   @Override
   protected void addCheckedStandardDefaults(QualifierDefaults defs) {
     /*
-     * This method sets up the defaults for *non-null-aware* code.
+     * Override to *not* call the supermethod. The supermethod would set up CLIMB defaults, which we
+     * don't want.
      *
-     * All these defaults will be overridden (whether we like it or not) for null-aware code. That
-     * happens when NullSpecQualifierDefaults.annotate(...) sets a new default for OTHERWISE.
+     * Furthermore, while we do want defaults of our own, we don't set them here. In particular, we
+     * don't call defs.addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE). If we did, then that
+     * default would be applied to all unannotated type-variable usages, even in null-aware code.
+     * That's because there are multiple rounds of defaulting, 2 of which interact badly:
      *
-     * Note that these two methods do not contain the totality of our defaulting logic. For example,
-     * our TypeAnnotator has special logic for upper bounds _in the case of `super` wildcards
-     * specifically_.
+     * The first round of the 2 to run is per-element defaulting. That includes our null-aware
+     * defaulting logic. (See populateNewDefaults below.) That defaulting logic would leave
+     * type-variable usages unannotated.
+     *
+     * The later round to run is checkedCodeDefaults (which would include any defaults set by this
+     * method). That logic would find the type-variable usages unannotated. So, if that logic put
+     * codeNotNullnessAware on all unannotated type-variable usages, it would really put it on *all*
+     * unannotated type-variable usages -- even the ones in null-aware code.
+     *
+     * To avoid that, we set *all* defaults as per-element defaults. That setup eliminates the
+     * second round entirely. Thus, defaulting runs a single time for a given type usage. So, when
+     * the null-aware logic declines to annotate a type-variable usage, it stays unannotated
+     * afterward.
+     *
+     * The stock CF does not have this problem because it hass no such thing as a per-element
+     * default of "do not annotate this" that overrides a checkedCodeDefaults default of "do
+     * annotate this."
      */
+  }
 
-    // Here's the big default, the "default default":
-    defs.addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE);
-
-    // Some locations are intrinsically non-nullable:
-    defs.addCheckedCodeDefault(nonNull, CONSTRUCTOR_RESULT);
-    defs.addCheckedCodeDefault(nonNull, RECEIVER);
-
-    // We do want *some* of the CLIMB standard defaults:
-    for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
-      defs.addCheckedCodeDefault(unionNull, location);
-    }
-    defs.addCheckedCodeDefault(nonNull, IMPLICIT_LOWER_BOUND);
-
-    // But for exception parameters, we want the default to be nonNull:
-    defs.addCheckedCodeDefault(nonNull, EXCEPTION_PARAMETER);
-
+  @Override
+  protected void checkForDefaultQualifierInHierarchy(QualifierDefaults defs) {
     /*
-     * Note one other difference from the CLIMB defaults: We want the default for implicit upper
-     * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull. We
-     * accomplish this simply by not calling the supermethod (which would otherwise call
-     * addClimbStandardDefaults, which would override the "default default").
+     * We don't set normal checkedCodeDefaults. This method would report that lack of defaults as a
+     * problem. That's because CF wants to ensure that every[*] type usage is annotated.
+     *
+     * However, we *do* ensure that every[*] type usage is annotated. To do so, we always set a
+     * default for OTHERWISE on top-level elements. (We do this in populateNewDefaults.) See further
+     * discussion in addCheckedStandardDefaults.
+     *
+     * So, we override this method to not report a problem.
+     *
+     * [*] There are a few exceptions that we don't need to get into here.
      */
   }
 
@@ -608,109 +616,100 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
-    public void annotate(Element elt, AnnotatedTypeMirror type) {
-      if (elt == null) {
-        super.annotate(elt, type);
-        return;
-      }
-
+    protected void populateNewDefaults(Element elt, boolean initialDefaultsAreEmpty) {
       /*
-       * CF has some built-in support for package-level defaults. However, they cascade to
-       * subpackages (see 28.5.2), contrary to our semantics (see
-       * https://github.com/jspecify/jspecify/issues/8). To avoid CF semantics, we never set a
-       * default on a package element itself, only on each top-level class element in the package.
+       * Note: This method does not contain the totality of our defaulting logic. For example, our
+       * TypeAnnotator has special logic for upper bounds _in the case of `super` wildcards
+       * specifically_.
        *
-       * XXX: When adding support for DefaultNullnessUnspecified, be sure that DefaultNullnessUnspecified on a *class* overrides
-       * DefaultNonNull on the *package* (and vice versa).
+       * Note: Setting a default here affects not only this element but also its descendants in the
+       * syntax tree.
        *
-       * XXX: When adding support for aliases, make sure to support them here.
+       * XXX: When adding support for aliases, make sure to support them here. But consider how to
+       * handle @Inherited aliases, as discussed in another comment.
        */
-      if (hasNullAwareAnnotation(elt)) {
-        /*
-         * Setting a default here affects not only this element but also its descendants in the
-         * syntax tree.
-         */
+      if (elt.getAnnotation(DefaultNonNull.class) != null) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, nonNull, OTHERWISE);
+        addDefaultToTopForLocationsRefinedByDataflow(elt);
+        /*
+         * (For any TypeUseLocation that we don't set an explicit value for, we inherit any value
+         * from the enclosing element, which might be a non-null-aware element. That's fine: While
+         * our non-null-aware setup sets defaults for more locations than just these, it sets those
+         * locations' defaults to nonNull -- matching the value that we want here.)
+         */
+      } else if (initialDefaultsAreEmpty) {
+        /*
+         * We need to set defaults appropriate to non-null-aware code. In a normal checker, we would
+         * expect for such "default defaults" to be set in addCheckedStandardDefaults. But we do
+         * not, as discussed in our implementation of that method.
+         */
+
+        // Here's the big default, the "default default":
+        addElementDefault(elt, codeNotNullnessAware, OTHERWISE);
+
+        // Some locations are intrinsically non-nullable:
+        addElementDefault(elt, nonNull, CONSTRUCTOR_RESULT);
+        addElementDefault(elt, nonNull, RECEIVER);
+
+        // We do want *some* of the CLIMB standard defaults:
+        addDefaultToTopForLocationsRefinedByDataflow(elt);
+        addElementDefault(elt, nonNull, IMPLICIT_LOWER_BOUND);
+
+        // But for exception parameters, we want the default to be nonNull:
+        addElementDefault(elt, nonNull, EXCEPTION_PARAMETER);
 
         /*
-         * Some defaults are common to null-aware and non-null-aware code. We reassert some of those
-         * here. If we didn't, then they would be overridden by OTHERWISE above.
-         *
-         * (Yes, our non-null-aware setup sets defaults for more locations than just these. But for
-         * the other locations, it sets the default to nonNull. And there's no need for the
-         * *null-aware* setup to default any specific location to nonNull: That is its default
-         * everywhere that is not specifically overridden, thanks to the same OTHERWISE rule
-         * discussed above.)
+         * Note one other difference from the CLIMB defaults: We want the default for implicit upper
+         * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull.
+         * We accomplished this already simply by not making our addCheckedStandardDefaults
+         * implementation call its supermethod (which would otherwise call addClimbStandardDefaults,
+         * which would override the "default default").
          */
-        for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
-          addElementDefault(elt, unionNull, location);
-        }
       }
-
-      super.annotate(elt, type);
-
-      removeNonNullFromTypeVariableUsages(type);
     }
+
+    private void addDefaultToTopForLocationsRefinedByDataflow(Element elt) {
+      for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
+        addElementDefault(elt, unionNull, location);
+      }
+    }
+
+    private final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
+        unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
     @Override
-    public void annotate(Tree tree, AnnotatedTypeMirror type) {
-      super.annotate(tree, type);
-
-      removeNonNullFromTypeVariableUsages(type);
-    }
-
-    private void removeNonNullFromTypeVariableUsages(AnnotatedTypeMirror type) {
-      new AnnotatedTypeScanner<Void, Void>() {
-        @Override
-        public Void visitTypeVariable(AnnotatedTypeVariable type, Void aVoid) {
-          // For an explanation, see shouldBeAnnotated below.
-          type.removeAnnotation(nonNull);
-
-          /*
-           * It probably doesn't matter whether we invoke the supermethod or not. But let's do it,
-           * simply because that's what tree visitors typically do.
-           */
-          return super.visitTypeVariable(type, aVoid);
-        }
-      }.visit(type);
-    }
-
-    @Override
-    protected DefaultApplierElement createDefaultApplierElement(
-        AnnotatedTypeFactory atypeFactory,
-        Element annotationScope,
-        AnnotatedTypeMirror type,
-        boolean applyToTypeVar) {
-      return new DefaultApplierElement(atypeFactory, annotationScope, type, applyToTypeVar) {
-        @Override
-        protected boolean shouldBeAnnotated(AnnotatedTypeMirror type, boolean applyToTypeVar) {
-          /*
-           * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code,
-           * we want our default of codeNotNullnessAware to apply even to type variables.
-           *
-           * But there are 2 other things to keep in mind:
-           *
-           * - CF *does* apply defaults to type-variable usages *if* they are local variables.
-           * That's because it will refine their types with dataflow. This CF behavior works fine
-           * for us: Since we want to apply defaults in strictly more cases, we're happy to accept
-           * what CF already does for local variables. (We do need to be sure to apply unionNull
-           * (our top type) in that case, rather than codeNotNullnessAware. We accomplish that by
-           * setting specific defaults for LOCATIONS_REFINED_BY_DATAFLOW.)
-           *
-           * - Non-null-aware code (discussed above) is easy: We apply codeNotNullnessAware to
-           * everything except local variables. But null-aware code more complex. First, set aside
-           * local variables, which we handle as discussed above. After that, we need to apply
-           * nonNull to most types, but we need to *not* apply it to (non-local-variable)
-           * type-variable usages. (For more on this, see
-           * isNullExclusiveUnderEveryParameterization.) This need is weird enough that CF doesn't
-           * appear to support it directly. Our solution is to apply nonNull to everything but then
-           * remove it from any type variables it appears on. We do that in
-           * removeNonNullFromTypeVariableUsages above.
-           */
-          return super.shouldBeAnnotated(type, /*applyToTypeVar=*/ true);
-        }
-      };
+    protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(
+        AnnotationMirror qual, boolean isDeclaration) {
+      /*
+       * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code, we
+       * want our default of codeNotNullnessAware to apply even to type variables.
+       *
+       * But there are 2 other things to keep in mind:
+       *
+       * - CF *does* apply defaults to type-variable usages *if* they are local variables. That's
+       * because it will refine their types with dataflow. This CF behavior works fine for us: Since
+       * we want to apply defaults in strictly more cases, we're happy to accept what CF already
+       * does for local variables. (We do need to be sure to apply unionNull (our top type) in that
+       * case, rather than codeNotNullnessAware. We accomplish that in
+       * addDefaultToTopForLocationsRefinedByDataflow.)
+       *
+       * - Non-null-aware code (discussed above) is easy: We apply codeNotNullnessAware to
+       * everything except local variables. But null-aware code more complex. First, set aside local
+       * variables, which we handle as discussed above. After that, we need to apply nonNull to most
+       * types, but we need to *not* apply it to (non-local-variable) type-variable usages. (For
+       * more on this, see isNullExclusiveUnderEveryParameterization.) This need is weird enough
+       * that stock CF doesn't appear to support it. Our solution is to introduce this hook method
+       * into our CF fork and then override it here. Our solution also requires that we set up
+       * defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
+       * locations.
+       *
+       * XXX: The isDeclaration check here might not matter. I included it because it seems weird to
+       * annotate type-variable declarations, given that we don't normally support that. But I'm not
+       * aware of any specific problems that the check here solves, so maybe we should remove it
+       * (and then perhaps remove the isDeclaration parameter from the method signature).
+       */
+      return !isDeclaration && areSame(qual, codeNotNullnessAware);
     }
 
     @Override
@@ -726,9 +725,6 @@ public final class NullSpecAnnotatedTypeFactory
 
     // TODO(cpovirk): Should I override applyConservativeDefaults to always return false?
   }
-
-  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
-      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
   @Override
   protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
@@ -938,15 +934,5 @@ public final class NullSpecAnnotatedTypeFactory
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     type.replaceAnnotation(unionNull);
     return type;
-  }
-
-  private static boolean hasNullAwareAnnotation(Element elt) {
-    if (elt.getAnnotation(DefaultNonNull.class) != null) {
-      return true;
-    }
-    Element enclosingElement = elt.getEnclosingElement();
-    return enclosingElement != null // possible only under `-source 8 -target 8` (i.e., pre-JPMS)?
-        && enclosingElement.getKind() == PACKAGE
-        && enclosingElement.getAnnotation(DefaultNonNull.class) != null;
   }
 }
