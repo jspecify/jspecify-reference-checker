@@ -106,7 +106,16 @@ public final class NullSpecAnnotatedTypeFactory
 
   private final boolean isLeastConvenientWorld;
 
+  /** Constructor that takes all configuration from the checker. */
   public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
+    this(checker, checker.hasOption("strict"));
+  }
+
+  /**
+   * Constructor that takes all configuration from the checker <i>except</i> {@code strict}/{@code
+   * isLeastConvenientWorld}.
+   */
+  private NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, boolean isLeastConvenientWorld) {
     // Only use flow-sensitive type refinement if implementation code should be checked
     super(checker, checker.hasOption("checkImpl"));
 
@@ -139,7 +148,7 @@ public final class NullSpecAnnotatedTypeFactory
       addAliasedAnnotation(org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
     }
 
-    isLeastConvenientWorld = checker.hasOption("strict");
+    this.isLeastConvenientWorld = isLeastConvenientWorld;
 
     postInit();
   }
@@ -539,9 +548,34 @@ public final class NullSpecAnnotatedTypeFactory
     @Override
     protected AnnotatedTypeMirror substituteTypeVariable(
         AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
-      // TODO(cpovirk): Delegate to leastUpperBound?
+      AnnotatedTypeMirror typeParameter = getAnnotatedType(use.getUnderlyingType().asElement());
       AnnotatedTypeMirror substitute = argument.deepCopy(/*copyAnnotations=*/ true);
-      if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
+
+      /*
+       * If the use is null-exclusive under every parameterization in the least convenient world,
+       * then the result of substitution is, too. That is, it's nonNull.
+       *
+       * This handles cases like
+       * `ImmutableList.Builder<E>` in non-null-aware code: Technically, we aren't sure if the
+       * non-null-aware class might be instantiated with a nullable argument for E. But we know
+       * that, no matter what, if someone calls `listBuilder.add(null)`, that is bad. So we treat
+       * the declaration as if it said `ImmutableList.Builder<@NonNull E>`.
+       *
+       * So why doesn't the code below directly ask "Is `use` null-exclusive under every parameterization in the least convenient world?" The problem is with CF defaulting: When CF
+       * computes the default for the bound of `use`, it uses the defaulting rules that are in
+       * effect at the use site. It probably should instead use the defaulting rules that are in
+       * effect at the declaration site. To get those rules, we look up the type of the declaration
+       * element. (But first we do look at the use site a little, just to make sure that it's not
+       * `@Nullable E` or `@NullnessUnspecified E`, as those types shouldn't be marked as nonNull.)
+       *
+       * See https://github.com/typetools/checker-framework/issues/3845
+       */
+      if (!use.hasAnnotation(unionNull)
+          && !use.hasAnnotation(codeNotNullnessAware)
+          && new NullSpecAnnotatedTypeFactory(checker, true)
+              .isNullExclusiveUnderEveryParameterization(typeParameter)) {
+        substitute.replaceAnnotation(nonNull);
+      } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
       } else if (argument.hasAnnotation(codeNotNullnessAware)
           || use.hasAnnotation(codeNotNullnessAware)) {
