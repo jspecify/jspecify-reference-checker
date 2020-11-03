@@ -654,7 +654,8 @@ public final class NullSpecAnnotatedTypeFactory
        * syntax tree.
        *
        * XXX: When adding support for aliases, make sure to support them here. But consider how to
-       * handle @Inherited aliases, as discussed in another comment.
+       * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular,
+       * we may need to move away from the javac API elt.getAnnotation(...).
        */
       if (elt.getAnnotation(DefaultNonNull.class) != null) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
@@ -906,28 +907,10 @@ public final class NullSpecAnnotatedTypeFactory
      * of this current checker implementation.)
      *
      * "Computed annotations" includes not only annotations added from defaults but also any
-     * @Inherited/@InheritedAnnotation declaration annotations copied from supertypes. This could
-     * end up causing us trouble: JSpecify requires that annotations are *not* inherited
-     * (https://github.com/jspecify/jspecify/issues/14). Thankfully, there is no immediate problem:
-     * None of our annotations have @Inherited/@InheritedAnnotation. However someday we expect to
-     * support annotation "aliasing"/"implies." That may let users declare an
-     * @Inherited/@InheritedAnnotation alias for @DefaultNonNull -- and maybe even an
-     * @Inherited/@InheritedAnnotation *declaration* alias for @Nullable
-     * (https://github.com/jspecify/jspecify/issues/124). If so, we'll want to make sure that we not
-     * only prevent writing annotations back to bytecode / Element objects but also prevent even
-     * recognizing them in the first place. To some degree, we already accomplish this by (a)
-     * looking up @DefaultNonNull through the Element API (as opposed to a CF-specific API with special
-     * inheritance logic) and (b) preventing CF from writing the annotations to the Element API. But
-     * we'll likely need to hook into CF at a deeper level to prevent the annotations from being
-     * discovered in the first place. *And* our @DefaultNonNull logic may need to avoid calling even the
-     * javac API element.getAnnotation(...), as it returns any annotation "present" (including those
-     * inherited), in favor of element.getAnnotationMirrors(), which returns only those "directly
-     * present." (But arguably then we are violating the contract of @Inherited. Maybe we could
-     * claim that the contract applies only to how certain javac APIs behave, not to whether the
-     * annotation actually affects subclasses? But hpefully no one creates an @Inherited alias in
-     * the first place. And if people do, maybe it's tolerable for them to be inherited after all.)
-     *
-     * XXX: When we implement aliasing, watch out for this!
+     * @Inherited/@InheritedAnnotation declaration annotations copied from supertypes. We may or may
+     * not even want to support inheritance (https://github.com/jspecify/jspecify/issues/155). But
+     * even if we do, we wouldn't want to produce different bytecode than a stock compiler, lest
+     * tools rely on it.
      *
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
      * type.invalid.conflicting.annos error, which I have described more in
