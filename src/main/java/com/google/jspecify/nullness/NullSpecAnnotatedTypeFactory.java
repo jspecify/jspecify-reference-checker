@@ -119,7 +119,7 @@ public final class NullSpecAnnotatedTypeFactory
     super(checker, checker.hasOption("checkImpl"));
 
     /*
-     * Under our proposed subtyping rules, every type has  "additional nullness." There are 3
+     * Under our proposed subtyping rules, every type has an "additional nullness." There are 3
      * additional-nullness values. In this implementation, we *mostly* represent each one with an
      * AnnotationMirror.
      *
@@ -566,7 +566,7 @@ public final class NullSpecAnnotatedTypeFactory
        * that, no matter what, if someone calls `listBuilder.add(null)`, that is bad. So we treat
        * the declaration as if it said `ImmutableList.Builder<@NonNull E>`.
        */
-      if (new NullSpecAnnotatedTypeFactory(checker, true)
+      if (new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ true)
           .isNullExclusiveUnderEveryParameterization(use)) {
         substitute.replaceAnnotation(nonNull);
       } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
@@ -584,11 +584,6 @@ public final class NullSpecAnnotatedTypeFactory
   public AnnotatedDeclaredType getSelfType(Tree tree) {
     AnnotatedDeclaredType superResult = super.getSelfType(tree);
     return superResult == null ? null : withNonNull(superResult);
-  }
-
-  @Override
-  protected QualifierDefaults createQualifierDefaults() {
-    return new NullSpecQualifierDefaults(elements, this);
   }
 
   @Override
@@ -636,6 +631,11 @@ public final class NullSpecAnnotatedTypeFactory
      *
      * [*] There are a few exceptions that we don't need to get into here.
      */
+  }
+
+  @Override
+  protected QualifierDefaults createQualifierDefaults() {
+    return new NullSpecQualifierDefaults(elements, this);
   }
 
   private final class NullSpecQualifierDefaults extends QualifierDefaults {
@@ -751,8 +751,6 @@ public final class NullSpecAnnotatedTypeFactory
        */
       return false;
     }
-
-    // TODO(cpovirk): Should I override applyConservativeDefaults to always return false?
   }
 
   @Override
