@@ -26,6 +26,7 @@ import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
+import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
@@ -47,6 +48,16 @@ public final class NullSpecTransfer extends CFTransfer {
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+  }
+
+  @Override
+  public TransferResult<CFValue, CFStore> visitInstanceOf(
+      InstanceOfNode node, TransferInput<CFValue, CFStore> input) {
+    CFValue resultValue = super.visitInstanceOf(node, input).getResultValue();
+    CFStore thenStore = input.getThenStore();
+    CFStore elseStore = input.getElseStore();
+    boolean storeChanged = putNonNull(thenStore, node.getOperand());
+    return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
   @Override
