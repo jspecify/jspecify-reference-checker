@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
+import static java.util.Collections.singleton;
 import static org.checkerframework.dataflow.expression.FlowExpressions.internalReprOf;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
@@ -51,6 +52,16 @@ public final class NullSpecTransfer extends CFTransfer {
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+  }
+
+  @Override
+  public TransferResult<CFValue, CFStore> visitFieldAccess(
+      FieldAccessNode node, TransferInput<CFValue, CFStore> input) {
+    TransferResult<CFValue, CFStore> result = super.visitFieldAccess(node, input);
+    if (node.getFieldName().equals("class")) {
+      setResultValueToNonNull(result);
+    }
+    return result;
   }
 
   @Override
@@ -137,5 +148,10 @@ public final class NullSpecTransfer extends CFTransfer {
 
   private static boolean isNullLiteral(Node node) {
     return node.getTree().getKind() == NULL_LITERAL;
+  }
+
+  private void setResultValueToNonNull(TransferResult<CFValue, CFStore> result) {
+    result.setResultValue(
+        new CFValue(analysis, singleton(nonNull), result.getResultValue().getUnderlyingType()));
   }
 }

@@ -111,7 +111,8 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     if (element != null
         && !element.getKind().isClass()
         && !element.getKind().isInterface()
-        && element.getKind() != PACKAGE) {
+        && element.getKind() != PACKAGE
+        && !node.getIdentifier().contentEquals("class")) {
       ensureNonNull(node.getExpression(), "member.select");
       /*
        * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
