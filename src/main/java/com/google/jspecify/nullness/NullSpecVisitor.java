@@ -40,6 +40,7 @@ import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
@@ -103,6 +104,19 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   protected void checkConstructorResult(
       AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
     // TODO: ensure no explicit annotations on class & constructor
+  }
+
+  @Override
+  protected boolean skipReceiverSubtypeCheck(
+      MethodInvocationTree node,
+      AnnotatedTypeMirror methodDefinitionReceiver,
+      AnnotatedTypeMirror methodCallReceiver) {
+    /*
+     * Skip the check that requires receivers to be null-exclusive. I *believe* this is redundant
+     * with the check in visitMemberSelect. And the check in visitMemberSelect both covers more
+     * cases (including field lookups) and provides a more tailored error message.
+     */
+    return true;
   }
 
   @Override
