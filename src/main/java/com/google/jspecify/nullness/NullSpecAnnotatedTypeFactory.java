@@ -768,9 +768,13 @@ public final class NullSpecAnnotatedTypeFactory
      * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
      * defaults that are common to null-aware and non-null-aware code!
      *
-     * - *not* do what the supermethod does. Specifically, the supermethod adds the top type
-     * (unionNull) to the bound of unbounded wildcards. But we want the ability to sometimes add
-     * codeNotNullnessAware instead.
+     * - *not* do what the supermethod does. I admit that I don't fully understand the supermethod
+     * behavior. PropagationTypeAnnotator describes it as "the propagation of generic type parameter
+     * annotations to unannotated wildcards with missing bounds annotations." That sounds either
+     * irrelevant (since we don't annotate wildcards / type parameters themselves, at least not in
+     * the same way as CF) or good (since it sounds like it could counter some of the defaulting
+     * problems we'd seen). But if I add in the supermethod's TypeAnnotator, I start seeing
+     * incorrect results on sample inputs.
      */
     return new NullSpecTypeAnnotator(this);
   }
@@ -811,8 +815,7 @@ public final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected TreeAnnotator createTreeAnnotator() {
-    return new ListTreeAnnotator(
-        asList(new NullSpecTreeAnnotator(this), super.createTreeAnnotator()));
+    return new ListTreeAnnotator(new NullSpecTreeAnnotator(this), super.createTreeAnnotator());
   }
 
   private final class NullSpecTreeAnnotator extends TreeAnnotator {
