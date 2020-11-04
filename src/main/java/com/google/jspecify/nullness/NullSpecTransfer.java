@@ -19,7 +19,9 @@ import static org.checkerframework.dataflow.expression.FlowExpressions.internalR
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
+import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
@@ -28,6 +30,7 @@ import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
 import org.checkerframework.dataflow.expression.Receiver;
@@ -48,6 +51,23 @@ public final class NullSpecTransfer extends CFTransfer {
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+  }
+
+  @Override
+  public TransferResult<CFValue, CFStore> visitMethodInvocation(
+      MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
+    CFValue resultValue = super.visitMethodInvocation(node, input).getResultValue();
+    CFStore store = input.getRegularStore();
+    ExecutableElement method = node.getTarget().getMethod();
+    boolean storeChanged;
+    if (method.getSimpleName().contentEquals("requireNonNull")
+        && method.getEnclosingElement().getSimpleName().contentEquals("Objects")) {
+      // TODO(cpovirk): Ensure that it's java.util.Objects specifically.
+      storeChanged = putNonNull(store, node.getArgument(0));
+    } else {
+      storeChanged = false;
+    }
+    return new RegularTransferResult<>(resultValue, store, storeChanged);
   }
 
   @Override
