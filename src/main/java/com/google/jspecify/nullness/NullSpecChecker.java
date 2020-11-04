@@ -14,6 +14,8 @@
 
 package com.google.jspecify.nullness;
 
+import java.util.SortedSet;
+import java.util.TreeSet;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.source.SupportedOptions;
 
@@ -31,4 +33,11 @@ import org.checkerframework.framework.source.SupportedOptions;
  * </ol>
  */
 @SupportedOptions({"strict", "checkImpl", "aliasCFannos"})
-public final class NullSpecChecker extends BaseTypeChecker {}
+public final class NullSpecChecker extends BaseTypeChecker {
+  @Override
+  public SortedSet<String> getSuppressWarningsPrefixes() {
+    SortedSet<String> prefixes = new TreeSet<>();
+    prefixes.add("nullness");
+    return prefixes;
+  }
+}
