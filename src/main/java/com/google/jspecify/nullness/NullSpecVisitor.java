@@ -202,7 +202,14 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
         && !atypeFactory.isNullInclusiveUnderEveryParameterization(
             atypeFactory.getAnnotatedType(node).getTypeArguments().get(0))) {
       // TODO(cpovirk): Ensure that it's java.util.concurrent.atomic.AtomicReference specifically.
-      // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
+      /*
+       * TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
+       *
+       * It would be nice to handle everything by overriding checkTypeArguments. But
+       * checkTypeArguments doesn't appear to expose which type is being parameterized (other than
+       * perhaps through toptree, which is not intended for that use, or through typeargTrees, which
+       * I would expect to be empty in the case of the diamond operator).
+       */
       checker.reportError(node, "must.include.null: " + node);
     }
     return super.visitNewClass(node, p);
