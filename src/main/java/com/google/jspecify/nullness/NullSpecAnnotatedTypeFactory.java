@@ -566,8 +566,7 @@ public final class NullSpecAnnotatedTypeFactory
        * that, no matter what, if someone calls `listBuilder.add(null)`, that is bad. So we treat
        * the declaration as if it said `ImmutableList.Builder<@NonNull E>`.
        */
-      if (new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ true)
-          .isNullExclusiveUnderEveryParameterization(use)) {
+      if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(use)) {
         substitute.replaceAnnotation(nonNull);
       } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
@@ -947,5 +946,13 @@ public final class NullSpecAnnotatedTypeFactory
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     type.replaceAnnotation(unionNull);
     return type;
+  }
+
+  NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {
+    return new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ true);
+  }
+
+  NullSpecAnnotatedTypeFactory withMostConvenientWorld() {
+    return new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ false);
   }
 }

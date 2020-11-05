@@ -17,8 +17,10 @@ package com.google.jspecify.nullness;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Collections.singleton;
 import static org.checkerframework.dataflow.expression.FlowExpressions.internalReprOf;
+import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
+import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
@@ -39,18 +41,23 @@ import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.NullnessUnspecified;
 
 public final class NullSpecTransfer extends CFTransfer {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
   private final AnnotationMirror nonNull;
+  private final AnnotationMirror codeNotNullnessAware;
   private final AnnotationMirror unionNull;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
+    codeNotNullnessAware =
+        AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
   }
 
@@ -67,9 +74,10 @@ public final class NullSpecTransfer extends CFTransfer {
   @Override
   public TransferResult<CFValue, CFStore> visitMethodInvocation(
       MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
-    CFValue resultValue = super.visitMethodInvocation(node, input).getResultValue();
+    TransferResult<CFValue, CFStore> result = super.visitMethodInvocation(node, input);
     CFStore store = input.getRegularStore();
     ExecutableElement method = node.getTarget().getMethod();
+
     boolean storeChanged;
     if (method.getSimpleName().contentEquals("requireNonNull")
         && method.getEnclosingElement().getSimpleName().contentEquals("Objects")) {
@@ -78,7 +86,29 @@ public final class NullSpecTransfer extends CFTransfer {
     } else {
       storeChanged = false;
     }
-    return new RegularTransferResult<>(resultValue, store, storeChanged);
+
+    if (method.getSimpleName().contentEquals("cast")
+        && method.getEnclosingElement().getSimpleName().contentEquals("Class")) {
+      // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
+      AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
+      if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
+        setResultValueToNonNull(result);
+      } else if (atypeFactory
+          .withMostConvenientWorld()
+          .isNullExclusiveUnderEveryParameterization(type)) {
+        setResultValueToUnspecified(result);
+      }
+    }
+
+    return new RegularTransferResult<>(result.getResultValue(), store, storeChanged);
+  }
+
+  private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
+      TransferInput<CFValue, CFStore> input, Node node) {
+    Set<AnnotationMirror> annotations = input.getValueOfSubNode(node).getAnnotations();
+    AnnotatedTypeMirror type = createType(node.getType(), atypeFactory, /*isDeclaration=*/ false);
+    type.addAnnotations(annotations);
+    return type;
   }
 
   @Override
@@ -151,7 +181,15 @@ public final class NullSpecTransfer extends CFTransfer {
   }
 
   private void setResultValueToNonNull(TransferResult<CFValue, CFStore> result) {
+    setResultValue(result, nonNull);
+  }
+
+  private void setResultValueToUnspecified(TransferResult<CFValue, CFStore> result) {
+    setResultValue(result, codeNotNullnessAware);
+  }
+
+  private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
     result.setResultValue(
-        new CFValue(analysis, singleton(nonNull), result.getResultValue().getUnderlyingType()));
+        new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
   }
 }
