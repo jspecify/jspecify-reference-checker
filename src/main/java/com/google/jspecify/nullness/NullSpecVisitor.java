@@ -29,6 +29,7 @@ import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
+import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 
 import com.sun.source.tree.AnnotatedTypeTree;
@@ -42,6 +43,7 @@ import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
@@ -191,6 +193,20 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   // TODO: binary, unary, compoundassign, typecast, ...
+
+  @Override
+  public Void visitNewClass(NewClassTree node, Void p) {
+    ExecutableElement element = elementFromUse(node);
+    if (element.getSimpleName().contentEquals("<init>")
+        && element.getEnclosingElement().getSimpleName().contentEquals("AtomicReference")
+        && !atypeFactory.isNullInclusiveUnderEveryParameterization(
+            atypeFactory.getAnnotatedType(node).getTypeArguments().get(0))) {
+      // TODO(cpovirk): Ensure that it's java.util.concurrent.atomic.AtomicReference specifically.
+      // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
+      checker.reportError(node, "must.include.null: " + node);
+    }
+    return super.visitNewClass(node, p);
+  }
 
   /*
    * We report some errors of the form "X should not be annotated" in isTopLevelValidType. We do

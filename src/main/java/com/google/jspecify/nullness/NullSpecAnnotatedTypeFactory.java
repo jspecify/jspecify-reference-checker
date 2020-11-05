@@ -335,7 +335,7 @@ public final class NullSpecAnnotatedTypeFactory
     }
   }
 
-  private boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
+  boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
     /*
      * Our draft subtyping rules specify a special case for intersection types. However, those rules
      * make sense only because the rules also specify that an intersection type never has an
