@@ -768,13 +768,14 @@ public final class NullSpecAnnotatedTypeFactory
      * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
      * defaults that are common to null-aware and non-null-aware code!
      *
-     * - *not* do what the supermethod does. I admit that I don't fully understand the supermethod
-     * behavior. PropagationTypeAnnotator describes it as "the propagation of generic type parameter
-     * annotations to unannotated wildcards with missing bounds annotations." That sounds either
-     * irrelevant (since we don't annotate wildcards / type parameters themselves, at least not in
-     * the same way as CF) or good (since it sounds like it could counter some of the defaulting
-     * problems we'd seen). But if I add in the supermethod's TypeAnnotator, I start seeing
-     * incorrect results on sample inputs.
+     * - *not* do what the supermethod does. I don't fully understand what the supermethod's
+     * PropagationTypeAnnotator does, but here's part of what I think it does: It overwrites the
+     * annotations on upper bounds of unbounded wildcards to match those on their corresponding type
+     * parameters. This means that it overwrites our not-null-aware default bound of
+     * @NullnessUnspecified. But I also seem to be seeing problems in the *reverse* direction, and I
+     * understand those even less. (To be fair, our entire handling of upper bounds of unbounded
+     * wildcards is a hack: The normal CF quite reasonably doesn't want for them to have bounds of
+     * their own, but we do.)
      */
     return new NullSpecTypeAnnotator(this);
   }
