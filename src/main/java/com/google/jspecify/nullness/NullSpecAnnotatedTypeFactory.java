@@ -104,17 +104,23 @@ public final class NullSpecAnnotatedTypeFactory
   private final AnnotationMirror codeNotNullnessAware;
 
   private final boolean isLeastConvenientWorld;
+  private final NullSpecAnnotatedTypeFactory withLeastConvenientWorld;
+  private final NullSpecAnnotatedTypeFactory withMostConvenientWorld;
 
-  /** Constructor that takes all configuration from the checker. */
+  /** Constructor that takes all configuration from the provided {@code checker}. */
   public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
-    this(checker, checker.hasOption("strict"));
+    this(checker, checker.hasOption("strict"), /*withOtherWorld=*/ null);
   }
 
   /**
-   * Constructor that takes all configuration from the checker <i>except</i> {@code strict}/{@code
-   * isLeastConvenientWorld}.
+   * Constructor that takes all configuration from the provided {@code checker} <i>except</i> {@code
+   * strict}/{@code isLeastConvenientWorld}. It also accepts another instance of this class (if one
+   * is already available) that represents the other "world."
    */
-  private NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, boolean isLeastConvenientWorld) {
+  private NullSpecAnnotatedTypeFactory(
+      BaseTypeChecker checker,
+      boolean isLeastConvenientWorld,
+      NullSpecAnnotatedTypeFactory withOtherWorld) {
     // Only use flow-sensitive type refinement if implementation code should be checked
     super(checker, checker.hasOption("checkImpl"));
 
@@ -150,6 +156,27 @@ public final class NullSpecAnnotatedTypeFactory
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
     postInit();
+
+    /*
+     * Creating a new AnnotatedTypeFactory is expensive -- especially parseStubFiles. So we make
+     * sure to create only a single instance for each "world."
+     *
+     * It would be better if we could operate in both "worlds" without needing to create 2 separate
+     * AnnotatedTypeFactory instances. But I worry about accidentally depending on state that is
+     * specific to the world that the current instance was created with.
+     */
+    if (withOtherWorld == null) {
+      withOtherWorld =
+          new NullSpecAnnotatedTypeFactory(
+              checker, !isLeastConvenientWorld, /*withOtherWorld=*/ this);
+    }
+    if (isLeastConvenientWorld) {
+      withLeastConvenientWorld = this;
+      withMostConvenientWorld = withOtherWorld;
+    } else {
+      withLeastConvenientWorld = withOtherWorld;
+      withMostConvenientWorld = this;
+    }
   }
 
   @Override
@@ -949,10 +976,10 @@ public final class NullSpecAnnotatedTypeFactory
   }
 
   NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {
-    return new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ true);
+    return withLeastConvenientWorld;
   }
 
   NullSpecAnnotatedTypeFactory withMostConvenientWorld() {
-    return new NullSpecAnnotatedTypeFactory(checker, /*isLeastConvenientWorld=*/ false);
+    return withMostConvenientWorld;
   }
 }
