@@ -51,13 +51,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -70,12 +73,16 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
-import org.checkerframework.framework.type.DefaultAnnotatedTypeFormatter;
 import org.checkerframework.framework.type.DefaultTypeHierarchy;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.NoElementQualifierHierarchy;
@@ -87,6 +94,7 @@ import org.checkerframework.framework.type.TypeVariableSubstitutor;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
@@ -907,18 +915,181 @@ public final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
-    return new DefaultAnnotatedTypeFormatter(
-        /*
-         * We would pass the result of getAnnotationFormatter(), but the superclass calls
-         * createAnnotatedTypeFormatter() before it initializes that field.
-         *
-         * Fortunately, it's harmless to use one AnnotationFormatter here and another equivalent
-         * one in createAnnotationFormatter().
-         */
-        createAnnotationFormatter(),
-        // TODO(cpovirk): Permit configuration of these booleans?
-        /*printVerboseGenerics=*/ false,
-        /*defaultPrintInvisibleAnnos=*/ false);
+    return new NullSpecAnnotatedTypeFormatter();
+  }
+
+  private final class NullSpecAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
+    @Override
+    public String format(AnnotatedTypeMirror type) {
+      return format(type, /*printVerbose=*/ false);
+    }
+
+    @Override
+    public String format(AnnotatedTypeMirror type, boolean printVerbose) {
+      StringBuilder result = new StringBuilder();
+      Map<AnnotatedWildcardType, Present> visiting = new IdentityHashMap<>();
+      new AnnotatedTypeVisitor<Void, Void>() {
+        @Override
+        public Void visit(AnnotatedTypeMirror type) {
+          return visit(type, null);
+        }
+
+        @Override
+        public Void visit(AnnotatedTypeMirror type, Void aVoid) {
+          return type.accept(this, null);
+        }
+
+        @Override
+        public Void visitDeclared(AnnotatedDeclaredType type, Void aVoid) {
+          append(simpleName(type));
+          if (!type.getTypeArguments().isEmpty()) {
+            append("<");
+            visitJoining(type.getTypeArguments(), ", ");
+            append(">");
+          }
+          append(operator(type));
+          return null;
+        }
+
+        @Override
+        public Void visitIntersection(AnnotatedIntersectionType type, Void aVoid) {
+          return visitJoining(type.getBounds(), " & ");
+        }
+
+        @Override
+        public Void visitUnion(AnnotatedUnionType type, Void aVoid) {
+          return visitJoining(type.getAlternatives(), " | ");
+        }
+
+        @Override
+        public Void visitExecutable(AnnotatedExecutableType type, Void aVoid) {
+          visit(type.getReturnType());
+          append(" ");
+          append(type.getElement().getSimpleName());
+          append("(");
+          visitJoining(type.getParameterTypes(), ", ");
+          append(")");
+          return null;
+        }
+
+        @Override
+        public Void visitArray(AnnotatedArrayType type, Void aVoid) {
+          visit(type.getComponentType());
+          append("[]");
+          append(operator(type));
+          return null;
+        }
+
+        @Override
+        public Void visitTypeVariable(AnnotatedTypeVariable type, Void aVoid) {
+          append(simpleName(type));
+          append(operator(type));
+          return null;
+        }
+
+        @Override
+        public Void visitPrimitive(AnnotatedPrimitiveType type, Void aVoid) {
+          append(type.getPrimitiveKind().toString().toLowerCase(Locale.ROOT));
+          return null;
+        }
+
+        @Override
+        public Void visitNoType(AnnotatedNoType type, Void aVoid) {
+          append("void");
+          return null;
+        }
+
+        @Override
+        public Void visitNull(AnnotatedNullType type, Void aVoid) {
+          append("null");
+          append(operator(type));
+          return null;
+        }
+
+        @Override
+        public Void visitWildcard(AnnotatedWildcardType type, Void aVoid) {
+          Present currentlyVisiting = visiting.put(type, Present.INSTANCE);
+          if (currentlyVisiting == Present.INSTANCE) {
+            append("?");
+            return null;
+          }
+
+          String operator = operator(type);
+          if (!operator.isEmpty()) {
+            append("{");
+          }
+          append("?");
+          if (hasExtendsBound(type)) {
+            append(" extends ");
+            visit(type.getExtendsBound());
+          }
+          if (hasSuperBound(type)) {
+            append(" super ");
+            visit(type.getSuperBound());
+          }
+          if (!operator.isEmpty()) {
+            append("}");
+          }
+          append(operator);
+          visiting.remove(type);
+          return null;
+        }
+
+        boolean hasExtendsBound(AnnotatedWildcardType type) {
+          AnnotatedTypeMirror bound = type.getExtendsBound();
+          boolean isUnbounded =
+              bound instanceof AnnotatedDeclaredType
+                  && ((AnnotatedDeclaredType) bound)
+                      .getUnderlyingType()
+                      .asElement()
+                      .getSimpleName()
+                      .contentEquals("Object")
+                  // TODO(cpovirk): Look specifically for java.lang.Object.
+                  && bound.hasAnnotation(unionNull);
+          return !isUnbounded;
+        }
+
+        boolean hasSuperBound(AnnotatedWildcardType type) {
+          AnnotatedTypeMirror bound = type.getSuperBound();
+          boolean isUnbounded =
+              bound instanceof AnnotatedNullType
+                  && !bound.hasAnnotation(unionNull)
+                  && !bound.hasAnnotation(codeNotNullnessAware);
+          return !isUnbounded;
+        }
+
+        Void visitJoining(List<? extends AnnotatedTypeMirror> types, String separator) {
+          boolean first = true;
+          for (AnnotatedTypeMirror type : types) {
+            if (!first) {
+              append(separator);
+            }
+            first = false;
+            visit(type);
+          }
+          return null;
+        }
+
+        String operator(AnnotatedTypeMirror type) {
+          return type.hasAnnotation(unionNull)
+              ? "?"
+              : type.hasAnnotation(codeNotNullnessAware) ? "*" : "";
+        }
+
+        Name simpleName(AnnotatedDeclaredType type) {
+          return type.getUnderlyingType().asElement().getSimpleName();
+        }
+
+        Name simpleName(AnnotatedTypeVariable type) {
+          return type.getUnderlyingType().asElement().getSimpleName();
+        }
+
+        void append(Object o) {
+          result.append(o);
+        }
+      }.visit(type);
+      return result.toString();
+    }
   }
 
   @Override
@@ -981,5 +1152,9 @@ public final class NullSpecAnnotatedTypeFactory
 
   NullSpecAnnotatedTypeFactory withMostConvenientWorld() {
     return withMostConvenientWorld;
+  }
+
+  private enum Present {
+    INSTANCE;
   }
 }
