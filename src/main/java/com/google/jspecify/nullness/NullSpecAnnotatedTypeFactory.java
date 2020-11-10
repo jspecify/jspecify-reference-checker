@@ -1010,7 +1010,7 @@ public final class NullSpecAnnotatedTypeFactory
         public Void visitWildcard(AnnotatedWildcardType type, Void aVoid) {
           Present currentlyVisiting = visiting.put(type, Present.INSTANCE);
           if (currentlyVisiting == Present.INSTANCE) {
-            append("?");
+            append("...");
             return null;
           }
 
