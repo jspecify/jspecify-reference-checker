@@ -83,13 +83,12 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     checkImpl = checker.hasOption("checkImpl");
   }
 
-  private void ensureNonNull(Tree tree, String messageKeyPart) {
+  private void ensureNonNull(Tree tree) {
     AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
     // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
     if (!isPrimitive(type.getUnderlyingType())
         && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
-      // TODO(cpovirk): Put the type in the body of the message once possible
-      checker.reportError(tree, "possibly.null." + messageKeyPart + ": " + type);
+      checker.reportError(tree, "dereference", type);
     }
   }
 
@@ -129,7 +128,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
         && !element.getKind().isInterface()
         && element.getKind() != PACKAGE
         && !node.getIdentifier().contentEquals("class")) {
-      ensureNonNull(node.getExpression(), "member.select");
+      ensureNonNull(node.getExpression());
       /*
        * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
        * `Foo<Bar>.Baz`, or it must be a fully qualified type name, like `java.util.List`. In either
@@ -156,39 +155,39 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitEnhancedForLoop(EnhancedForLoopTree node, Void p) {
-    ensureNonNull(node.getExpression(), "enhanced.for");
+    ensureNonNull(node.getExpression());
     return super.visitEnhancedForLoop(node, p);
   }
 
   @Override
   public Void visitArrayAccess(ArrayAccessTree node, Void p) {
-    ensureNonNull(node.getExpression(), "array.access");
+    ensureNonNull(node.getExpression());
     return super.visitArrayAccess(node, p);
   }
 
   @Override
   protected void checkThrownExpression(ThrowTree node) {
-    ensureNonNull(node.getExpression(), "thrown.expression");
+    ensureNonNull(node.getExpression());
   }
 
   @Override
   public Void visitSynchronized(SynchronizedTree node, Void p) {
-    ensureNonNull(node.getExpression(), "synchronized");
+    ensureNonNull(node.getExpression());
     return super.visitSynchronized(node, p);
   }
 
   @Override
   public Void visitAssert(AssertTree node, Void p) {
-    ensureNonNull(node.getCondition(), "assert.condition");
+    ensureNonNull(node.getCondition());
     if (node.getDetail() != null) {
-      ensureNonNull(node.getDetail(), "assert.detail");
+      ensureNonNull(node.getDetail());
     }
     return super.visitAssert(node, p);
   }
 
   @Override
   public Void visitIf(IfTree node, Void p) {
-    ensureNonNull(node.getCondition(), "if.condition");
+    ensureNonNull(node.getCondition());
     return super.visitIf(node, p);
   }
 
