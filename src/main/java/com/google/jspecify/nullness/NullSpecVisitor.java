@@ -198,12 +198,13 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     ExecutableElement element = elementFromUse(node);
     if (element.getSimpleName().contentEquals("<init>")
         && element.getEnclosingElement().getSimpleName().contentEquals("AtomicReference")
-        && element.getParameters().isEmpty()
-        && !atypeFactory.isNullInclusiveUnderEveryParameterization(
-            atypeFactory.getAnnotatedType(node).getTypeArguments().get(0))) {
+        && element.getParameters().isEmpty()) {
       // TODO(cpovirk): Ensure that it's java.util.concurrent.atomic.AtomicReference specifically.
       // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
-      checker.reportError(node, "must.include.null: " + node);
+      AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(node).getTypeArguments().get(0);
+      if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
+        checker.reportError(node, "atomicreference.must.include.null", typeArg);
+      }
     }
     return super.visitNewClass(node, p);
   }
