@@ -364,6 +364,18 @@ public final class NullSpecAnnotatedTypeFactory
          */
         return true;
       }
+      if (subtype instanceof AnnotatedWildcardType
+          && ((AnnotatedWildcardType) subtype).isUninferredTypeArgument()) {
+        /*
+         * Hope for the best, as the supertype does.
+         *
+         * XXX: I'm not sure if I'm exactly matching the cases in which the supertype checks for
+         * uninferred type arguments. But this check is enough to eliminate the compile errors I was
+         * seeing in my testing and also not so much that it breaks handling of any of our existing
+         * samples.
+         */
+        return true;
+      }
       return isNullInclusiveUnderEveryParameterization(supertype)
           || isNullExclusiveUnderEveryParameterization(subtype)
           || nullnessEstablishingPathExists(subtype, supertype);
