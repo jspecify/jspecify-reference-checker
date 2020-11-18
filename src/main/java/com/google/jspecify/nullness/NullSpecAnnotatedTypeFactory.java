@@ -39,6 +39,7 @@ import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
+import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -897,6 +898,12 @@ public final class NullSpecAnnotatedTypeFactory
       }
 
       return super.visitLiteral(node, type);
+    }
+
+    @Override
+    public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+      type.addAnnotation(nonNull);
+      return super.visitBinary(node, type);
     }
 
     @Override
