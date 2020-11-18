@@ -15,11 +15,14 @@
 package com.google.jspecify.nullness;
 
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
+import static java.util.Collections.unmodifiableSet;
 import static org.checkerframework.dataflow.expression.FlowExpressions.internalReprOf;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -35,6 +38,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
+import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
 import org.checkerframework.dataflow.expression.Receiver;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
@@ -104,6 +108,16 @@ public final class NullSpecTransfer extends CFTransfer {
           .withMostConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToUnspecified(result);
+      }
+    } else if (method.getSimpleName().contentEquals("getProperty")
+        && method.getEnclosingElement().getSimpleName().contentEquals("System")) {
+      // TODO(cpovirk): Ensure that it's java.lang.System specifically.
+      Node arg = node.getArgument(0);
+      if (arg instanceof StringLiteralNode
+          && ALWAYS_PRESENT_PROPERTY_VALUES.contains(((StringLiteralNode) arg).getValue())) {
+        // TODO(cpovirk): Also handle other compile-time constants (concat, static final fields).
+        // TODO(cpovirk): How safe an assumption is this under other environments (Android/GWT)?
+        setResultValueToNonNull(result);
       }
     }
 
@@ -202,4 +216,36 @@ public final class NullSpecTransfer extends CFTransfer {
     result.setResultValue(
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
   }
+
+  private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
+      unmodifiableSet(
+          new LinkedHashSet<>(
+              asList(
+                  "java.version",
+                  "java.vendor",
+                  "java.vendor.url",
+                  "java.home",
+                  "java.vm.specification.version",
+                  "java.vm.specification.vendor",
+                  "java.vm.specification.name",
+                  "java.vm.version",
+                  "java.vm.vendor",
+                  "java.vm.name",
+                  "java.specification.version",
+                  "java.specification.vendor",
+                  "java.specification.name",
+                  "java.class.version",
+                  "java.class.path",
+                  "java.library.path",
+                  "java.io.tmpdir",
+                  "java.compiler",
+                  "os.name",
+                  "os.arch",
+                  "os.version",
+                  "file.separator",
+                  "path.separator",
+                  "line.separator",
+                  "user.name",
+                  "user.home",
+                  "user.dir")));
 }
