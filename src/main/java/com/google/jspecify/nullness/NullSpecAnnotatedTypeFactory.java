@@ -582,7 +582,27 @@ public final class NullSpecAnnotatedTypeFactory
       }
       AnnotationMirror a1 = type1.getAnnotationInHierarchy(unionNull);
       AnnotationMirror a2 = type2.getAnnotationInHierarchy(unionNull);
-      return a1 == a2 || (a1 != null && a2 != null && areSame(a1, a2));
+      if (a1 == a2) {
+        return true;
+      }
+      if (a1 != null && a2 != null && areSame(a1, a2)) {
+        return true;
+      }
+      if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type1)
+          && withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type2)) {
+        /*
+         * One is `T`, and the other is `@NonNull T`, and `T` has a non-nullable bound. Thus, the
+         * two are effectively the same.
+         *
+         * TODO(cpovirk): Why do we sometimes end up with one of those and sometimes with the other?
+         * Can we ensure that we always end up with `@NonNull T`? Alternatively, can we avoid
+         * creating `@NonNull T` when `T` is already known to be non-nullable? And whether we leave
+         * this code in or replace it with other code, do we need to update our subtyping rules to
+         * reflect this case?
+         */
+        return true;
+      }
+      return false;
       /*
        * TODO(cpovirk): Do we care about the base type, or is looking at annotations enough?
        * super.visitDeclared_Declared has a TODO with a similar question. Err, presumably normal
