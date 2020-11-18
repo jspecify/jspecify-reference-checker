@@ -24,7 +24,6 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
-import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
@@ -66,6 +65,7 @@ public final class NullSpecTransfer extends CFTransfer {
       FieldAccessNode node, TransferInput<CFValue, CFStore> input) {
     TransferResult<CFValue, CFStore> result = super.visitFieldAccess(node, input);
     if (node.getFieldName().equals("class")) {
+      // TODO(cpovirk): Would it make more sense to do this in our TreeAnnotator?
       setResultValueToNonNull(result);
     }
     return result;
@@ -75,16 +75,23 @@ public final class NullSpecTransfer extends CFTransfer {
   public TransferResult<CFValue, CFStore> visitMethodInvocation(
       MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
     TransferResult<CFValue, CFStore> result = super.visitMethodInvocation(node, input);
-    CFStore store = input.getRegularStore();
+    CFStore thenStore = input.getThenStore();
+    CFStore elseStore = input.getElseStore();
     ExecutableElement method = node.getTarget().getMethod();
 
-    boolean storeChanged;
+    boolean storeChanged = false;
+
     if (method.getSimpleName().contentEquals("requireNonNull")
         && method.getEnclosingElement().getSimpleName().contentEquals("Objects")) {
       // TODO(cpovirk): Ensure that it's java.util.Objects specifically.
-      storeChanged = putNonNull(store, node.getArgument(0));
-    } else {
-      storeChanged = false;
+      storeChanged |= putNonNull(thenStore, node.getArgument(0));
+      storeChanged |= putNonNull(elseStore, node.getArgument(0));
+    }
+
+    if (method.getSimpleName().contentEquals("isInstance")
+        && method.getEnclosingElement().getSimpleName().contentEquals("Class")) {
+      // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
+      storeChanged |= putNonNull(thenStore, node.getArgument(0));
     }
 
     if (method.getSimpleName().contentEquals("cast")
@@ -100,7 +107,8 @@ public final class NullSpecTransfer extends CFTransfer {
       }
     }
 
-    return new RegularTransferResult<>(result.getResultValue(), store, storeChanged);
+    return new ConditionalTransferResult<>(
+        result.getResultValue(), thenStore, elseStore, storeChanged);
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
@@ -179,6 +187,8 @@ public final class NullSpecTransfer extends CFTransfer {
   private static boolean isNullLiteral(Node node) {
     return node.getTree().getKind() == NULL_LITERAL;
   }
+
+  // TODO(cpovirk): Maybe avoid mutating the result value in place?
 
   private void setResultValueToNonNull(TransferResult<CFValue, CFStore> result) {
     setResultValue(result, nonNull);
