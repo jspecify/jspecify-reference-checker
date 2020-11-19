@@ -30,6 +30,7 @@ import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
+import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
@@ -176,6 +177,10 @@ public final class NullSpecTransfer extends CFTransfer {
   /** Mark the node as non-null, and return whether this is a change in its value. */
   private boolean putNonNull(CFStore store, Node node) {
     boolean storeChanged = false;
+    while (node instanceof AssignmentNode) {
+      // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
+      node = ((AssignmentNode) node).getTarget();
+    }
     if (node instanceof ArrayAccessNode
         || node instanceof FieldAccessNode
         || node instanceof LocalVariableNode) {
