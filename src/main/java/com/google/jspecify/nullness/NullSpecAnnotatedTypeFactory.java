@@ -467,8 +467,8 @@ public final class NullSpecAnnotatedTypeFactory
      * The following special case for type variables works around a problem with CF defaulting: When
      * CF computes the default for the bound of a type-variable usage, it uses the defaulting rules
      * that are in effect at the site of the usage. It probably should instead use the defaulting
-     * rules that are in effect at the site of the type-parameter declaration. To get the rules we,
-     * want we look up the type of the declaration element. (But first we do look at the use site a
+     * rules that are in effect at the site of the type-parameter declaration. To get the rules we
+     * want, we look up the type of the declaration element. (But first we do look at the use site a
      * little, just to make sure that it's not `@Nullable E` (or `@NullnessUnspecified E`, if in the
      * least convenient world).)
      *
