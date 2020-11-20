@@ -722,9 +722,10 @@ public final class NullSpecAnnotatedTypeFactory
        *
        * XXX: When adding support for aliases, make sure to support them here. But consider how to
        * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular,
-       * we may need to move away from the javac API elt.getAnnotation(...).
+       * we may need to edit getDeclAnnotations to replace its call to
+       * elements.getAllAnnotationMirrors and to remove its additional inheritance logic.
        */
-      if (elt.getAnnotation(DefaultNonNull.class) != null) {
+      if (getDeclAnnotation(elt, DefaultNonNull.class) != null) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, nonNull, OTHERWISE);
         addDefaultToTopForLocationsRefinedByDataflow(elt);
