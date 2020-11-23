@@ -568,8 +568,28 @@ public final class NullSpecAnnotatedTypeFactory
 
     private boolean areEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
       /*
-       * I'd like to use the spec definition here: "type1 is a subtype of type2 and vice versa."
-       * However, that produces infinite recursion in some cases.
+       * Eventually, we'll test the spec definition: "type1 is a subtype of type2 and vice versa."
+       * However, we perform some other tests first. Why?
+       *
+       * Well, originally, testing the spec definition somehow produced infinite recursion. (I don't
+       * think the spec requires infinite recursion; I think the implementation just produced it
+       * somehow, though I don't recall how.) When that happened, I switched to not using the spec
+       * definition _at all_. However, I don't see infinite recursion anymore (with any of our
+       * samples or with Guava), even if I use that definition exclusively. I remain a _little_
+       * nervous about switching to using the spec definition exclusively -- or even using it
+       * conditionally, as we do now -- but it's _probably_ safe.
+       *
+       * But we still can't rely solely on the spec definition, at least at present. If we try to,
+       * we produce errors for samples like the following:
+       *
+       * https://github.com/jspecify/jspecify/blob/5f67b5e2388adc6e1ce386bf7957eef588d981db/samples/OverrideParametersThatAreTypeVariables.java#L41
+       *
+       * I think that is because of the somewhat odd contract for this method, as described into the
+       * TODO at the end of this method: The method is not actually _supposed_ to check that the
+       * given _types_ are equal, only that... their primary annotations are? Or something?
+       *
+       * TODO(cpovirk): Even if we're keeping both checks, it seems like _some_ of the code below
+       * may be redundant (or even wrong).
        */
       boolean type1IsUnspecified = type1.hasAnnotation(codeNotNullnessAware);
       boolean type2IsUnspecified = type2.hasAnnotation(codeNotNullnessAware);
@@ -603,7 +623,8 @@ public final class NullSpecAnnotatedTypeFactory
          */
         return true;
       }
-      return false;
+      return getTypeHierarchy().isSubtype(type1, type2)
+          && getTypeHierarchy().isSubtype(type2, type1);
       /*
        * TODO(cpovirk): Do we care about the base type, or is looking at annotations enough?
        * super.visitDeclared_Declared has a TODO with a similar question. Err, presumably normal
