@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
@@ -230,11 +231,6 @@ public final class NullSpecTransfer extends CFTransfer {
   private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
     result.setResultValue(
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
-  }
-
-  private static boolean nameMatches(ExecutableElement executable, String clazz, String method) {
-    return executable.getSimpleName().contentEquals(method)
-        && executable.getEnclosingElement().getSimpleName().contentEquals(clazz);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =

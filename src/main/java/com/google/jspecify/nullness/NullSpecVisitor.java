@@ -40,6 +40,7 @@ import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.IfTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -294,6 +295,39 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
         checker.reportError(node, messageKey);
       }
     }
+  }
+
+  @Override
+  protected boolean checkMethodReferenceAsOverride(MemberReferenceTree node, Void p) {
+    /*
+     * Class.cast accepts `Object?`, so there's no need to check its parameter type: It can accept
+     * nullable and non-nullable values alike.
+     *
+     * It returns `T?`, so we normally do need to check its _return type_ to see if that fits the
+     * required type. *But*, if its parameter type is non-nullable, then so too is its return type.
+     * And if its return type is non-nullable, then it returns a value that works whether we need a
+     * nullable or non-nullable value. In that case, we can skip the superclass's checks entirely.
+     *
+     * This all relies on the fact that CF can infer the return type as non-nullable in the first
+     * place. I had expected that to work in simple cases but fail in more complex ones. But I
+     * haven't seen if fail yet. If it does fail someday, we can probably patch some common cases up
+     * in our TreeAnnotator by making visitMethodInvocation check Stream.map calls to see if they
+     * fit the form filter(...).map(Foo.class::cast), where the filter is isInstance, x != null,
+     * etc. In that case, we can modify the Stream<...> return type to have a non-nullable element
+     * type. I hope.
+     */
+    return isClassCastAppliedToNonNullableType(node)
+        || super.checkMethodReferenceAsOverride(node, p);
+  }
+
+  private boolean isClassCastAppliedToNonNullableType(MemberReferenceTree node) {
+    // TODO(cpovirk): Ensure that it's java.lang.Class.cast specifically.
+    if (!node.getName().contentEquals("cast")) {
+      return false;
+    }
+    AnnotatedExecutableType functionType = atypeFactory.getFunctionTypeFromTree(node);
+    AnnotatedTypeMirror parameterType = functionType.getParameterTypes().get(0);
+    return atypeFactory.isNullExclusiveUnderEveryParameterization(parameterType);
   }
 
   @Override

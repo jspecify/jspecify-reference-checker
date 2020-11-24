@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -44,7 +45,9 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
@@ -61,6 +64,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
@@ -926,6 +930,36 @@ public final class NullSpecAnnotatedTypeFactory
     public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
       type.addAnnotation(nonNull);
       return super.visitBinary(node, type);
+    }
+
+    @Override
+    public Void visitMethodInvocation(MethodInvocationTree node, AnnotatedTypeMirror type) {
+      if (establishesStreamElementsAreNonNull(node)) {
+        AnnotatedTypeMirror returnedStreamElementType =
+            ((AnnotatedDeclaredType) type).getTypeArguments().get(0);
+        returnedStreamElementType.replaceAnnotation(nonNull);
+      }
+
+      return super.visitMethodInvocation(node, type);
+    }
+
+    private boolean establishesStreamElementsAreNonNull(ExpressionTree node) {
+      if (!(node instanceof MethodInvocationTree)) {
+        return false;
+      }
+      MethodInvocationTree invocation = (MethodInvocationTree) node;
+      ExecutableElement method = elementFromUse(invocation);
+      if (!nameMatches(method, "Stream", "filter")) {
+        return false;
+      }
+      ExpressionTree predicate = invocation.getArguments().get(0);
+      // TODO(cpovirk): Also check for filter(x -> x != null), filter(Objects::nonNull), others?
+      if (!(predicate instanceof MemberReferenceTree)) {
+        return false;
+      }
+      MemberReferenceTree memberReferenceTree = (MemberReferenceTree) predicate;
+      // TODO(cpovirk): Ensure that it's java.lang.Class.isInstance specifically.
+      return memberReferenceTree.getName().contentEquals("isInstance");
     }
 
     @Override
