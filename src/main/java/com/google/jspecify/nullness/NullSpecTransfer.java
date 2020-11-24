@@ -100,21 +100,18 @@ public final class NullSpecTransfer extends CFTransfer {
 
     boolean storeChanged = false;
 
-    if (method.getSimpleName().contentEquals("requireNonNull")
-        && method.getEnclosingElement().getSimpleName().contentEquals("Objects")) {
+    if (nameMatches(method, "Objects", "requireNonNull")) {
       // TODO(cpovirk): Ensure that it's java.util.Objects specifically.
       storeChanged |= putNonNull(thenStore, node.getArgument(0));
       storeChanged |= putNonNull(elseStore, node.getArgument(0));
     }
 
-    if (method.getSimpleName().contentEquals("isInstance")
-        && method.getEnclosingElement().getSimpleName().contentEquals("Class")) {
+    if (nameMatches(method, "Class", "isInstance")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       storeChanged |= putNonNull(thenStore, node.getArgument(0));
     }
 
-    if (method.getSimpleName().contentEquals("cast")
-        && method.getEnclosingElement().getSimpleName().contentEquals("Class")) {
+    if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
@@ -124,8 +121,7 @@ public final class NullSpecTransfer extends CFTransfer {
           .isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToUnspecified(result);
       }
-    } else if (method.getSimpleName().contentEquals("getProperty")
-        && method.getEnclosingElement().getSimpleName().contentEquals("System")) {
+    } else if (nameMatches(method, "System", "getProperty")) {
       // TODO(cpovirk): Ensure that it's java.lang.System specifically.
       Node arg = node.getArgument(0);
       if (arg instanceof StringLiteralNode
@@ -234,6 +230,11 @@ public final class NullSpecTransfer extends CFTransfer {
   private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
     result.setResultValue(
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
+  }
+
+  private static boolean nameMatches(ExecutableElement executable, String clazz, String method) {
+    return executable.getSimpleName().contentEquals(method)
+        && executable.getEnclosingElement().getSimpleName().contentEquals(clazz);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
