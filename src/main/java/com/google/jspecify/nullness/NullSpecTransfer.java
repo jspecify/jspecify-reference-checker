@@ -131,6 +131,10 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
+    if (isGetCanonicalNameOnClassLiteral(node)) {
+      setResultValueToNonNull(result);
+    }
+
     if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
@@ -161,7 +165,6 @@ public final class NullSpecTransfer extends CFTransfer {
     if (!nameMatches(method, "Class", "getPackage")) {
       return false;
     }
-    // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
     Node receiver = node.getTarget().getReceiver();
     if (!(receiver instanceof FieldAccessNode)) {
       return false;
@@ -172,6 +175,19 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     ClassNameNode className = (ClassNameNode) fieldAccess.getReceiver();
     return isInPackage(className.getElement());
+  }
+
+  private boolean isGetCanonicalNameOnClassLiteral(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Class", "getCanonicalName")) {
+      return false;
+    }
+    Node receiver = node.getTarget().getReceiver();
+    if (!(receiver instanceof FieldAccessNode)) {
+      return false;
+    }
+    FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
+    return fieldAccess.getFieldName().equals("class");
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
