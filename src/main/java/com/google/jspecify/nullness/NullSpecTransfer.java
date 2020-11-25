@@ -73,13 +73,19 @@ public final class NullSpecTransfer extends CFTransfer {
     if (node.getFieldName().equals("class")) {
       /*
        * TODO(cpovirk): Would it make more sense to do this in our TreeAnnotator? Alternatively,
-       * would it make more sense to eliminate our TreeAnnotator and encode all its rules in our
-       * CFTransfer?
+       * would it make more sense to move most of our code out of TreeAnnotator and perform the same
+       * actions here instead?
        *
        * TreeAnnotator could make more sense if we needed to change types that appear in
        * "non-dataflow" locations -- perhaps if we needed to change the types of a method's
        * parameters or return type before overload checking occurs? But I don't know that we'll need
        * to do that.
+       *
+       * One case in which we _do_ need TreeAnnotator is when we change the nullness of a
+       * _non-top-level_ type. Currently, we do this to change the element type of a Stream when we
+       * know that it is non-nullable. (Aside: Another piece of that logic -- well, a somewhat
+       * different piece of logic with a similar purpose -- lives in
+       * checkMethodReferenceAsOverride. So that logic is already split across files.)
        *
        * A possible downside of TreeAnnotator is that it applies only to constructs whose _source
        * code_ we check. But I'm not sure how much of a problem this is in practice, either: During
