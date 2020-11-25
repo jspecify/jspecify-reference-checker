@@ -30,6 +30,9 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -60,6 +63,7 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror codeNotNullnessAware;
   private final AnnotationMirror unionNull;
+  private final DeclaredType throwableType;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
@@ -68,6 +72,7 @@ public final class NullSpecTransfer extends CFTransfer {
     codeNotNullnessAware =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+    throwableType = getDeclaredType(getTypeElement("java.lang.Throwable"));
   }
 
   @Override
@@ -224,15 +229,59 @@ public final class NullSpecTransfer extends CFTransfer {
       // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
       node = ((AssignmentNode) node).getTarget();
     }
-    if (node instanceof ArrayAccessNode
-        || node instanceof FieldAccessNode
-        || node instanceof LocalVariableNode) {
-      Receiver receiver = internalReprOf(atypeFactory, node);
+    if (trustedToRemainNonNull(node)) {
+      // allowNonDeterministic=true because we perform our own sort of determinism check.
+      Receiver receiver = internalReprOf(atypeFactory, node, /*allowNonDeterministic=*/ true);
       CFValue oldValue = store.getValue(receiver);
       storeChanged = !alreadyKnownToBeNonNull(oldValue);
       store.insertValue(receiver, nonNull);
     }
     return storeChanged;
+  }
+
+  private boolean trustedToRemainNonNull(Node node) {
+    if (node instanceof ArrayAccessNode
+        || node instanceof FieldAccessNode
+        || node instanceof LocalVariableNode) {
+      return true;
+    }
+
+    /*
+     * getCause() can change value over time, but it can never go from non-null to null.
+     * getMessage() doesn't change value over time at all.
+     *
+     * (Technically, both of these rules could be violated by subclasses. That doesn't feel worth
+     * worrying about.)
+     */
+    if (isGetCauseOrGetMessage(node)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private boolean isGetCauseOrGetMessage(Node node) {
+    if (!(node instanceof MethodInvocationNode)) {
+      return false;
+    }
+    ExecutableElement method = ((MethodInvocationNode) node).getTarget().getMethod();
+    if (!method.getSimpleName().contentEquals("getCause")
+        && !method.getSimpleName().contentEquals("getMessage")) {
+      return false;
+    }
+    if (!method.getParameters().isEmpty()) {
+      return false;
+    }
+
+    Element methodEnclosingElement = method.getEnclosingElement();
+    if (!(methodEnclosingElement instanceof TypeElement)) {
+      return false;
+    }
+    DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
+    if (!isSubtype(methodEnclosingType, throwableType)) {
+      return false;
+    }
+    return true;
   }
 
   private boolean alreadyKnownToBeNonNull(CFValue value) {
@@ -272,6 +321,18 @@ public final class NullSpecTransfer extends CFTransfer {
       }
     }
     return false;
+  }
+
+  private DeclaredType getDeclaredType(TypeElement element) {
+    return analysis.getTypes().getDeclaredType(element);
+  }
+
+  private boolean isSubtype(TypeMirror subtype, TypeMirror supertype) {
+    return analysis.getTypes().isSubtype(subtype, supertype);
+  }
+
+  private TypeElement getTypeElement(CharSequence name) {
+    return atypeFactory.getElementUtils().getTypeElement(name);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
