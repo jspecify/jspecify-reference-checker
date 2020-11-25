@@ -64,6 +64,8 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror codeNotNullnessAware;
   private final AnnotationMirror unionNull;
   private final DeclaredType throwableType;
+  private final DeclaredType sortedSetType;
+  private final DeclaredType sortedMapType;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
@@ -72,7 +74,9 @@ public final class NullSpecTransfer extends CFTransfer {
     codeNotNullnessAware =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
-    throwableType = getDeclaredType(getTypeElement("java.lang.Throwable"));
+    throwableType = getDeclaredType("java.lang.Throwable");
+    sortedSetType = getDeclaredType("java.util.SortedSet");
+    sortedMapType = getDeclaredType("java.util.SortedMap");
   }
 
   @Override
@@ -273,6 +277,10 @@ public final class NullSpecTransfer extends CFTransfer {
       return true;
     }
 
+    if (isSortedCollectionComparator(node)) {
+      return true;
+    }
+
     return false;
   }
 
@@ -295,6 +303,30 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
     if (!isSubtype(methodEnclosingType, throwableType)) {
+      return false;
+    }
+    return true;
+  }
+
+  private boolean isSortedCollectionComparator(Node node) {
+    if (!(node instanceof MethodInvocationNode)) {
+      return false;
+    }
+    ExecutableElement method = ((MethodInvocationNode) node).getTarget().getMethod();
+    if (!method.getSimpleName().contentEquals("comparator")) {
+      return false;
+    }
+    if (!method.getParameters().isEmpty()) {
+      return false;
+    }
+
+    Element methodEnclosingElement = method.getEnclosingElement();
+    if (!(methodEnclosingElement instanceof TypeElement)) {
+      return false;
+    }
+    DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
+    if (!isSubtype(methodEnclosingType, sortedSetType)
+        && !isSubtype(methodEnclosingType, sortedMapType)) {
       return false;
     }
     return true;
@@ -339,16 +371,20 @@ public final class NullSpecTransfer extends CFTransfer {
     return false;
   }
 
+  private DeclaredType getDeclaredType(CharSequence name) {
+    return getDeclaredType(getTypeElement(name));
+  }
+
+  private TypeElement getTypeElement(CharSequence name) {
+    return atypeFactory.getElementUtils().getTypeElement(name);
+  }
+
   private DeclaredType getDeclaredType(TypeElement element) {
     return analysis.getTypes().getDeclaredType(element);
   }
 
   private boolean isSubtype(TypeMirror subtype, TypeMirror supertype) {
     return analysis.getTypes().isSubtype(subtype, supertype);
-  }
-
-  private TypeElement getTypeElement(CharSequence name) {
-    return atypeFactory.getElementUtils().getTypeElement(name);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
