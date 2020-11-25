@@ -19,6 +19,7 @@ import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
+import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.dataflow.expression.FlowExpressions.internalReprOf;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
@@ -26,13 +27,16 @@ import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.PackageElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
+import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
@@ -118,6 +122,10 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= putNonNull(thenStore, node.getArgument(0));
     }
 
+    if (isGetPackageCallOnClassInNamedPackage(node)) {
+      setResultValueToNonNull(result);
+    }
+
     if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
@@ -141,6 +149,24 @@ public final class NullSpecTransfer extends CFTransfer {
 
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private boolean isGetPackageCallOnClassInNamedPackage(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Class", "getPackage")) {
+      return false;
+    }
+    // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
+    Node receiver = node.getTarget().getReceiver();
+    if (!(receiver instanceof FieldAccessNode)) {
+      return false;
+    }
+    FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
+    if (!fieldAccess.getFieldName().equals("class")) {
+      return false;
+    }
+    ClassNameNode className = (ClassNameNode) fieldAccess.getReceiver();
+    return isInPackage(className.getElement());
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
@@ -237,6 +263,15 @@ public final class NullSpecTransfer extends CFTransfer {
   private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
     result.setResultValue(
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
+  }
+
+  private static boolean isInPackage(Element element) {
+    for (; element != null; element = element.getEnclosingElement()) {
+      if (element.getKind() == PACKAGE && !((PackageElement) element).isUnnamed()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
