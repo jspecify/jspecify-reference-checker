@@ -802,8 +802,7 @@ public final class NullSpecAnnotatedTypeFactory
         unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
     @Override
-    protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(
-        AnnotationMirror qual, boolean isDeclaration) {
+    protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(AnnotationMirror qual) {
       /*
        * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code, we
        * want our default of codeNotNullnessAware to apply even to type variables.
@@ -827,7 +826,7 @@ public final class NullSpecAnnotatedTypeFactory
        * defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
        * locations.
        */
-      return !isDeclaration && areSame(qual, codeNotNullnessAware);
+      return areSame(qual, codeNotNullnessAware);
     }
 
     @Override
