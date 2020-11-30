@@ -826,11 +826,6 @@ public final class NullSpecAnnotatedTypeFactory
        * into our CF fork and then override it here. Our solution also requires that we set up
        * defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
        * locations.
-       *
-       * XXX: The isDeclaration check here might not matter. I included it because it seems weird to
-       * annotate type-variable declarations, given that we don't normally support that. But I'm not
-       * aware of any specific problems that the check here solves, so maybe we should remove it
-       * (and then perhaps remove the isDeclaration parameter from the method signature).
        */
       return !isDeclaration && areSame(qual, codeNotNullnessAware);
     }
