@@ -321,18 +321,19 @@ public final class NullSpecAnnotatedTypeFactory
         AnnotatedTypeMirror subtype, AnnotatedTypeVariable supertype) {
       /*
        * TODO(cpovirk): Why are the supertype cases so different from the subtype cases above? In
-       * particular: Why is it important to replace an argument only conditionally? And why is it
-       * important to replace the subtype instead of the supertype?
+       * particular: Why is it important to replace the subtype instead of the supertype?
        */
-      return super.visitTypevarSupertype(
-          isNullInclusiveUnderEveryParameterization(supertype) ? withNonNull(subtype) : subtype,
-          supertype);
+      return super.visitTypevarSupertype(withNonNull(subtype), supertype);
     }
 
     @Override
     protected boolean visitWildcardSupertype(
         AnnotatedTypeMirror subtype, AnnotatedWildcardType supertype) {
-      // See discussion in visitTypevarSupertype above.
+      /*
+       * See discussion in visitTypevarSupertype above.
+       *
+       * Plus: TODO(cpovirk): Why is it important to replace an argument only conditionally?
+       */
       return super.visitWildcardSupertype(
           isNullInclusiveUnderEveryParameterization(supertype) ? withNonNull(subtype) : subtype,
           supertype);
