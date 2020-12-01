@@ -157,7 +157,10 @@ public final class NullSpecTransfer extends CFTransfer {
       if (arg instanceof StringLiteralNode
           && ALWAYS_PRESENT_PROPERTY_VALUES.contains(((StringLiteralNode) arg).getValue())) {
         // TODO(cpovirk): Also handle other compile-time constants (concat, static final fields).
-        // TODO(cpovirk): How safe an assumption is this under other environments (Android/GWT)?
+        /*
+         * This assumption is not safe under GWT, but perhaps GWT has its own compile-time check to
+         * reject non-GWT-recognized properties?
+         */
         setResultValueToNonNull(result);
       }
     }
@@ -442,7 +445,7 @@ public final class NullSpecTransfer extends CFTransfer {
                   "java.class.path",
                   "java.library.path",
                   "java.io.tmpdir",
-                  "java.compiler",
+                  // Omit "java.compiler": It is sometimes absent in practice.
                   "os.name",
                   "os.arch",
                   "os.version",
