@@ -158,8 +158,11 @@ public final class NullSpecTransfer extends CFTransfer {
           && ALWAYS_PRESENT_PROPERTY_VALUES.contains(((StringLiteralNode) arg).getValue())) {
         // TODO(cpovirk): Also handle other compile-time constants (concat, static final fields).
         /*
-         * This assumption is not safe under GWT, but perhaps GWT has its own compile-time check to
-         * reject non-GWT-recognized properties?
+         * This assumption is not *completely* safe, since users can clear property values. But I
+         * feel OK with that risk.
+         *
+         * This assumption is also not safe under GWT, but perhaps GWT has its own compile-time
+         * check to reject non-GWT-recognized properties?
          */
         setResultValueToNonNull(result);
       }
