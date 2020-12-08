@@ -24,3 +24,45 @@ Our main work is happening in repo https://github.com/jspecify/jspecify.
 
 This is not an officially supported product of any of the participant
 organizations.
+
+## Usage
+
+Again, this is not ready for general use. But for those in our group who are
+looking to try it out:
+
+```
+# Build the checker:
+
+$ git clone https://github.com/jspecify/nullness-checker-for-checker-framework
+
+$ cd nullness-checker-for-checker-framework
+
+$ ./gradlew assemble
+
+
+# Use it:
+
+$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar:... ...
+
+
+# For example:
+
+$ cat > SomeTest.java
+import org.jspecify.annotations.DefaultNonNull;
+import org.jspecify.annotations.Nullable;
+
+@DefaultNonNull
+class SomeTest {
+  Object passThrough(@Nullable Object o) {
+    return o;
+  }
+}
+
+$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar SomeTest.java
+SomeTest.java:7: error: [nullness] incompatible types in return.
+    return o;
+           ^
+  type of expression: Object?
+  method return type: Object
+1 error
+```
