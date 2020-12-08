@@ -161,6 +161,29 @@ public final class NullSpecAnnotatedTypeFactory
     nonNull = AnnotationBuilder.fromClass(elements, NonNull.class);
     unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
     codeNotNullnessAware = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
+    /*
+     * Note that all the above annotations must be on the *classpath*, not just the *processorpath*.
+     * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
+     * elements.getTypeElement.
+     *
+     * For Nullable, that's perhaps tolerable, though not ideal: Any invocation of the checker will
+     * need to include the JSpecify annotations jar on the classpath, even if the annotations don't
+     * appear in any of the sources or libraries.
+     *
+     * For NonNull, it's worse: Since NonNull doesn't exist in the *annotations* jar (since we
+     * aren't exposing it to end users, at least currently), checker invocations must put the
+     * *checker* jar on the *classpath* (not just the processorpath). Perhaps we should include
+     * NonNull in the annotations jar (as a package-private class that the checker refers to only by
+     * name, including looking up reflectively in createSupportedTypeQualifiers?)? It would be nice
+     * if we didn't need a full AnnotationMirror at all, only a class name, but AnnotationMirror is
+     * baked into CF deeply, since CF needs to support generalized annotation types, write
+     * annotations back to bytecode, and perhaps more.
+     *
+     * For NullnessUnspecified, it depends on whether we expose NullnessUnspecified to users or not:
+     * If we do, then it's like Nullable. If we don't, then it's like NonNull.
+     *
+     * TODO(cpovirk): See if we can avoid requiring the checker on the classpath.
+     */
 
     if (checker.hasOption("aliasCFannos")) {
       addAliasedAnnotation(org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
