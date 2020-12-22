@@ -20,7 +20,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.PACKAGE;
-import static org.checkerframework.dataflow.expression.FlowExpressions.internalReprOf;
+import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
@@ -48,7 +48,7 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
-import org.checkerframework.dataflow.expression.Receiver;
+import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
@@ -259,7 +259,7 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     if (trustedToRemainNonNull(node)) {
       // allowNonDeterministic=true because we perform our own sort of determinism check.
-      Receiver receiver = internalReprOf(atypeFactory, node, /*allowNonDeterministic=*/ true);
+      JavaExpression receiver = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
       CFValue oldValue = store.getValue(receiver);
       storeChanged = !alreadyKnownToBeNonNull(oldValue);
       store.insertValue(receiver, nonNull);

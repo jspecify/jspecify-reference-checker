@@ -186,7 +186,8 @@ public final class NullSpecAnnotatedTypeFactory
      */
 
     if (checker.hasOption("aliasCFannos")) {
-      addAliasedAnnotation(org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
+      addAliasedTypeAnnotation(
+          org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
     }
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
@@ -312,7 +313,7 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     protected StructuralEqualityComparer createEqualityComparer() {
-      return new NullSpecEqualityComparer(typeargVisitHistory);
+      return new NullSpecEqualityComparer(areEqualVisitHistory);
     }
 
     @Override
@@ -578,13 +579,13 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     protected boolean checkOrAreEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-      Boolean pastResult = visitHistory.result(type1, type2, /*hierarchy=*/ unionNull);
+      Boolean pastResult = visitHistory.get(type1, type2, /*hierarchy=*/ unionNull);
       if (pastResult != null) {
         return pastResult;
       }
 
       boolean result = areEqual(type1, type2);
-      this.visitHistory.add(type1, type2, /*hierarchy=*/ unionNull, result);
+      this.visitHistory.put(type1, type2, /*hierarchy=*/ unionNull, result);
       return result;
     }
 
