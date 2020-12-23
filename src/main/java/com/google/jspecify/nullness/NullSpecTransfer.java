@@ -129,6 +129,12 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
+    // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
+    if (nameMatches(method, "Preconditions", "checkState")
+        && node.getArgument(0) instanceof NotEqualNode) {
+      storeChanged |= putNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
+    }
+
     if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
@@ -239,6 +245,17 @@ public final class NullSpecTransfer extends CFTransfer {
       return putNonNull(node.getLeftOperand(), store);
     }
     return false;
+  }
+
+  /**
+   * If one operand is a null literal, marks the other as non-null, and returns whether this is a
+   * change in its value in either store.
+   */
+  private boolean putNullCheckResult(BinaryOperationNode node, CFStore store1, CFStore store2) {
+    boolean storeChanged = false;
+    storeChanged |= putNullCheckResult(node, store1);
+    storeChanged |= putNullCheckResult(node, store2);
+    return storeChanged;
   }
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
