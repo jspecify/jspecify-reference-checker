@@ -30,9 +30,6 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -63,10 +60,6 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror codeNotNullnessAware;
   private final AnnotationMirror unionNull;
-  private final DeclaredType throwableType;
-  private final DeclaredType sortedSetType;
-  private final DeclaredType sortedMapType;
-  private final DeclaredType logRecordType;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
@@ -75,10 +68,6 @@ public final class NullSpecTransfer extends CFTransfer {
     codeNotNullnessAware =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
-    throwableType = getDeclaredType("java.lang.Throwable");
-    sortedSetType = getDeclaredType("java.util.SortedSet");
-    sortedMapType = getDeclaredType("java.util.SortedMap");
-    logRecordType = getDeclaredType("java.util.logging.LogRecord");
   }
 
   @Override
@@ -312,22 +301,6 @@ public final class NullSpecTransfer extends CFTransfer {
       }
     }
     return false;
-  }
-
-  private DeclaredType getDeclaredType(CharSequence name) {
-    return getDeclaredType(getTypeElement(name));
-  }
-
-  private TypeElement getTypeElement(CharSequence name) {
-    return atypeFactory.getElementUtils().getTypeElement(name);
-  }
-
-  private DeclaredType getDeclaredType(TypeElement element) {
-    return analysis.getTypes().getDeclaredType(element);
-  }
-
-  private boolean isSubtype(TypeMirror subtype, TypeMirror supertype) {
-    return analysis.getTypes().isSubtype(subtype, supertype);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
