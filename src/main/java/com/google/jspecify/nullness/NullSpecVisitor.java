@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.PRIMITIVE_TYPE;
@@ -221,18 +222,8 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   private boolean isCheckNotNull(MethodInvocationTree node) {
-    ExecutableElement method = elementFromUse(node);
-    if (method == null) {
-      return false;
-    }
-    if (!method.getSimpleName().contentEquals("checkNotNull")) {
-      return false;
-    }
-    if (!method.getEnclosingElement().getSimpleName().contentEquals("Preconditions")) {
-      // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
-      return false;
-    }
-    return true;
+    // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
+    return nameMatches(elementFromUse(node), "Preconditions", "checkNotNull");
   }
 
   @Override
