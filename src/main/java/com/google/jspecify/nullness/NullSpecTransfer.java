@@ -268,108 +268,11 @@ public final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean trustedToRemainNonNull(Node node) {
-    if (node instanceof ArrayAccessNode
+    // TODO(cpovirk): Just trust *all* nodes to remain non-null? We're nearly there, anyway...
+    return node instanceof ArrayAccessNode
         || node instanceof FieldAccessNode
-        || node instanceof LocalVariableNode) {
-      return true;
-    }
-
-    /*
-     * getCause() can change value over time, but it can never go from non-null to null.
-     * getMessage() doesn't change value over time at all.
-     *
-     * (Technically, both of these rules could be violated by subclasses. That doesn't feel worth
-     * worrying about.)
-     */
-    if (isGetCauseOrGetMessage(node)) {
-      return true;
-    }
-
-    if (isSortedCollectionComparator(node)) {
-      return true;
-    }
-
-    /*
-     * getThrown() *could* go from non-null to null, since anyone can call setThrown(null) at any
-     * time. But it's hard to imagine anyone doing that in practice, so let's err on the side of
-     * eliminating one likely low-value error.
-     */
-    if (isGetThrown(node)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  private boolean isGetCauseOrGetMessage(Node node) {
-    if (!(node instanceof MethodInvocationNode)) {
-      return false;
-    }
-    ExecutableElement method = ((MethodInvocationNode) node).getTarget().getMethod();
-    if (!method.getSimpleName().contentEquals("getCause")
-        && !method.getSimpleName().contentEquals("getMessage")) {
-      return false;
-    }
-    if (!method.getParameters().isEmpty()) {
-      return false;
-    }
-
-    Element methodEnclosingElement = method.getEnclosingElement();
-    if (!(methodEnclosingElement instanceof TypeElement)) {
-      return false;
-    }
-    DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
-    if (!isSubtype(methodEnclosingType, throwableType)) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean isSortedCollectionComparator(Node node) {
-    if (!(node instanceof MethodInvocationNode)) {
-      return false;
-    }
-    ExecutableElement method = ((MethodInvocationNode) node).getTarget().getMethod();
-    if (!method.getSimpleName().contentEquals("comparator")) {
-      return false;
-    }
-    if (!method.getParameters().isEmpty()) {
-      return false;
-    }
-
-    Element methodEnclosingElement = method.getEnclosingElement();
-    if (!(methodEnclosingElement instanceof TypeElement)) {
-      return false;
-    }
-    DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
-    if (!isSubtype(methodEnclosingType, sortedSetType)
-        && !isSubtype(methodEnclosingType, sortedMapType)) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean isGetThrown(Node node) {
-    if (!(node instanceof MethodInvocationNode)) {
-      return false;
-    }
-    ExecutableElement method = ((MethodInvocationNode) node).getTarget().getMethod();
-    if (!method.getSimpleName().contentEquals("getThrown")) {
-      return false;
-    }
-    if (!method.getParameters().isEmpty()) {
-      return false;
-    }
-
-    Element methodEnclosingElement = method.getEnclosingElement();
-    if (!(methodEnclosingElement instanceof TypeElement)) {
-      return false;
-    }
-    DeclaredType methodEnclosingType = getDeclaredType((TypeElement) methodEnclosingElement);
-    if (!isSubtype(methodEnclosingType, logRecordType)) {
-      return false;
-    }
-    return true;
+        || node instanceof LocalVariableNode
+        || node instanceof MethodInvocationNode;
   }
 
   private boolean alreadyKnownToBeNonNull(CFValue value) {
