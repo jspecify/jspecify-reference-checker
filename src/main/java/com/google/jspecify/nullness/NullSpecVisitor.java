@@ -98,9 +98,9 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     }
   }
 
-  public Void visitBlock(BlockTree node, Void p) {
+  public Void visitBlock(BlockTree tree, Void p) {
     if (checkImpl) {
-      return super.visitBlock(node, p);
+      return super.visitBlock(tree, p);
     } else {
       // TODO(cpovirk): Should we still check any classes inside the block (e.g., anonymous)?
       return null;
@@ -115,7 +115,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   protected boolean skipReceiverSubtypeCheck(
-      MethodInvocationTree node,
+      MethodInvocationTree tree,
       AnnotatedTypeMirror methodDefinitionReceiver,
       AnnotatedTypeMirror methodCallReceiver) {
     /*
@@ -127,14 +127,14 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   @Override
-  public Void visitMemberSelect(MemberSelectTree node, Void p) {
-    Element element = elementFromTree(node);
+  public Void visitMemberSelect(MemberSelectTree tree, Void p) {
+    Element element = elementFromTree(tree);
     if (element != null
         && !element.getKind().isClass()
         && !element.getKind().isInterface()
         && element.getKind() != PACKAGE
-        && !node.getIdentifier().contentEquals("class")) {
-      ensureNonNull(node.getExpression());
+        && !tree.getIdentifier().contentEquals("class")) {
+      ensureNonNull(tree.getExpression());
       /*
        * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
        * `Foo<Bar>.Baz`, or it must be a fully qualified type name, like `java.util.List`. In either
@@ -156,53 +156,53 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
        * to call getAnnotatedType on such trees? So let's not.
        */
     }
-    return super.visitMemberSelect(node, p);
+    return super.visitMemberSelect(tree, p);
   }
 
   @Override
-  public Void visitEnhancedForLoop(EnhancedForLoopTree node, Void p) {
-    ensureNonNull(node.getExpression());
-    return super.visitEnhancedForLoop(node, p);
+  public Void visitEnhancedForLoop(EnhancedForLoopTree tree, Void p) {
+    ensureNonNull(tree.getExpression());
+    return super.visitEnhancedForLoop(tree, p);
   }
 
   @Override
-  public Void visitArrayAccess(ArrayAccessTree node, Void p) {
-    ensureNonNull(node.getExpression());
-    return super.visitArrayAccess(node, p);
+  public Void visitArrayAccess(ArrayAccessTree tree, Void p) {
+    ensureNonNull(tree.getExpression());
+    return super.visitArrayAccess(tree, p);
   }
 
   @Override
-  protected void checkThrownExpression(ThrowTree node) {
-    ensureNonNull(node.getExpression());
+  protected void checkThrownExpression(ThrowTree tree) {
+    ensureNonNull(tree.getExpression());
   }
 
   @Override
-  public Void visitSynchronized(SynchronizedTree node, Void p) {
-    ensureNonNull(node.getExpression());
-    return super.visitSynchronized(node, p);
+  public Void visitSynchronized(SynchronizedTree tree, Void p) {
+    ensureNonNull(tree.getExpression());
+    return super.visitSynchronized(tree, p);
   }
 
   @Override
-  public Void visitAssert(AssertTree node, Void p) {
-    ensureNonNull(node.getCondition());
-    if (node.getDetail() != null) {
-      ensureNonNull(node.getDetail());
+  public Void visitAssert(AssertTree tree, Void p) {
+    ensureNonNull(tree.getCondition());
+    if (tree.getDetail() != null) {
+      ensureNonNull(tree.getDetail());
     }
-    return super.visitAssert(node, p);
+    return super.visitAssert(tree, p);
   }
 
   @Override
-  public Void visitIf(IfTree node, Void p) {
-    ensureNonNull(node.getCondition());
-    return super.visitIf(node, p);
+  public Void visitIf(IfTree tree, Void p) {
+    ensureNonNull(tree.getCondition());
+    return super.visitIf(tree, p);
   }
 
   // TODO: binary, unary, compoundassign, typecast, ...
 
   @Override
-  public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-    if (nameMatches(node, "Preconditions", "checkNotNull")) {
-      ensureNonNull(node.getArguments().get(0), /*messageKey=*/ "checknotnull");
+  public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
+    if (nameMatches(tree, "Preconditions", "checkNotNull")) {
+      ensureNonNull(tree.getArguments().get(0), /*messageKey=*/ "checknotnull");
       /*
        * We don't return here: We still want to descend into arguments, as they may themselves
        * contain method calls, etc. that we want to check.
@@ -218,20 +218,20 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
        * the superclass wouldn't report an error, *and* we could still check subexpressions.
        */
     }
-    return super.visitMethodInvocation(node, p);
+    return super.visitMethodInvocation(tree, p);
   }
 
   @Override
-  public Void visitNewClass(NewClassTree node, Void p) {
-    ExecutableElement element = elementFromUse(node);
+  public Void visitNewClass(NewClassTree tree, Void p) {
+    ExecutableElement element = elementFromUse(tree);
     if (nameMatches(element, "AtomicReference", "<init>") && element.getParameters().isEmpty()) {
       // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
-      AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(node).getTypeArguments().get(0);
+      AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(tree).getTypeArguments().get(0);
       if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
-        checker.reportError(node, "atomicreference.must.include.null", typeArg);
+        checker.reportError(tree, "atomicreference.must.include.null", typeArg);
       }
     }
-    return super.visitNewClass(node, p);
+    return super.visitNewClass(tree, p);
   }
 
   /*
@@ -265,42 +265,42 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
    */
 
   @Override
-  public Void visitTypeParameter(TypeParameterTree node, Void p) {
-    checkNoNullnessAnnotations(node, node.getAnnotations(), "type.parameter.annotated");
-    return super.visitTypeParameter(node, p);
+  public Void visitTypeParameter(TypeParameterTree tree, Void p) {
+    checkNoNullnessAnnotations(tree, tree.getAnnotations(), "type.parameter.annotated");
+    return super.visitTypeParameter(tree, p);
   }
 
   @Override
-  public Void visitAnnotatedType(AnnotatedTypeTree node, Void p) {
-    Kind kind = node.getUnderlyingType().getKind();
+  public Void visitAnnotatedType(AnnotatedTypeTree tree, Void p) {
+    Kind kind = tree.getUnderlyingType().getKind();
     if (kind == UNBOUNDED_WILDCARD || kind == EXTENDS_WILDCARD || kind == SUPER_WILDCARD) {
-      checkNoNullnessAnnotations(node, node.getAnnotations(), "wildcard.annotated");
+      checkNoNullnessAnnotations(tree, tree.getAnnotations(), "wildcard.annotated");
     } else if (kind == PRIMITIVE_TYPE) {
-      checkNoNullnessAnnotations(node, node.getAnnotations(), "primitive.annotated");
+      checkNoNullnessAnnotations(tree, tree.getAnnotations(), "primitive.annotated");
     }
-    return super.visitAnnotatedType(node, p);
+    return super.visitAnnotatedType(tree, p);
   }
 
   @Override
-  public Void visitVariable(VariableTree node, Void p) {
-    if (isPrimitiveOrArrayOfPrimitive(node.getType())) {
-      checkNoNullnessAnnotations(node, node.getModifiers().getAnnotations(), "primitive.annotated");
+  public Void visitVariable(VariableTree tree, Void p) {
+    if (isPrimitiveOrArrayOfPrimitive(tree.getType())) {
+      checkNoNullnessAnnotations(tree, tree.getModifiers().getAnnotations(), "primitive.annotated");
     }
 
-    VariableElement element = elementFromDeclaration(node);
+    VariableElement element = elementFromDeclaration(tree);
     if (element.getKind() == ENUM_CONSTANT) {
       checkNoNullnessAnnotations(
-          node, node.getModifiers().getAnnotations(), "enum.constant.annotated");
+          tree, tree.getModifiers().getAnnotations(), "enum.constant.annotated");
     }
-    return super.visitVariable(node, p);
+    return super.visitVariable(tree, p);
   }
 
   @Override
-  public Void visitMethod(MethodTree node, Void p) {
-    if (node.getReturnType() != null && isPrimitiveOrArrayOfPrimitive(node.getReturnType())) {
-      checkNoNullnessAnnotations(node, node.getModifiers().getAnnotations(), "primitive.annotated");
+  public Void visitMethod(MethodTree tree, Void p) {
+    if (tree.getReturnType() != null && isPrimitiveOrArrayOfPrimitive(tree.getReturnType())) {
+      checkNoNullnessAnnotations(tree, tree.getModifiers().getAnnotations(), "primitive.annotated");
     }
-    return super.visitMethod(node, p);
+    return super.visitMethod(tree, p);
   }
 
   // TODO(cpovirk): Are there any more visit* methods that might run for annotated primitives?
@@ -312,17 +312,17 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   private void checkNoNullnessAnnotations(
-      Tree node, List<? extends AnnotationTree> annotations, String messageKey) {
+      Tree tree, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
       // TODO(cpovirk): Check for aliases here (and perhaps elsewhere).
       if (areSameByName(annotation, nullable) || areSameByName(annotation, nullnessUnspecified)) {
-        checker.reportError(node, messageKey);
+        checker.reportError(tree, messageKey);
       }
     }
   }
 
   @Override
-  protected boolean checkMethodReferenceAsOverride(MemberReferenceTree node, Void p) {
+  protected boolean checkMethodReferenceAsOverride(MemberReferenceTree tree, Void p) {
     /*
      * Class.cast accepts `Object?`, so there's no need to check its parameter type: It can accept
      * nullable and non-nullable values alike.
@@ -340,15 +340,15 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
      * etc. In that case, we can modify the Stream<...> return type to have a non-nullable element
      * type. I hope.
      */
-    return isClassCastAppliedToNonNullableType(node)
-        || super.checkMethodReferenceAsOverride(node, p);
+    return isClassCastAppliedToNonNullableType(tree)
+        || super.checkMethodReferenceAsOverride(tree, p);
   }
 
-  private boolean isClassCastAppliedToNonNullableType(MemberReferenceTree node) {
-    if (!nameMatches(node, "Class", "cast")) {
+  private boolean isClassCastAppliedToNonNullableType(MemberReferenceTree tree) {
+    if (!nameMatches(tree, "Class", "cast")) {
       return false;
     }
-    AnnotatedExecutableType functionType = atypeFactory.getFunctionTypeFromTree(node);
+    AnnotatedExecutableType functionType = atypeFactory.getFunctionTypeFromTree(tree);
     AnnotatedTypeMirror parameterType = functionType.getParameterTypes().get(0);
     return atypeFactory.isNullExclusiveUnderEveryParameterization(parameterType);
   }

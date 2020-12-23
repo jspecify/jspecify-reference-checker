@@ -937,36 +937,36 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
-    public Void visitLiteral(LiteralTree node, AnnotatedTypeMirror type) {
-      if (node.getKind().asInterface() == LiteralTree.class) {
-        type.addAnnotation(node.getKind() == NULL_LITERAL ? unionNull : nonNull);
+    public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
+      if (tree.getKind().asInterface() == LiteralTree.class) {
+        type.addAnnotation(tree.getKind() == NULL_LITERAL ? unionNull : nonNull);
       }
 
-      return super.visitLiteral(node, type);
+      return super.visitLiteral(tree, type);
     }
 
     @Override
-    public Void visitBinary(BinaryTree node, AnnotatedTypeMirror type) {
+    public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
       type.addAnnotation(nonNull);
-      return super.visitBinary(node, type);
+      return super.visitBinary(tree, type);
     }
 
     @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, AnnotatedTypeMirror type) {
-      if (establishesStreamElementsAreNonNull(node)) {
+    public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
+      if (establishesStreamElementsAreNonNull(tree)) {
         AnnotatedTypeMirror returnedStreamElementType =
             ((AnnotatedDeclaredType) type).getTypeArguments().get(0);
         returnedStreamElementType.replaceAnnotation(nonNull);
       }
 
-      return super.visitMethodInvocation(node, type);
+      return super.visitMethodInvocation(tree, type);
     }
 
-    private boolean establishesStreamElementsAreNonNull(ExpressionTree node) {
-      if (!(node instanceof MethodInvocationTree)) {
+    private boolean establishesStreamElementsAreNonNull(ExpressionTree tree) {
+      if (!(tree instanceof MethodInvocationTree)) {
         return false;
       }
-      MethodInvocationTree invocation = (MethodInvocationTree) node;
+      MethodInvocationTree invocation = (MethodInvocationTree) tree;
       ExecutableElement method = elementFromUse(invocation);
       if (!nameMatches(method, "Stream", "filter")) {
         return false;
@@ -982,21 +982,21 @@ public final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
-    public Void visitIdentifier(IdentifierTree node, AnnotatedTypeMirror type) {
-      annotateIfEnumConstant(node, type);
+    public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
+      annotateIfEnumConstant(tree, type);
 
-      return super.visitIdentifier(node, type);
+      return super.visitIdentifier(tree, type);
     }
 
     @Override
-    public Void visitMemberSelect(MemberSelectTree node, AnnotatedTypeMirror type) {
-      annotateIfEnumConstant(node, type);
+    public Void visitMemberSelect(MemberSelectTree tree, AnnotatedTypeMirror type) {
+      annotateIfEnumConstant(tree, type);
 
-      return super.visitMemberSelect(node, type);
+      return super.visitMemberSelect(tree, type);
     }
 
-    private void annotateIfEnumConstant(ExpressionTree node, AnnotatedTypeMirror type) {
-      Element element = elementFromUse(node);
+    private void annotateIfEnumConstant(ExpressionTree tree, AnnotatedTypeMirror type) {
+      Element element = elementFromUse(tree);
       if (element != null && element.getKind() == ENUM_CONSTANT) {
         /*
          * Even if it was annotated before, override it. There are 2 cases:

@@ -42,13 +42,13 @@ final class Util {
   }
 
   /** See caveats on {@link #nameMatches(Element, String, String)}. */
-  static boolean nameMatches(MethodInvocationTree node, String clazz, String method) {
-    return nameMatches(elementFromUse(node), clazz, method);
+  static boolean nameMatches(MethodInvocationTree tree, String clazz, String method) {
+    return nameMatches(elementFromUse(tree), clazz, method);
   }
 
   /** See caveats on {@link #nameMatches(Element, String, String)}. */
-  static boolean nameMatches(MemberReferenceTree node, String clazz, String method) {
-    return nameMatches(elementFromUse(node), clazz, method);
+  static boolean nameMatches(MemberReferenceTree tree, String clazz, String method) {
+    return nameMatches(elementFromUse(tree), clazz, method);
   }
 
   private Util() {}
