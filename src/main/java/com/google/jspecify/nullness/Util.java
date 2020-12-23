@@ -36,9 +36,9 @@ final class Util {
    *
    * TODO(cpovirk): Require a fully qualified class name (e.g., "java.util.Objects" vs. "Objects").
    */
-  static boolean nameMatches(Element executable, String clazz, String method) {
-    return executable.getSimpleName().contentEquals(method)
-        && executable.getEnclosingElement().getSimpleName().contentEquals(clazz);
+  static boolean nameMatches(Element element, String clazz, String method) {
+    return element.getSimpleName().contentEquals(method)
+        && element.getEnclosingElement().getSimpleName().contentEquals(clazz);
   }
 
   /** See caveats on {@link #nameMatches(Element, String, String)}. */
