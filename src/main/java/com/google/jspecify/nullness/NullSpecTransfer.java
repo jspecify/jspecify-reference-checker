@@ -112,12 +112,10 @@ public final class NullSpecTransfer extends CFTransfer {
     boolean storeChanged = false;
 
     if (nameMatches(method, "Objects", "requireNonNull")) {
-      // TODO(cpovirk): Ensure that it's java.util.Objects specifically.
       storeChanged |= putNonNull(node.getArgument(0), thenStore, elseStore);
     }
 
     if (nameMatches(method, "Class", "isInstance")) {
-      // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       storeChanged |= putNonNull(node.getArgument(0), thenStore);
     }
 
@@ -129,14 +127,12 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
-    // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
     if (nameMatches(method, "Preconditions", "checkState")
         && node.getArgument(0) instanceof NotEqualNode) {
       storeChanged |= putNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
     }
 
     if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
-      // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToNonNull(result);
@@ -146,7 +142,6 @@ public final class NullSpecTransfer extends CFTransfer {
         setResultValueToUnspecified(result);
       }
     } else if (nameMatches(method, "System", "getProperty")) {
-      // TODO(cpovirk): Ensure that it's java.lang.System specifically.
       Node arg = node.getArgument(0);
       if (arg instanceof StringLiteralNode
           && ALWAYS_PRESENT_PROPERTY_VALUES.contains(((StringLiteralNode) arg).getValue())) {

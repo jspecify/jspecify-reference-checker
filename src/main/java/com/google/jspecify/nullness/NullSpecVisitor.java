@@ -201,7 +201,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-    if (isCheckNotNull(node)) {
+    if (nameMatches(node, "Preconditions", "checkNotNull")) {
       ensureNonNull(node.getArguments().get(0), /*messageKey=*/ "checknotnull");
       /*
        * We don't return here: We still want to descend into arguments, as they may themselves
@@ -221,18 +221,10 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     return super.visitMethodInvocation(node, p);
   }
 
-  private boolean isCheckNotNull(MethodInvocationTree node) {
-    // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
-    return nameMatches(elementFromUse(node), "Preconditions", "checkNotNull");
-  }
-
   @Override
   public Void visitNewClass(NewClassTree node, Void p) {
     ExecutableElement element = elementFromUse(node);
-    if (element.getSimpleName().contentEquals("<init>")
-        && element.getEnclosingElement().getSimpleName().contentEquals("AtomicReference")
-        && element.getParameters().isEmpty()) {
-      // TODO(cpovirk): Ensure that it's java.util.concurrent.atomic.AtomicReference specifically.
+    if (nameMatches(element, "AtomicReference", "<init>") && element.getParameters().isEmpty()) {
       // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
       AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(node).getTypeArguments().get(0);
       if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
@@ -353,8 +345,7 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   private boolean isClassCastAppliedToNonNullableType(MemberReferenceTree node) {
-    // TODO(cpovirk): Ensure that it's java.lang.Class.cast specifically.
-    if (!node.getName().contentEquals("cast")) {
+    if (!nameMatches(node, "Class", "cast")) {
       return false;
     }
     AnnotatedExecutableType functionType = atypeFactory.getFunctionTypeFromTree(node);

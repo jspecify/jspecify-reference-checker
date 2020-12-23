@@ -14,7 +14,11 @@
 
 package com.google.jspecify.nullness;
 
-import javax.lang.model.element.ExecutableElement;
+import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
+
+import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MethodInvocationTree;
+import javax.lang.model.element.Element;
 
 final class Util {
   /*
@@ -29,10 +33,22 @@ final class Util {
    * parameter.
    *
    * Still, this might not be the behavior we desire in other cases.
+   *
+   * TODO(cpovirk): Require a fully qualified class name (e.g., "java.util.Objects" vs. "Objects").
    */
-  static boolean nameMatches(ExecutableElement executable, String clazz, String method) {
+  static boolean nameMatches(Element executable, String clazz, String method) {
     return executable.getSimpleName().contentEquals(method)
         && executable.getEnclosingElement().getSimpleName().contentEquals(clazz);
+  }
+
+  /** See caveats on {@link #nameMatches(Element, String, String)}. */
+  static boolean nameMatches(MethodInvocationTree node, String clazz, String method) {
+    return nameMatches(elementFromUse(node), clazz, method);
+  }
+
+  /** See caveats on {@link #nameMatches(Element, String, String)}. */
+  static boolean nameMatches(MemberReferenceTree node, String clazz, String method) {
+    return nameMatches(elementFromUse(node), clazz, method);
   }
 
   private Util() {}
