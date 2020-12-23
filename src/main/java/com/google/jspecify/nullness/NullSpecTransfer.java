@@ -113,13 +113,12 @@ public final class NullSpecTransfer extends CFTransfer {
 
     if (nameMatches(method, "Objects", "requireNonNull")) {
       // TODO(cpovirk): Ensure that it's java.util.Objects specifically.
-      storeChanged |= putNonNull(thenStore, node.getArgument(0));
-      storeChanged |= putNonNull(elseStore, node.getArgument(0));
+      storeChanged |= putNonNull(node.getArgument(0), thenStore, elseStore);
     }
 
     if (nameMatches(method, "Class", "isInstance")) {
       // TODO(cpovirk): Ensure that it's java.lang.Class specifically.
-      storeChanged |= putNonNull(thenStore, node.getArgument(0));
+      storeChanged |= putNonNull(node.getArgument(0), thenStore);
     }
 
     if (isGetPackageCallOnClassInNamedPackage(node)) {
@@ -205,7 +204,7 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitInstanceOf(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNonNull(thenStore, node.getOperand());
+    boolean storeChanged = putNonNull(node.getOperand(), thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -215,7 +214,7 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitEqualTo(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNullCheckResult(elseStore, node);
+    boolean storeChanged = putNullCheckResult(node, elseStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -225,22 +224,25 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitNotEqual(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNullCheckResult(thenStore, node);
+    boolean storeChanged = putNullCheckResult(node, thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
-  /** If one operand is a null literal, marks the other as non-null in the given store. */
-  private boolean putNullCheckResult(CFStore store, BinaryOperationNode node) {
+  /**
+   * If one operand is a null literal, marks the other as non-null, and returns whether this is a
+   * change in its value.
+   */
+  private boolean putNullCheckResult(BinaryOperationNode node, CFStore store) {
     if (isNullLiteral(node.getLeftOperand())) {
-      return putNonNull(store, node.getRightOperand());
+      return putNonNull(node.getRightOperand(), store);
     } else if (isNullLiteral(node.getRightOperand())) {
-      return putNonNull(store, node.getLeftOperand());
+      return putNonNull(node.getLeftOperand(), store);
     }
     return false;
   }
 
-  /** Mark the node as non-null, and return whether this is a change in its value. */
-  private boolean putNonNull(CFStore store, Node node) {
+  /** Marks the node as non-null, and returns whether this is a change in its value. */
+  private boolean putNonNull(Node node, CFStore store) {
     boolean storeChanged = false;
     while (node instanceof AssignmentNode) {
       // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
@@ -253,6 +255,16 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged = !alreadyKnownToBeNonNull(oldValue);
       store.insertValue(receiver, nonNull);
     }
+    return storeChanged;
+  }
+
+  /**
+   * Marks the node as non-null, and returns whether this is a change in its value in either store.
+   */
+  private boolean putNonNull(Node node, CFStore store1, CFStore store2) {
+    boolean storeChanged = false;
+    storeChanged |= putNonNull(node, store1);
+    storeChanged |= putNonNull(node, store2);
     return storeChanged;
   }
 
