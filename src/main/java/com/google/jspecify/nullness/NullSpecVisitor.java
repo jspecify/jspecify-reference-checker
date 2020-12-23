@@ -85,11 +85,15 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   private void ensureNonNull(Tree tree) {
+    ensureNonNull(tree, /*messageKey=*/ "dereference");
+  }
+
+  private void ensureNonNull(Tree tree, String messageKey) {
     AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
     // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
     if (!isPrimitive(type.getUnderlyingType())
         && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
-      checker.reportError(tree, "dereference", type);
+      checker.reportError(tree, messageKey, type);
     }
   }
 
@@ -193,6 +197,43 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   }
 
   // TODO: binary, unary, compoundassign, typecast, ...
+
+  @Override
+  public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+    if (isCheckNotNull(node)) {
+      ensureNonNull(node.getArguments().get(0), /*messageKey=*/ "checknotnull");
+      /*
+       * We don't return here: We still want to descend into arguments, as they may themselves
+       * contain method calls, etc. that we want to check.
+       *
+       * This means that the supertype will report *another* error for this call -- two errors, in
+       * fact. But at least we get to get in first and present a better message.
+       *
+       * If we prefer, we could instead return here -- but only if ensureNonNull reported an error!
+       * In the error case, that could hide additional errors related to subexpressions, but it
+       * would eliminate the warning spam from the superclass.
+       *
+       * TODO(cpovirk): Or maybe we should override the annotations on checkNotNull internally? Then
+       * the superclass wouldn't report an error, *and* we could still check subexpressions.
+       */
+    }
+    return super.visitMethodInvocation(node, p);
+  }
+
+  private boolean isCheckNotNull(MethodInvocationTree node) {
+    ExecutableElement method = elementFromUse(node);
+    if (method == null) {
+      return false;
+    }
+    if (!method.getSimpleName().contentEquals("checkNotNull")) {
+      return false;
+    }
+    if (!method.getEnclosingElement().getSimpleName().contentEquals("Preconditions")) {
+      // TODO(cpovirk): Ensure that it's com.google.common.base.Preconditions specifically.
+      return false;
+    }
+    return true;
+  }
 
   @Override
   public Void visitNewClass(NewClassTree node, Void p) {
