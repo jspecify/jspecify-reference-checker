@@ -24,13 +24,11 @@ import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
-import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
 import com.sun.source.tree.Tree;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -128,11 +126,11 @@ public final class NullSpecTransfer extends CFTransfer {
     boolean storeChanged = false;
 
     if (nameMatches(method, "Objects", "requireNonNull")) {
-      storeChanged |= putNonNull(node.getArgument(0), thenStore, elseStore);
+      storeChanged |= refineNonNull(node.getArgument(0), thenStore, elseStore);
     }
 
     if (nameMatches(method, "Class", "isInstance")) {
-      storeChanged |= putNonNull(node.getArgument(0), thenStore);
+      storeChanged |= refineNonNull(node.getArgument(0), thenStore);
     }
 
     if (isGetPackageCallOnClassInNamedPackage(node)) {
@@ -145,7 +143,8 @@ public final class NullSpecTransfer extends CFTransfer {
 
     if (nameMatches(method, "Preconditions", "checkState")
         && node.getArgument(0) instanceof NotEqualNode) {
-      storeChanged |= putNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
+      storeChanged |=
+          refineNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
     }
 
     if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
@@ -197,11 +196,11 @@ public final class NullSpecTransfer extends CFTransfer {
       if (atypeFactory
           .withLeastConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-        storeChanged |= putNonNull(getCall, thenStore);
+        storeChanged |= refineNonNull(getCall, thenStore);
       } else if (atypeFactory
           .withMostConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-        storeChanged |= putUnspecified(getCall, thenStore);
+        storeChanged |= refineUnspecified(getCall, thenStore);
       }
     }
 
@@ -253,7 +252,7 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitInstanceOf(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNonNull(node.getOperand(), thenStore);
+    boolean storeChanged = refineNonNull(node.getOperand(), thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -263,7 +262,7 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitEqualTo(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNullCheckResult(node, elseStore);
+    boolean storeChanged = refineNullCheckResult(node, elseStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -273,7 +272,7 @@ public final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitNotEqual(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = putNullCheckResult(node, thenStore);
+    boolean storeChanged = refineNullCheckResult(node, thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -281,11 +280,11 @@ public final class NullSpecTransfer extends CFTransfer {
    * If one operand is a null literal, marks the other as non-null, and returns whether this is a
    * change in its value.
    */
-  private boolean putNullCheckResult(BinaryOperationNode node, CFStore store) {
+  private boolean refineNullCheckResult(BinaryOperationNode node, CFStore store) {
     if (isNullLiteral(node.getLeftOperand())) {
-      return putNonNull(node.getRightOperand(), store);
+      return refineNonNull(node.getRightOperand(), store);
     } else if (isNullLiteral(node.getRightOperand())) {
-      return putNonNull(node.getLeftOperand(), store);
+      return refineNonNull(node.getLeftOperand(), store);
     }
     return false;
   }
@@ -294,76 +293,69 @@ public final class NullSpecTransfer extends CFTransfer {
    * If one operand is a null literal, marks the other as non-null, and returns whether this is a
    * change in its value in either store.
    */
-  private boolean putNullCheckResult(BinaryOperationNode node, CFStore store1, CFStore store2) {
+  private boolean refineNullCheckResult(BinaryOperationNode node, CFStore store1, CFStore store2) {
     boolean storeChanged = false;
-    storeChanged |= putNullCheckResult(node, store1);
-    storeChanged |= putNullCheckResult(node, store2);
+    storeChanged |= refineNullCheckResult(node, store1);
+    storeChanged |= refineNullCheckResult(node, store2);
     return storeChanged;
   }
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
-  private boolean putNonNull(Node node, CFStore store) {
+  private boolean refineNonNull(Node node, CFStore store) {
     while (node instanceof AssignmentNode) {
       // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
       node = ((AssignmentNode) node).getTarget();
     }
     JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-    return putNonNull(expression, store);
+    return refineNonNull(expression, store);
   }
 
   /**
    * Marks the node as non-null, and returns whether this is a change in its value in either store.
    */
-  private boolean putNonNull(Node node, CFStore store1, CFStore store2) {
+  private boolean refineNonNull(Node node, CFStore store1, CFStore store2) {
     boolean storeChanged = false;
-    storeChanged |= putNonNull(node, store1);
-    storeChanged |= putNonNull(node, store2);
+    storeChanged |= refineNonNull(node, store1);
+    storeChanged |= refineNonNull(node, store2);
     return storeChanged;
   }
 
-  private boolean putNonNull(JavaExpression expression, CFStore store) {
-    CFValue oldValue = store.getValue(expression);
-    boolean storeChanged = !alreadyKnownToBeNonNull(oldValue);
-    store.insertValue(expression, nonNull);
-    return storeChanged;
+  /** Marks the expression as non-null, and returns whether this is a change in its value. */
+  private boolean refineNonNull(JavaExpression expression, CFStore store) {
+    return refine(expression, nonNull, store);
   }
 
-  private boolean putUnspecified(JavaExpression expression, CFStore store) {
-    CFValue oldValue = store.getValue(expression);
-    boolean storeChanged = !alreadyKnownToBeUnspecifiedOrNonNull(oldValue);
-    store.insertValue(expression, codeNotNullnessAware);
-    return storeChanged;
-  }
-
-  /*
-   * TODO(cpovirk): Find better names for the "alreadyKnownToBe" methods, probably without "already"
-   * in the name: There's only one immutable value, so what does "already" mean?
-   *
-   * TODO(cpovirk): Maybe do something with least upper bound instead of a lambda?
+  /**
+   * Marks the expression as having unspecified additional nullness (unless it is already non-null),
+   * and returns whether this is a change in its value.
    */
-
-  private boolean alreadyKnownToBeUnspecifiedOrNonNull(CFValue value) {
-    return alreadyKnownToBe(
-        value,
-        annotation ->
-            annotation != null
-                && (areSame(annotation, nonNull) || areSame(annotation, codeNotNullnessAware)));
+  private boolean refineUnspecified(JavaExpression expression, CFStore store) {
+    return refine(expression, codeNotNullnessAware, store);
   }
 
-  private boolean alreadyKnownToBeNonNull(CFValue value) {
-    return alreadyKnownToBe(
-        value, annotation -> annotation != null && areSame(annotation, nonNull));
+  /**
+   * Refines the expression to be at least as specific as the target type, and returns whether this
+   * is a change in its value.
+   */
+  private boolean refine(JavaExpression expression, AnnotationMirror target, CFStore store) {
+    CFValue oldValue = store.getValue(expression);
+    if (valueIsAtLeastAsSpecificAs(oldValue, target)) {
+      return false;
+    }
+    store.insertValue(expression, target);
+    return true;
   }
 
-  private boolean alreadyKnownToBe(CFValue value, Predicate<AnnotationMirror> matcher) {
+  private boolean valueIsAtLeastAsSpecificAs(CFValue value, AnnotationMirror target) {
     if (value == null) {
       return false;
     }
-    AnnotationMirror annotation =
+    AnnotationMirror existing =
         atypeFactory
             .getQualifierHierarchy()
             .findAnnotationInHierarchy(value.getAnnotations(), unionNull);
-    return matcher.test(annotation);
+    return existing != null
+        && atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
   }
 
   private static boolean isNullLiteral(Node node) {
