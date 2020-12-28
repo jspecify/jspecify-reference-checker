@@ -19,17 +19,23 @@ import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
+import static java.util.stream.Collectors.toList;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
+import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
+import com.sun.source.tree.Tree;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -46,11 +52,13 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.expression.MethodCall;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
@@ -60,6 +68,9 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror codeNotNullnessAware;
   private final AnnotationMirror unionNull;
+  private final ExecutableElement mapContainsKeyElement;
+  private final ExecutableElement mapGetElement;
+  private final AnnotatedDeclaredType javaUtilMap;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
@@ -68,6 +79,13 @@ public final class NullSpecTransfer extends CFTransfer {
     codeNotNullnessAware =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+
+    TypeElement javaUtilMapElement = atypeFactory.getElementUtils().getTypeElement("java.util.Map");
+    mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
+    mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+    javaUtilMap =
+        (AnnotatedDeclaredType)
+            createType(javaUtilMapElement.asType(), atypeFactory, /*isDeclaration=*/ false);
   }
 
   @Override
@@ -154,6 +172,38 @@ public final class NullSpecTransfer extends CFTransfer {
          * check to reject non-GWT-recognized properties?
          */
         setResultValueToNonNull(result);
+      }
+    }
+
+    // TODO(cpovirk): Handle the case of a null receiverTree (probably ImplicitThisNode).
+    Tree receiverTree = node.getTarget().getReceiver().getTree();
+    if (isOrOverrides(method, mapContainsKeyElement) && receiverTree != null) {
+      AnnotatedDeclaredType mapType =
+          asSuper(atypeFactory, atypeFactory.getAnnotatedType(receiverTree), javaUtilMap);
+      AnnotatedTypeMirror mapValueType = mapType.getTypeArguments().get(1);
+
+      MethodCall containsKeyCall =
+          (MethodCall) fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
+      MethodCall getCall =
+          new MethodCall(
+              mapValueType.getUnderlyingType(),
+              mapGetElement,
+              containsKeyCall.getReceiver(),
+              containsKeyCall.getParameters());
+
+      /*
+       * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
+       * we don't remove information if someone calls remove(key). But I'm probably failing to even
+       * think of bigger problems.
+       */
+      if (atypeFactory
+          .withLeastConvenientWorld()
+          .isNullExclusiveUnderEveryParameterization(mapValueType)) {
+        storeChanged |= putNonNull(getCall, thenStore);
+      } else if (atypeFactory
+          .withMostConvenientWorld()
+          .isNullExclusiveUnderEveryParameterization(mapValueType)) {
+        storeChanged |= putUnspecified(getCall, thenStore);
       }
     }
 
@@ -263,9 +313,7 @@ public final class NullSpecTransfer extends CFTransfer {
     if (trustedToRemainNonNull(node)) {
       // allowNonDeterministic=true because we perform our own sort of determinism check.
       JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-      CFValue oldValue = store.getValue(expression);
-      storeChanged = !alreadyKnownToBeNonNull(oldValue);
-      store.insertValue(expression, nonNull);
+      storeChanged = putNonNull(expression, store);
     }
     return storeChanged;
   }
@@ -280,6 +328,20 @@ public final class NullSpecTransfer extends CFTransfer {
     return storeChanged;
   }
 
+  private boolean putNonNull(JavaExpression expression, CFStore store) {
+    CFValue oldValue = store.getValue(expression);
+    boolean storeChanged = !alreadyKnownToBeNonNull(oldValue);
+    store.insertValue(expression, nonNull);
+    return storeChanged;
+  }
+
+  private boolean putUnspecified(JavaExpression expression, CFStore store) {
+    CFValue oldValue = store.getValue(expression);
+    boolean storeChanged = !alreadyKnownToBeUnspecifiedOrNonNull(oldValue);
+    store.insertValue(expression, codeNotNullnessAware);
+    return storeChanged;
+  }
+
   private boolean trustedToRemainNonNull(Node node) {
     // TODO(cpovirk): Just trust *all* nodes to remain non-null? We're nearly there, anyway...
     return node instanceof ArrayAccessNode
@@ -288,7 +350,27 @@ public final class NullSpecTransfer extends CFTransfer {
         || node instanceof MethodInvocationNode;
   }
 
+  /*
+   * TODO(cpovirk): Find better names for the "alreadyKnownToBe" methods, probably without "already"
+   * in the name: There's only one immutable value, so what does "already" mean?
+   *
+   * TODO(cpovirk): Maybe do something with least upper bound instead of a lambda?
+   */
+
+  private boolean alreadyKnownToBeUnspecifiedOrNonNull(CFValue value) {
+    return alreadyKnownToBe(
+        value,
+        annotation ->
+            annotation != null
+                && (areSame(annotation, nonNull) || areSame(annotation, codeNotNullnessAware)));
+  }
+
   private boolean alreadyKnownToBeNonNull(CFValue value) {
+    return alreadyKnownToBe(
+        value, annotation -> annotation != null && areSame(annotation, nonNull));
+  }
+
+  private boolean alreadyKnownToBe(CFValue value, Predicate<AnnotationMirror> matcher) {
     if (value == null) {
       return false;
     }
@@ -296,7 +378,7 @@ public final class NullSpecTransfer extends CFTransfer {
         atypeFactory
             .getQualifierHierarchy()
             .findAnnotationInHierarchy(value.getAnnotations(), unionNull);
-    return annotation != null && areSame(annotation, nonNull);
+    return matcher.test(annotation);
   }
 
   private static boolean isNullLiteral(Node node) {
@@ -318,6 +400,13 @@ public final class NullSpecTransfer extends CFTransfer {
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
   }
 
+  private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
+    return overrider.equals(overridden)
+        || atypeFactory
+            .getElementUtils()
+            .overrides(overrider, overridden, (TypeElement) overrider.getEnclosingElement());
+  }
+
   private static boolean isInPackage(Element element) {
     for (; element != null; element = element.getEnclosingElement()) {
       if (element.getKind() == PACKAGE && !((PackageElement) element).isUnnamed()) {
@@ -325,6 +414,19 @@ public final class NullSpecTransfer extends CFTransfer {
       }
     }
     return false;
+  }
+
+  private static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
+    List<ExecutableElement> elements =
+        type.getEnclosedElements().stream()
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .filter(x -> x.getSimpleName().contentEquals(name))
+            .collect(toList());
+    if (elements.size() != 1) {
+      throw new IllegalArgumentException(type + "." + name);
+    }
+    return elements.get(0);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
