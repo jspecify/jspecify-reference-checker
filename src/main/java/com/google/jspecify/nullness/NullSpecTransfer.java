@@ -39,14 +39,12 @@ import javax.lang.model.element.TypeElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.cfg.node.ArrayAccessNode;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
-import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
@@ -305,17 +303,12 @@ public final class NullSpecTransfer extends CFTransfer {
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
   private boolean putNonNull(Node node, CFStore store) {
-    boolean storeChanged = false;
     while (node instanceof AssignmentNode) {
       // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
       node = ((AssignmentNode) node).getTarget();
     }
-    if (trustedToRemainNonNull(node)) {
-      // allowNonDeterministic=true because we perform our own sort of determinism check.
-      JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-      storeChanged = putNonNull(expression, store);
-    }
-    return storeChanged;
+    JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
+    return putNonNull(expression, store);
   }
 
   /**
@@ -340,14 +333,6 @@ public final class NullSpecTransfer extends CFTransfer {
     boolean storeChanged = !alreadyKnownToBeUnspecifiedOrNonNull(oldValue);
     store.insertValue(expression, codeNotNullnessAware);
     return storeChanged;
-  }
-
-  private boolean trustedToRemainNonNull(Node node) {
-    // TODO(cpovirk): Just trust *all* nodes to remain non-null? We're nearly there, anyway...
-    return node instanceof ArrayAccessNode
-        || node instanceof FieldAccessNode
-        || node instanceof LocalVariableNode
-        || node instanceof MethodInvocationNode;
   }
 
   /*
