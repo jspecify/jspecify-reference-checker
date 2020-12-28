@@ -192,6 +192,13 @@ public final class NullSpecTransfer extends CFTransfer {
        * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
        * we don't remove information if someone calls remove(key). But I'm probably failing to even
        * think of bigger problems.
+       *
+       * XXX: Also, the code below feels a bit indirect: Rather than performing a full check for
+       * null-exclusivity, it seems like we should be able to get by with looking only at the
+       * annotation on mapValueType. The complication with that approach is that we'd then need to
+       * have a special case to insert an entry with *no* annotations, as sometimes required when
+       * we're looking at wildcard or type-variable usages. That should be doable, but it's more code
+       * than just checkign null-exclusivity.
        */
       if (atypeFactory
           .withLeastConvenientWorld()
