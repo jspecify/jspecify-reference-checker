@@ -262,10 +262,10 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     if (trustedToRemainNonNull(node)) {
       // allowNonDeterministic=true because we perform our own sort of determinism check.
-      JavaExpression receiver = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-      CFValue oldValue = store.getValue(receiver);
+      JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
+      CFValue oldValue = store.getValue(expression);
       storeChanged = !alreadyKnownToBeNonNull(oldValue);
-      store.insertValue(receiver, nonNull);
+      store.insertValue(expression, nonNull);
     }
     return storeChanged;
   }
