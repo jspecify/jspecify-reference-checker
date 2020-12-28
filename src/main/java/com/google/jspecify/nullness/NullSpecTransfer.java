@@ -62,7 +62,7 @@ import org.jspecify.annotations.NullnessUnspecified;
 public final class NullSpecTransfer extends CFTransfer {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
   private final AnnotationMirror nonNull;
-  private final AnnotationMirror codeNotNullnessAware;
+  private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
@@ -72,7 +72,7 @@ public final class NullSpecTransfer extends CFTransfer {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
-    codeNotNullnessAware =
+    nullnessOperatorUnspecified =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
 
@@ -154,7 +154,7 @@ public final class NullSpecTransfer extends CFTransfer {
       } else if (atypeFactory
           .withMostConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(type)) {
-        setResultValueToUnspecified(result);
+        setResultValueOperatorToUnspecified(result);
       }
     } else if (nameMatches(method, "System", "getProperty")) {
       Node arg = node.getArgument(0);
@@ -200,7 +200,7 @@ public final class NullSpecTransfer extends CFTransfer {
       } else if (atypeFactory
           .withMostConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-        storeChanged |= refineUnspecified(getCall, thenStore);
+        storeChanged |= refineNullnessOperatorUnspecified(getCall, thenStore);
       }
     }
 
@@ -329,8 +329,8 @@ public final class NullSpecTransfer extends CFTransfer {
    * Marks the expression as having unspecified additional nullness (unless it is already non-null),
    * and returns whether this is a change in its value.
    */
-  private boolean refineUnspecified(JavaExpression expression, CFStore store) {
-    return refine(expression, codeNotNullnessAware, store);
+  private boolean refineNullnessOperatorUnspecified(JavaExpression expression, CFStore store) {
+    return refine(expression, nullnessOperatorUnspecified, store);
   }
 
   /**
@@ -368,8 +368,8 @@ public final class NullSpecTransfer extends CFTransfer {
     setResultValue(result, nonNull);
   }
 
-  private void setResultValueToUnspecified(TransferResult<CFValue, CFStore> result) {
-    setResultValue(result, codeNotNullnessAware);
+  private void setResultValueOperatorToUnspecified(TransferResult<CFValue, CFStore> result) {
+    setResultValue(result, nullnessOperatorUnspecified);
   }
 
   private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {

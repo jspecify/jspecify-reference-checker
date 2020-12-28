@@ -114,7 +114,7 @@ public final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror unionNull;
-  private final AnnotationMirror codeNotNullnessAware;
+  private final AnnotationMirror nullnessOperatorUnspecified;
 
   private final boolean isLeastConvenientWorld;
   private final NullSpecAnnotatedTypeFactory withLeastConvenientWorld;
@@ -155,12 +155,12 @@ public final class NullSpecAnnotatedTypeFactory
      * Since the proposed subtyping rules use names like "CODE_NOT_NULLNESS_AWARE," we follow those
      * names here. That way, we distinguish more clearly between "Does a type have a
      * @NullnessUnspecified annotation written on it in source code?" and "Is the additional
-     * nullness of a type codeNotNullnessAware?" (The latter can happen not only from a
+     * nullness of a type nullnessOperatorUnspecified?" (The latter can happen not only from a
      * @NullnessUnspecified annotation but also from the default in effect.)
      */
     nonNull = AnnotationBuilder.fromClass(elements, NonNull.class);
     unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
-    codeNotNullnessAware = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
+    nullnessOperatorUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
     /*
      * Note that all the above annotations must be on the *classpath*, not just the *processorpath*.
      * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
@@ -247,8 +247,8 @@ public final class NullSpecAnnotatedTypeFactory
        * for the supposed subtyping relationship, and that entry can cause future checks to
        * short-circuit. (I think I saw this in isContainedBy.)
        */
-      boolean subIsUnspecified = areSame(subAnno, codeNotNullnessAware);
-      boolean superIsUnspecified = areSame(superAnno, codeNotNullnessAware);
+      boolean subIsUnspecified = areSame(subAnno, nullnessOperatorUnspecified);
+      boolean superIsUnspecified = areSame(superAnno, nullnessOperatorUnspecified);
       boolean eitherIsUnspecified = subIsUnspecified || superIsUnspecified;
       boolean bothAreUnspecified = subIsUnspecified && superIsUnspecified;
       if (isLeastConvenientWorld && bothAreUnspecified) {
@@ -270,12 +270,12 @@ public final class NullSpecAnnotatedTypeFactory
               nameToQualifierKind.get(NonNull.class.getCanonicalName());
           DefaultQualifierKind unionNullKind =
               nameToQualifierKind.get(Nullable.class.getCanonicalName());
-          DefaultQualifierKind codeNotNullnessAwareKind =
+          DefaultQualifierKind nullnessOperatorUnspecified =
               nameToQualifierKind.get(NullnessUnspecified.class.getCanonicalName());
 
           Map<DefaultQualifierKind, Set<DefaultQualifierKind>> supers = new HashMap<>();
-          supers.put(nonNullKind, singleton(codeNotNullnessAwareKind));
-          supers.put(codeNotNullnessAwareKind, singleton(unionNullKind));
+          supers.put(nonNullKind, singleton(nullnessOperatorUnspecified));
+          supers.put(nullnessOperatorUnspecified, singleton(unionNullKind));
           supers.put(unionNullKind, emptySet());
           return supers;
           /*
@@ -430,7 +430,7 @@ public final class NullSpecAnnotatedTypeFactory
      * harmless.
      */
     return type.hasAnnotation(unionNull)
-        || (!isLeastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
+        || (!isLeastConvenientWorld && type.hasAnnotation(nullnessOperatorUnspecified));
   }
 
   boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
@@ -569,7 +569,7 @@ public final class NullSpecAnnotatedTypeFactory
 
   private boolean isUnionNullOrEquivalent(AnnotatedTypeMirror type) {
     return type.hasAnnotation(unionNull)
-        || (isLeastConvenientWorld && type.hasAnnotation(codeNotNullnessAware));
+        || (isLeastConvenientWorld && type.hasAnnotation(nullnessOperatorUnspecified));
   }
 
   private final class NullSpecEqualityComparer extends StructuralEqualityComparer {
@@ -620,8 +620,8 @@ public final class NullSpecAnnotatedTypeFactory
        * TODO(cpovirk): Even if we're keeping both checks, it seems like _some_ of the code below
        * may be redundant (or even wrong).
        */
-      boolean type1IsUnspecified = type1.hasAnnotation(codeNotNullnessAware);
-      boolean type2IsUnspecified = type2.hasAnnotation(codeNotNullnessAware);
+      boolean type1IsUnspecified = type1.hasAnnotation(nullnessOperatorUnspecified);
+      boolean type2IsUnspecified = type2.hasAnnotation(nullnessOperatorUnspecified);
       boolean bothAreUnspecified = type1IsUnspecified && type2IsUnspecified;
       boolean eitherIsUnspecified = type1IsUnspecified || type2IsUnspecified;
       if (isLeastConvenientWorld && bothAreUnspecified) {
@@ -688,9 +688,9 @@ public final class NullSpecAnnotatedTypeFactory
         substitute.replaceAnnotation(nonNull);
       } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
-      } else if (argument.hasAnnotation(codeNotNullnessAware)
-          || use.hasAnnotation(codeNotNullnessAware)) {
-        substitute.replaceAnnotation(codeNotNullnessAware);
+      } else if (argument.hasAnnotation(nullnessOperatorUnspecified)
+          || use.hasAnnotation(nullnessOperatorUnspecified)) {
+        substitute.replaceAnnotation(nullnessOperatorUnspecified);
       }
 
       return substitute;
@@ -710,9 +710,10 @@ public final class NullSpecAnnotatedTypeFactory
      * don't want.
      *
      * Furthermore, while we do want defaults of our own, we don't set them here. In particular, we
-     * don't call defs.addCheckedCodeDefault(codeNotNullnessAware, OTHERWISE). If we did, then that
-     * default would be applied to all unannotated type-variable usages, even in null-aware code.
-     * That's because there are multiple rounds of defaulting, 2 of which interact badly:
+     * don't call defs.addCheckedCodeDefault(nullnessOperatorUnspecified, OTHERWISE). If we did,
+     * then that default would be applied to all unannotated type-variable usages, even in
+     * null-aware code. That's because there are multiple rounds of defaulting, 2 of which interact
+     * badly:
      *
      * The first round of the 2 to run is per-element defaulting. That includes our null-aware
      * defaulting logic. (See populateNewDefaults below.) That defaulting logic would leave
@@ -720,8 +721,8 @@ public final class NullSpecAnnotatedTypeFactory
      *
      * The later round to run is checkedCodeDefaults (which would include any defaults set by this
      * method). That logic would find the type-variable usages unannotated. So, if that logic put
-     * codeNotNullnessAware on all unannotated type-variable usages, it would really put it on *all*
-     * unannotated type-variable usages -- even the ones in null-aware code.
+     * nullnessOperatorUnspecified on all unannotated type-variable usages, it would really put it
+     * on *all* unannotated type-variable usages -- even the ones in null-aware code.
      *
      * To avoid that, we set *all* defaults as per-element defaults. That setup eliminates the
      * second round entirely. Thus, defaulting runs a single time for a given type usage. So, when
@@ -793,7 +794,7 @@ public final class NullSpecAnnotatedTypeFactory
          */
 
         // Here's the big default, the "default default":
-        addElementDefault(elt, codeNotNullnessAware, OTHERWISE);
+        addElementDefault(elt, nullnessOperatorUnspecified, OTHERWISE);
 
         // Some locations are intrinsically non-nullable:
         addElementDefault(elt, nonNull, CONSTRUCTOR_RESULT);
@@ -808,10 +809,10 @@ public final class NullSpecAnnotatedTypeFactory
 
         /*
          * Note one other difference from the CLIMB defaults: We want the default for implicit upper
-         * bounds to match the "default default" of codeNotNullnessAware, not to be top/unionNull.
-         * We accomplished this already simply by not making our addCheckedStandardDefaults
-         * implementation call its supermethod (which would otherwise call addClimbStandardDefaults,
-         * which would override the "default default").
+         * bounds to match the "default default" of nullnessOperatorUnspecified, not to be
+         * top/unionNull. We accomplished this already simply by not making our
+         * addCheckedStandardDefaults implementation call its supermethod (which would otherwise
+         * call addClimbStandardDefaults, which would override the "default default").
          */
       }
     }
@@ -829,7 +830,7 @@ public final class NullSpecAnnotatedTypeFactory
     protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(AnnotationMirror qual) {
       /*
        * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code, we
-       * want our default of codeNotNullnessAware to apply even to type variables.
+       * want our default of nullnessOperatorUnspecified to apply even to type variables.
        *
        * But there are 2 other things to keep in mind:
        *
@@ -837,10 +838,10 @@ public final class NullSpecAnnotatedTypeFactory
        * because it will refine their types with dataflow. This CF behavior works fine for us: Since
        * we want to apply defaults in strictly more cases, we're happy to accept what CF already
        * does for local variables. (We do need to be sure to apply unionNull (our top type) in that
-       * case, rather than codeNotNullnessAware. We accomplish that in
+       * case, rather than nullnessOperatorUnspecified. We accomplish that in
        * addDefaultToTopForLocationsRefinedByDataflow.)
        *
-       * - Non-null-aware code (discussed above) is easy: We apply codeNotNullnessAware to
+       * - Non-null-aware code (discussed above) is easy: We apply nullnessOperatorUnspecified to
        * everything except local variables. But null-aware code more complex. First, set aside local
        * variables, which we handle as discussed above. After that, we need to apply nonNull to most
        * types, but we need to *not* apply it to (non-local-variable) type-variable usages. (For
@@ -850,7 +851,7 @@ public final class NullSpecAnnotatedTypeFactory
        * defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
        * locations.
        */
-      return areSame(qual, codeNotNullnessAware);
+      return areSame(qual, nullnessOperatorUnspecified);
     }
 
     @Override
@@ -1009,7 +1010,7 @@ public final class NullSpecAnnotatedTypeFactory
          *
          * 2. The declaration had no annotation on it in source, but it was in non-null-aware code.
          * And consequently, defaults.visit(...), which ran before us, applied a default of
-         * codeNotNullnessAware. Again, that default isn't correct, so we override it here.
+         * nullnessOperatorUnspecified. Again, that default isn't correct, so we override it here.
          */
         type.replaceAnnotation(nonNull);
       }
@@ -1168,7 +1169,7 @@ public final class NullSpecAnnotatedTypeFactory
           boolean isUnbounded =
               bound instanceof AnnotatedNullType
                   && !bound.hasAnnotation(unionNull)
-                  && !bound.hasAnnotation(codeNotNullnessAware);
+                  && !bound.hasAnnotation(nullnessOperatorUnspecified);
           return !isUnbounded;
         }
 
@@ -1187,7 +1188,7 @@ public final class NullSpecAnnotatedTypeFactory
         String operator(AnnotatedTypeMirror type) {
           return type.hasAnnotation(unionNull)
               ? "?"
-              : type.hasAnnotation(codeNotNullnessAware) ? "*" : "";
+              : type.hasAnnotation(nullnessOperatorUnspecified) ? "*" : "";
         }
 
         Name simpleName(AnnotatedDeclaredType type) {
