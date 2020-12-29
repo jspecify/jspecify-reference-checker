@@ -60,6 +60,7 @@ import org.checkerframework.dataflow.cfg.node.NotEqualNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.MethodCall;
+import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
@@ -440,6 +441,15 @@ public final class NullSpecTransfer extends CFTransfer {
    * is a change in its value.
    */
   private boolean refine(JavaExpression expression, CFValue target, CFStore store) {
+    if (expression instanceof Unknown) {
+      /*
+       * Example: In `requireNonNull((SomeType) x)`, `(SomeType) x` appears as Unknown.
+       *
+       * TODO(cpovirk): Unwrap casts and refine the expression that is being cast. (That may or may
+       * not eliminate the need for this check, though.)
+       */
+      return false;
+    }
     CFValue oldValue = store.getValue(expression);
     if (valueIsAtLeastAsSpecificAs(oldValue, target)) {
       return false;
