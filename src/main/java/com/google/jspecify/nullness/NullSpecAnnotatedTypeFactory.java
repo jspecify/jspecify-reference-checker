@@ -868,7 +868,15 @@ public final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-    // TODO(cpovirk): This helps, but why?
+    /*
+     * TODO(cpovirk): Eliminate this workaround. But currently, it helps in some of our samples and
+     * in Guava, though I am unsure why. The problem it works around may well be caused by our
+     * failure to keep wildcards' annotations in sync with their bounds' annotations (whereas stock
+     * CF does).
+     *
+     * Note that this workaround also hurts: See the comment that mentions it in
+     * NullSpecTransfer.refineFutureMapGetFromMapContainsKey.
+     */
     super.addComputedTypeAnnotations(tree, type, iUseFlow && type.getKind() != WILDCARD);
   }
 
