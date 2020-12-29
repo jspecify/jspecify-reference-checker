@@ -347,14 +347,6 @@ public final class NullSpecTransfer extends CFTransfer {
   }
 
   /**
-   * Marks the expression as having unspecified additional nullness (unless it is already non-null),
-   * and returns whether this is a change in its value.
-   */
-  private boolean refineNullnessOperatorUnspecified(JavaExpression expression, CFStore store) {
-    return refine(expression, nullnessOperatorUnspecified, store);
-  }
-
-  /**
    * Refines the expression to be at least as specific as the target type, and returns whether this
    * is a change in its value.
    */
