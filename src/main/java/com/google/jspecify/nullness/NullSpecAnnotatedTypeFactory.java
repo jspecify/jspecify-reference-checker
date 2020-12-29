@@ -234,6 +234,27 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+      if (subAnno == null || superAnno == null) {
+        /*
+         * TODO(cpovirk): Prevent this from happening. I'm seeing it during
+         * AnnotatedTypes.leastUpperBound on a JSpecify-annotated variant of this code:
+         * https://github.com/google/guava/blob/39aa77fa0e8912d6bfb5cb9a0bc1ed5135747b6f/guava/src/com/google/common/collect/ImmutableMultiset.java#L205
+         *
+         * CF is unable to infer the right type for `LinkedHashMultiset.create(elements)`: It should
+         * infer `LinkedHashMultiset<? extends E>`, but instead, it infers `LinkedHashMultiset<?
+         * extends Object>`. As expected, it sets isUninferredTypeArgument. As *not* expected, it
+         * gets to AtmLubVisitor.lubTypeArgument with type2Wildcard.extendsBound.lowerBound (a null
+         * type) missing its annotation. Things seemed OK as late as
+         * AsSuperVisitor.visitWildcard_Wildcard. At that point, I stopped digging.
+         *
+         * Maybe there are other ways to work around that problem, like overriding
+         * addDefaultAnnotations?? Oddly, AsSuperVisitor appears to call addDefaultAnnotations even
+         * in cases *other* than its documented use case, that of uninferred type arguments.
+         *
+         * Anyway, my fear is the workaround here will cause (or mask) other problems.
+         */
+        return true;
+      }
       /*
        * Since we perform all necessary checking in the isSubtype method in NullSpecTypeHierarchy, I
        * tried replacing this body with `return true` to avoid duplicating logic. However, that's a
