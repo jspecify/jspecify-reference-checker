@@ -247,11 +247,8 @@ public final class NullSpecAnnotatedTypeFactory
          * type) missing its annotation. Things seemed OK as late as
          * AsSuperVisitor.visitWildcard_Wildcard. At that point, I stopped digging.
          *
-         * Maybe there are other ways to work around that problem, like overriding
-         * addDefaultAnnotations?? Oddly, AsSuperVisitor appears to call addDefaultAnnotations even
-         * in cases *other* than its documented use case, that of uninferred type arguments.
-         *
-         * Anyway, my fear is the workaround here will cause (or mask) other problems.
+         * Maybe there are other ways to work around that problem? My fear is the workaround here
+         * will cause (or mask) other problems.
          */
         return true;
       }
