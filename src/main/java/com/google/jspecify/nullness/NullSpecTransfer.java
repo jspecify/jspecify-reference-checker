@@ -26,6 +26,7 @@ import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 
 import com.sun.source.tree.Tree;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -175,39 +176,63 @@ public final class NullSpecTransfer extends CFTransfer {
     // TODO(cpovirk): Handle the case of a null receiverTree (probably ImplicitThisNode).
     Tree receiverTree = node.getTarget().getReceiver().getTree();
     if (isOrOverrides(method, mapContainsKeyElement) && receiverTree != null) {
-      AnnotatedDeclaredType mapType =
-          asSuper(atypeFactory, atypeFactory.getAnnotatedType(receiverTree), javaUtilMap);
+      AnnotatedTypeMirror receiverType = atypeFactory.getAnnotatedType(receiverTree);
+      AnnotatedDeclaredType mapType = asSuper(atypeFactory, receiverType, javaUtilMap);
       AnnotatedTypeMirror mapValueType = mapType.getTypeArguments().get(1);
 
       MethodCall containsKeyCall =
           (MethodCall) fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-      MethodCall getCall =
-          new MethodCall(
-              mapValueType.getUnderlyingType(),
-              mapGetElement,
-              containsKeyCall.getReceiver(),
-              containsKeyCall.getParameters());
 
       /*
-       * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
-       * we don't remove information if someone calls remove(key). But I'm probably failing to even
-       * think of bigger problems.
-       *
-       * XXX: Also, the code below feels a bit indirect: Rather than performing a full check for
-       * null-exclusivity, it seems like we should be able to get by with looking only at the
-       * annotation on mapValueType. The complication with that approach is that we'd then need to
-       * have a special case to insert an entry with *no* annotations, as sometimes required when
-       * we're looking at wildcard or type-variable usages. That should be doable, but it's more code
-       * than just checkign null-exclusivity.
+       * We want to refine the type of any future call to `map.get(key)`. To do so, we need to
+       * create a MethodCall with the appropriate values -- in particular, with the appropriate
+       * ExecutableElement for the `map.get` call. The appropriate ExecutableElement is not
+       * necessarily `java.util.Map.get(Object)` itself, since the call may resolve to an override
+       * of that method. Which override? There may be a way to figure it out, but we take the
+       * brute-force approach of creating a MethodCall for *every* override and refining the type of
+       * each one.
        */
-      if (atypeFactory
-          .withLeastConvenientWorld()
-          .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-        storeChanged |= refineNonNull(getCall, thenStore);
-      } else if (atypeFactory
-          .withMostConvenientWorld()
-          .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-        storeChanged |= refineNullnessOperatorUnspecified(getCall, thenStore);
+      List<ExecutableElement> mapGetAndOverrides =
+          getAllDeclaredSupertypes(receiverType).stream()
+              .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
+              .filter(ExecutableElement.class::isInstance)
+              .map(ExecutableElement.class::cast)
+              /*
+               * TODO(cpovirk): It would be more correct to pass the corresponding `TypeElement
+               * type` to Elements.overrides.
+               */
+              .filter(e -> isOrOverrides(e, mapGetElement))
+              .collect(toList());
+
+      for (ExecutableElement mapGetOrOverride : mapGetAndOverrides) {
+        MethodCall getCall =
+            new MethodCall(
+                mapValueType.getUnderlyingType(),
+                mapGetOrOverride,
+                containsKeyCall.getReceiver(),
+                containsKeyCall.getParameters());
+
+        /*
+         * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
+         * we don't remove information if someone calls remove(key). But I'm probably failing to
+         * even think of bigger problems.
+         *
+         * XXX: Also, the code below feels a bit indirect: Rather than performing a full check for
+         * null-exclusivity, it seems like we should be able to get by with looking only at the
+         * annotation on mapValueType. The complication with that approach is that we'd then need to
+         * have a special case to insert an entry with *no* annotations, as sometimes required when
+         * we're looking at wildcard or type-variable usages. That should be doable, but it's more
+         * code than just checkign null-exclusivity.
+         */
+        if (atypeFactory
+            .withLeastConvenientWorld()
+            .isNullExclusiveUnderEveryParameterization(mapValueType)) {
+          storeChanged |= refineNonNull(getCall, thenStore);
+        } else if (atypeFactory
+            .withMostConvenientWorld()
+            .isNullExclusiveUnderEveryParameterization(mapValueType)) {
+          storeChanged |= refineNullnessOperatorUnspecified(getCall, thenStore);
+        }
       }
     }
 
@@ -411,6 +436,26 @@ public final class NullSpecTransfer extends CFTransfer {
       throw new IllegalArgumentException(type + "." + name);
     }
     return elements.get(0);
+  }
+
+  /**
+   * Returns all declared supertypes of the given type, including the type itself and any transitive
+   * supertypes. The returned list may contain duplicates.
+   */
+  private static List<AnnotatedDeclaredType> getAllDeclaredSupertypes(AnnotatedTypeMirror type) {
+    List<AnnotatedDeclaredType> result = new ArrayList<>();
+    collectAllDeclaredSupertypes(type, result);
+    return result;
+  }
+
+  private static void collectAllDeclaredSupertypes(
+      AnnotatedTypeMirror type, List<AnnotatedDeclaredType> result) {
+    if (type instanceof AnnotatedDeclaredType) {
+      result.add((AnnotatedDeclaredType) type);
+    }
+    for (AnnotatedTypeMirror supertype : type.directSuperTypes()) {
+      collectAllDeclaredSupertypes(supertype, result);
+    }
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =
