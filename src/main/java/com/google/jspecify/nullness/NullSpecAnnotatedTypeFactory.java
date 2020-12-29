@@ -226,6 +226,63 @@ public final class NullSpecAnnotatedTypeFactory
     return new NullSpecQualifierHierarchy(getSupportedTypeQualifiers(), elements);
   }
 
+  @Override
+  public void addDefaultAnnotations(AnnotatedTypeMirror type) {
+    super.addDefaultAnnotations(type);
+    /*
+     * TODO(cpovirk): Find a better solution than this.
+     *
+     * The problem I'm working around arises during AnnotatedTypes.leastUpperBound on a
+     * JSpecify-annotated variant of this code:
+     * https://github.com/google/guava/blob/39aa77fa0e8912d6bfb5cb9a0bc1ed5135747b6f/guava/src/com/google/common/collect/ImmutableMultiset.java#L205
+     *
+     * CF is unable to infer the right type for `LinkedHashMultiset.create(elements)`: It should
+     * infer `LinkedHashMultiset<? extends E>`, but instead, it infers `LinkedHashMultiset<? extends
+     * Object>`. As expected, it sets isUninferredTypeArgument. As *not* expected, it gets to
+     * AtmLubVisitor.lubTypeArgument with type2Wildcard.extendsBound.lowerBound (a null type)
+     * missing its annotation.
+     *
+     * The part of CF responsible for copying annotations, including those on the extends bound, is
+     * AsSuperVisitor.visitWildcard_Wildcard. Under stock CF, copyPrimaryAnnos(from, typevar) "also
+     * sets primary annotations _on the bounds_." Under our CF fork, this is not the case, and we
+     * end up with an unannotated lower bound on the type-variable usage E (which, again, is itself
+     * a bound of a wildcard).
+     *
+     * (Aside: I haven't looked into how the _upper_ bound of the type-variable usage gets an
+     * annotation set on it. Could it be happening "accidentally," and if so, might it be wrong
+     * sometimes?)
+     *
+     * The result of an unannotated lower bound is a crash in NullSpecQualifierHierarchy.isSubtype,
+     * which passes null to areSame.
+     *
+     * The workaround: If we see a type-variable usage whose lower bound is a null type that lacks
+     * an annotation, we annotate that bound as non-null. This workaround shouldn't break any
+     * working code, but it may or may not be universally the right solution to a missing
+     * annotation.
+     *
+     * I am trying to ignore other questions here, such as:
+     *
+     * - Would it make more sense to set the lower bound to match the upper bound, as stock CF does?
+     * I suspect not under our approach, but I haven't thought about it.
+     *
+     * - Does trying to pick correct annotations even matter in the context of an uninferred type
+     * argument? Does the very idea of "correct annotations" lose meaning in that context?
+     *
+     * - Should we fix this in AsSuperVisitor instead? Or would it fix itself if we set bounds on
+     * our type-variable usages and wildcards in the same way that stock CF does? (Following stock
+     * CF would likely save us from other problems, too.)
+     *
+     * - What's up with the _upper_ bound, as discussed in a parenthetical above?
+     */
+    if (type instanceof AnnotatedTypeVariable) {
+      AnnotatedTypeMirror lowerBound = ((AnnotatedTypeVariable) type).getLowerBound();
+      if (lowerBound instanceof AnnotatedNullType
+          && !lowerBound.isAnnotatedInHierarchy(unionNull)) {
+        lowerBound.addAnnotation(nonNull);
+      }
+    }
+  }
+
   private final class NullSpecQualifierHierarchy extends NoElementQualifierHierarchy {
     NullSpecQualifierHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
@@ -234,24 +291,6 @@ public final class NullSpecAnnotatedTypeFactory
 
     @Override
     public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
-      if (subAnno == null || superAnno == null) {
-        /*
-         * TODO(cpovirk): Prevent this from happening. I'm seeing it during
-         * AnnotatedTypes.leastUpperBound on a JSpecify-annotated variant of this code:
-         * https://github.com/google/guava/blob/39aa77fa0e8912d6bfb5cb9a0bc1ed5135747b6f/guava/src/com/google/common/collect/ImmutableMultiset.java#L205
-         *
-         * CF is unable to infer the right type for `LinkedHashMultiset.create(elements)`: It should
-         * infer `LinkedHashMultiset<? extends E>`, but instead, it infers `LinkedHashMultiset<?
-         * extends Object>`. As expected, it sets isUninferredTypeArgument. As *not* expected, it
-         * gets to AtmLubVisitor.lubTypeArgument with type2Wildcard.extendsBound.lowerBound (a null
-         * type) missing its annotation. Things seemed OK as late as
-         * AsSuperVisitor.visitWildcard_Wildcard. At that point, I stopped digging.
-         *
-         * Maybe there are other ways to work around that problem? My fear is the workaround here
-         * will cause (or mask) other problems.
-         */
-        return true;
-      }
       /*
        * Since we perform all necessary checking in the isSubtype method in NullSpecTypeHierarchy, I
        * tried replacing this body with `return true` to avoid duplicating logic. However, that's a
