@@ -190,53 +190,63 @@ public final class NullSpecTransfer extends CFTransfer {
       refineMapGetResultIfKeySetLoop(node, result);
     }
 
-    // TODO(cpovirk): Handle the case of a null receiverTree (probably ImplicitThisNode).
-    Tree receiverTree = node.getTarget().getReceiver().getTree();
-    if (isOrOverrides(method, mapContainsKeyElement) && receiverTree != null) {
-      MapType mapType = new MapType(receiverTree);
-      MethodCall containsKeyCall =
-          (MethodCall) fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
-
-      /*
-       * We want to refine the type of any future call to `map.get(key)`. To do so, we need to
-       * create a MethodCall with the appropriate values -- in particular, with the appropriate
-       * ExecutableElement for the `map.get` call. The appropriate ExecutableElement is not
-       * necessarily `java.util.Map.get(Object)` itself, since the call may resolve to an override
-       * of that method. Which override? There may be a way to figure it out, but we take the
-       * brute-force approach of creating a MethodCall for *every* override and refining the type of
-       * each one.
-       */
-      List<ExecutableElement> mapGetAndOverrides =
-          getAllDeclaredSupertypes(mapType.type).stream()
-              .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
-              .filter(ExecutableElement.class::isInstance)
-              .map(ExecutableElement.class::cast)
-              /*
-               * TODO(cpovirk): It would be more correct to pass the corresponding `TypeElement
-               * type` to Elements.overrides.
-               */
-              .filter(e -> isOrOverrides(e, mapGetElement))
-              .collect(toList());
-
-      for (ExecutableElement mapGetOrOverride : mapGetAndOverrides) {
-        MethodCall getCall =
-            new MethodCall(
-                mapType.mapValueAsDataflowValue.getUnderlyingType(),
-                mapGetOrOverride,
-                containsKeyCall.getReceiver(),
-                containsKeyCall.getParameters());
-
-        /*
-         * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
-         * we don't remove information if someone calls remove(key). But I'm probably failing to
-         * even think of bigger problems.
-         */
-        storeChanged |= refine(getCall, mapType.mapValueAsDataflowValue, thenStore);
-      }
+    if (isOrOverrides(method, mapContainsKeyElement)) {
+      storeChanged |= refineFutureMapGetFromMapContainsKey(node, thenStore);
     }
 
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private boolean refineFutureMapGetFromMapContainsKey(
+      MethodInvocationNode containsKeyNode, CFStore thenStore) {
+    Tree containsKeyReceiver = containsKeyNode.getTarget().getReceiver().getTree();
+    if (containsKeyReceiver == null) {
+      // TODO(cpovirk): Handle the case of a null containsKeyReceiver (probably ImplicitThisNode).
+      return false;
+    }
+
+    MapType mapType = new MapType(containsKeyReceiver);
+    MethodCall containsKeyCall =
+        (MethodCall) fromNode(atypeFactory, containsKeyNode, /*allowNonDeterministic=*/ true);
+
+    /*
+     * We want to refine the type of any future call to `map.get(key)`. To do so, we need to create
+     * a MethodCall with the appropriate values -- in particular, with the appropriate
+     * ExecutableElement for the `map.get` call. The appropriate ExecutableElement is not
+     * necessarily `java.util.Map.get(Object)` itself, since the call may resolve to an override of
+     * that method. Which override? There may be a way to figure it out, but we take the brute-force
+     * approach of creating a MethodCall for *every* override and refining the type of each one.
+     */
+    List<ExecutableElement> mapGetAndOverrides =
+        getAllDeclaredSupertypes(mapType.type).stream()
+            .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            /*
+             * TODO(cpovirk): It would be more correct to pass the corresponding `TypeElement type`
+             * to Elements.overrides.
+             */
+            .filter(e -> isOrOverrides(e, mapGetElement))
+            .collect(toList());
+
+    boolean storeChanged = false;
+    for (ExecutableElement mapGetOrOverride : mapGetAndOverrides) {
+      MethodCall getCall =
+          new MethodCall(
+              mapType.mapValueAsDataflowValue.getUnderlyingType(),
+              mapGetOrOverride,
+              containsKeyCall.getReceiver(),
+              containsKeyCall.getParameters());
+
+      /*
+       * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
+       * we don't remove information if someone calls remove(key). But I'm probably failing to even
+       * think of bigger problems.
+       */
+      storeChanged |= refine(getCall, mapType.mapValueAsDataflowValue, thenStore);
+    }
+    return storeChanged;
   }
 
   private void refineMapGetResultIfKeySetLoop(
