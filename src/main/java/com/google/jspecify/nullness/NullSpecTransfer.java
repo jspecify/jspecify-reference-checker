@@ -304,8 +304,8 @@ public final class NullSpecTransfer extends CFTransfer {
       AnnotatedDeclaredType typeAsMap = asSuper(atypeFactory, type, javaUtilMap);
       AnnotatedTypeMirror mapValueType = typeAsMap.getTypeArguments().get(1);
       mapValueAsDataflowValue =
-          analysis.defaultCreateAbstractValue(
-              analysis, mapValueType.getAnnotations(), mapValueType.getUnderlyingType());
+          analysis.createAbstractValue(
+              mapValueType.getAnnotations(), mapValueType.getUnderlyingType());
     }
   }
 
