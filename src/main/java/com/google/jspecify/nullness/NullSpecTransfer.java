@@ -24,6 +24,7 @@ import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
+import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 
 import com.sun.source.tree.Tree;
 import java.util.ArrayList;
@@ -179,6 +180,9 @@ public final class NullSpecTransfer extends CFTransfer {
       AnnotatedTypeMirror receiverType = atypeFactory.getAnnotatedType(receiverTree);
       AnnotatedDeclaredType mapType = asSuper(atypeFactory, receiverType, javaUtilMap);
       AnnotatedTypeMirror mapValueType = mapType.getTypeArguments().get(1);
+      CFValue mapValueDataflowValue =
+          analysis.defaultCreateAbstractValue(
+              analysis, mapValueType.getAnnotations(), mapValueType.getUnderlyingType());
 
       MethodCall containsKeyCall =
           (MethodCall) fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
@@ -216,23 +220,8 @@ public final class NullSpecTransfer extends CFTransfer {
          * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
          * we don't remove information if someone calls remove(key). But I'm probably failing to
          * even think of bigger problems.
-         *
-         * XXX: Also, the code below feels a bit indirect: Rather than performing a full check for
-         * null-exclusivity, it seems like we should be able to get by with looking only at the
-         * annotation on mapValueType. The complication with that approach is that we'd then need to
-         * have a special case to insert an entry with *no* annotations, as sometimes required when
-         * we're looking at wildcard or type-variable usages. That should be doable, but it's more
-         * code than just checkign null-exclusivity.
          */
-        if (atypeFactory
-            .withLeastConvenientWorld()
-            .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-          storeChanged |= refineNonNull(getCall, thenStore);
-        } else if (atypeFactory
-            .withMostConvenientWorld()
-            .isNullExclusiveUnderEveryParameterization(mapValueType)) {
-          storeChanged |= refineNullnessOperatorUnspecified(getCall, thenStore);
-        }
+        storeChanged |= refine(getCall, mapValueDataflowValue, thenStore);
       }
     }
 
@@ -370,6 +359,15 @@ public final class NullSpecTransfer extends CFTransfer {
    * is a change in its value.
    */
   private boolean refine(JavaExpression expression, AnnotationMirror target, CFStore store) {
+    return refine(
+        expression, analysis.createSingleAnnotationValue(target, expression.getType()), store);
+  }
+
+  /**
+   * Refines the expression to be at least as specific as the target type, and returns whether this
+   * is a change in its value.
+   */
+  private boolean refine(JavaExpression expression, CFValue target, CFStore store) {
     CFValue oldValue = store.getValue(expression);
     if (valueIsAtLeastAsSpecificAs(oldValue, target)) {
       return false;
@@ -378,7 +376,7 @@ public final class NullSpecTransfer extends CFTransfer {
     return true;
   }
 
-  private boolean valueIsAtLeastAsSpecificAs(CFValue value, AnnotationMirror target) {
+  private boolean valueIsAtLeastAsSpecificAs(CFValue value, CFValue targetDataflowValue) {
     if (value == null) {
       return false;
     }
@@ -386,8 +384,28 @@ public final class NullSpecTransfer extends CFTransfer {
         atypeFactory
             .getQualifierHierarchy()
             .findAnnotationInHierarchy(value.getAnnotations(), unionNull);
-    return existing != null
-        && atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
+    AnnotationMirror target =
+        atypeFactory
+            .getQualifierHierarchy()
+            .findAnnotationInHierarchy(targetDataflowValue.getAnnotations(), unionNull);
+    if (existing != null && areSame(existing, nonNull)) {
+      return true;
+    }
+    if (target != null && areSame(target, nonNull)) {
+      return false;
+    }
+    if (existing == null) {
+      return true;
+    }
+    if (target == null) {
+      return false;
+    }
+    /*
+     * TODO(cpovirk): Use methods on CFAbstractValue instead? Do they correctly handle the
+     * difference between NonNull ("project to NonNull") and the other annotations ("most general
+     * wins")? If not, we may have bigger problems....
+     */
+    return atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
   }
 
   private static boolean isNullLiteral(Node node) {
