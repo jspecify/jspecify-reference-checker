@@ -25,8 +25,16 @@ import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
+import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
+import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
+import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 
+import com.sun.source.tree.EnhancedForLoopTree;
+import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.util.TreePath;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,6 +44,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -66,6 +75,7 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
+  private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
   private final AnnotatedDeclaredType javaUtilMap;
@@ -79,6 +89,7 @@ public final class NullSpecTransfer extends CFTransfer {
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
 
     TypeElement javaUtilMapElement = atypeFactory.getElementUtils().getTypeElement("java.util.Map");
+    mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
     mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
     javaUtilMap =
@@ -174,16 +185,14 @@ public final class NullSpecTransfer extends CFTransfer {
       }
     }
 
+    if (isOrOverrides(method, mapGetElement)) {
+      refineMapGetResultIfKeySetLoop(node, result);
+    }
+
     // TODO(cpovirk): Handle the case of a null receiverTree (probably ImplicitThisNode).
     Tree receiverTree = node.getTarget().getReceiver().getTree();
     if (isOrOverrides(method, mapContainsKeyElement) && receiverTree != null) {
-      AnnotatedTypeMirror receiverType = atypeFactory.getAnnotatedType(receiverTree);
-      AnnotatedDeclaredType mapType = asSuper(atypeFactory, receiverType, javaUtilMap);
-      AnnotatedTypeMirror mapValueType = mapType.getTypeArguments().get(1);
-      CFValue mapValueDataflowValue =
-          analysis.defaultCreateAbstractValue(
-              analysis, mapValueType.getAnnotations(), mapValueType.getUnderlyingType());
-
+      MapType mapType = new MapType(receiverTree);
       MethodCall containsKeyCall =
           (MethodCall) fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
 
@@ -197,7 +206,7 @@ public final class NullSpecTransfer extends CFTransfer {
        * each one.
        */
       List<ExecutableElement> mapGetAndOverrides =
-          getAllDeclaredSupertypes(receiverType).stream()
+          getAllDeclaredSupertypes(mapType.type).stream()
               .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
               .filter(ExecutableElement.class::isInstance)
               .map(ExecutableElement.class::cast)
@@ -211,7 +220,7 @@ public final class NullSpecTransfer extends CFTransfer {
       for (ExecutableElement mapGetOrOverride : mapGetAndOverrides) {
         MethodCall getCall =
             new MethodCall(
-                mapValueType.getUnderlyingType(),
+                mapType.mapValueAsDataflowValue.getUnderlyingType(),
                 mapGetOrOverride,
                 containsKeyCall.getReceiver(),
                 containsKeyCall.getParameters());
@@ -221,12 +230,83 @@ public final class NullSpecTransfer extends CFTransfer {
          * we don't remove information if someone calls remove(key). But I'm probably failing to
          * even think of bigger problems.
          */
-        storeChanged |= refine(getCall, mapValueDataflowValue, thenStore);
+        storeChanged |= refine(getCall, mapType.mapValueAsDataflowValue, thenStore);
       }
     }
 
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private void refineMapGetResultIfKeySetLoop(
+      MethodInvocationNode mapGetNode, TransferResult<CFValue, CFStore> input) {
+    Tree mapGetReceiver = mapGetNode.getTarget().getReceiver().getTree();
+    if (!(mapGetReceiver instanceof ExpressionTree)) {
+      /*
+       * TODO(cpovirk): Handle the case of a null mapGetReceiver (probably ImplicitThisNode).
+       * Handling that case will also require changing the code below that assumes a member select.
+       */
+      return;
+    }
+    ExpressionTree mapGetReceiverExpression = (ExpressionTree) mapGetReceiver;
+    Element mapGetArgElement = elementFromTree(mapGetNode.getArgument(0).getTree());
+
+    for (TreePath path = mapGetNode.getTreePath(); path != null; path = path.getParentPath()) {
+      if (!(path.getLeaf() instanceof EnhancedForLoopTree)) {
+        continue;
+      }
+      EnhancedForLoopTree forLoop = (EnhancedForLoopTree) path.getLeaf();
+
+      ExpressionTree forExpression = forLoop.getExpression();
+      if (!(forExpression instanceof MethodInvocationTree)) {
+        continue;
+      }
+      MethodInvocationTree forExpressionAsInvocation = (MethodInvocationTree) forExpression;
+      ExpressionTree forExpressionSelect = forExpressionAsInvocation.getMethodSelect();
+      if (!(forExpressionSelect instanceof MemberSelectTree)) {
+        continue;
+      }
+      ExpressionTree forExpressionReceiver =
+          ((MemberSelectTree) forExpressionSelect).getExpression();
+
+      // Is the foreach over something.keySet()?
+      ExecutableElement forExpressionElement = elementFromUse(forExpressionAsInvocation);
+      if (!isOrOverrides(forExpressionElement, mapKeySetElement)) {
+        continue;
+      }
+
+      // Is the arg to map.get(...) the variable from the foreach?
+      VariableElement forVariableElement = elementFromDeclaration(forLoop.getVariable());
+      if (mapGetArgElement != forVariableElement) {
+        continue;
+      }
+
+      // Is the receiver of map.get(...) the receiver of the foreach's something.keySet()?
+      if (!JavaExpression.fromTree(
+              atypeFactory, mapGetReceiverExpression, /*allowNonDeterministic=*/ true)
+          .equals(
+              JavaExpression.fromTree(
+                  atypeFactory, forExpressionReceiver, /*allowNonDeterministic=*/ true))) {
+        continue;
+      }
+
+      MapType mapType = new MapType(mapGetReceiver);
+      input.setResultValue(mapType.mapValueAsDataflowValue);
+    }
+  }
+
+  private final class MapType {
+    final AnnotatedTypeMirror type;
+    final CFValue mapValueAsDataflowValue;
+
+    MapType(Tree receiverTree) {
+      type = atypeFactory.getAnnotatedType(receiverTree);
+      AnnotatedDeclaredType typeAsMap = asSuper(atypeFactory, type, javaUtilMap);
+      AnnotatedTypeMirror mapValueType = typeAsMap.getTypeArguments().get(1);
+      mapValueAsDataflowValue =
+          analysis.defaultCreateAbstractValue(
+              analysis, mapValueType.getAnnotations(), mapValueType.getUnderlyingType());
+    }
   }
 
   private boolean isGetPackageCallOnClassInNamedPackage(MethodInvocationNode node) {
