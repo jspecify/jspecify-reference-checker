@@ -46,6 +46,7 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
@@ -94,8 +95,22 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
     if (!isPrimitive(type.getUnderlyingType())
         && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
-      checker.reportError(tree, messageKey, type);
+      checker.reportError(tree, messageKey, type + originStringToAppend(tree));
     }
+  }
+
+  private static String originStringToAppend(Tree tree) {
+    while (tree instanceof ParenthesizedTree) {
+      tree = ((ParenthesizedTree) tree).getExpression();
+    }
+    if (tree instanceof MethodInvocationTree) {
+      ExecutableElement element = elementFromUse((MethodInvocationTree) tree);
+      return ", returned from "
+          + element.getEnclosingElement().getSimpleName()
+          + "."
+          + element.getSimpleName();
+    }
+    return "";
   }
 
   public Void visitBlock(BlockTree tree, Void p) {
