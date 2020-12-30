@@ -39,7 +39,9 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.EnhancedForLoopTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -95,20 +97,64 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
     // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
     if (!isPrimitive(type.getUnderlyingType())
         && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
-      checker.reportError(tree, messageKey, type + originStringToAppend(tree));
+      String origin = originString(tree);
+      checker.reportError(tree, messageKey, type + (origin.isEmpty() ? "" : ", " + origin));
     }
   }
 
-  private static String originStringToAppend(Tree tree) {
+  @Override
+  protected String extraArgForReturnTypeError(Tree tree) {
+    /*
+     * We call originStringIfTernary, not originString:
+     *
+     * If the statement is `return foo.bar()`, then the problem is obvious, so we don't want our
+     * error message longer to restate "the problem is foo.bar()."
+     *
+     * But if the statement is `return b ? foo.bar() : baz`, then the problem may be more subtle, so
+     * we want to give more details.
+     *
+     * TODO(cpovirk): Further improve this to call attention to *which* of the 2 branches produces
+     * the possibly null value (possibly both!). However, this gets tricky: If the branches return
+     * `Foo?` and `Foo*`, then we ideally want to emphasize the `Foo?` branch *but*, at least in
+     * "strict mode," not altogether ignore the `Foo*` branch.
+     */
+    String origin = originStringIfTernary(tree);
+    return origin.isEmpty() ? "" : (origin + "\n");
+  }
+
+  private String originString(Tree tree) {
     while (tree instanceof ParenthesizedTree) {
       tree = ((ParenthesizedTree) tree).getExpression();
     }
     if (tree instanceof MethodInvocationTree) {
-      ExecutableElement element = elementFromUse((MethodInvocationTree) tree);
-      return ", returned from "
-          + element.getEnclosingElement().getSimpleName()
+      ExecutableElement method = elementFromUse((MethodInvocationTree) tree);
+      return "returned from "
+          + method.getEnclosingElement().getSimpleName()
           + "."
-          + element.getSimpleName();
+          + method.getSimpleName();
+    }
+    return originStringIfTernary(tree);
+  }
+
+  private String originStringIfTernary(Tree tree) {
+    while (tree instanceof ParenthesizedTree) {
+      tree = ((ParenthesizedTree) tree).getExpression();
+    }
+    if (tree instanceof ConditionalExpressionTree) {
+      ConditionalExpressionTree ternary = (ConditionalExpressionTree) tree;
+      ExpressionTree trueExpression = ternary.getTrueExpression();
+      ExpressionTree falseExpression = ternary.getFalseExpression();
+      AnnotatedTypeMirror trueType = atypeFactory.getAnnotatedType(trueExpression);
+      AnnotatedTypeMirror falseType = atypeFactory.getAnnotatedType(falseExpression);
+      String trueOrigin = originString(trueExpression);
+      String falseOrigin = originString(falseExpression);
+
+      return "result of ternary operator on "
+          + trueType
+          + (trueOrigin.isEmpty() ? "" : (" (" + trueOrigin + ")"))
+          + " and "
+          + falseType
+          + (falseOrigin.isEmpty() ? "" : (" (" + falseOrigin + ")"));
     }
     return "";
   }
