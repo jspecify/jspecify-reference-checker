@@ -65,4 +65,15 @@ SomeTest.java:7: error: [nullness] incompatible types in return.
   type of expression: Object?
   method return type: Object
 1 error
+
+
+# Run tests (some of which fail at the moment -- we plan to mark the "expected
+# failures" so that our CI can at least detect regressions):
+
+$ ./gradlew jspecifySamplesTest
+
+
+# During development, you may wish to pass `-x ensureCheckerFrameworkBuilt` to
+# `gradlew` for every build after your first. This will prevent the build
+# process from also rebuilding some of our *dependencies* (which is slow).
 ```
