@@ -108,7 +108,7 @@ task ensureCheckerFrameworkBuilt() {
     }
 }
 
-assemble.dependsOn(ensureCheckerFrameworkBuilt)
+compileJava.dependsOn(ensureCheckerFrameworkBuilt)
 
 // Use `./gradlew eclipseClasspath` to create Eclipse/VSCode configurations
 eclipse.classpath {
