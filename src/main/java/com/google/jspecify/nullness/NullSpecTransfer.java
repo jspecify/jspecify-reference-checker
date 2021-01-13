@@ -77,10 +77,13 @@ public final class NullSpecTransfer extends CFTransfer {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
+  private final AnnotatedDeclaredType javaUtilMap;
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
-  private final AnnotatedDeclaredType javaUtilMap;
+  private final AnnotatedDeclaredType javaLangClass;
+  private final ExecutableElement annotatedElementIsAnnotationPresentElement;
+  private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
 
   public NullSpecTransfer(CFAnalysis analysis) {
@@ -92,12 +95,26 @@ public final class NullSpecTransfer extends CFTransfer {
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
 
     TypeElement javaUtilMapElement = atypeFactory.getElementUtils().getTypeElement("java.util.Map");
-    mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
-    mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
-    mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
     javaUtilMap =
         (AnnotatedDeclaredType)
             createType(javaUtilMapElement.asType(), atypeFactory, /*isDeclaration=*/ false);
+    mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
+    mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
+    mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+
+    TypeElement javaLangClassElement =
+        atypeFactory.getElementUtils().getTypeElement("java.lang.Class");
+    javaLangClass =
+        (AnnotatedDeclaredType)
+            createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
+
+    TypeElement javaLangReflectAnnotatedElementElement =
+        atypeFactory.getElementUtils().getTypeElement("java.lang.reflect.AnnotatedElement");
+    annotatedElementIsAnnotationPresentElement =
+        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
+    annotatedElementGetAnnotationElement =
+        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
+
     javaUtilConcurrentExecutionException =
         atypeFactory
             .getElementUtils()
@@ -239,8 +256,79 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= refineFutureMapGetFromMapContainsKey(node, thenStore);
     }
 
+    if (isOrOverrides(method, annotatedElementIsAnnotationPresentElement)) {
+      storeChanged |= refineFutureGetAnnotationFromIsAnnotationPresent(node, thenStore);
+    }
+
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private boolean refineFutureGetAnnotationFromIsAnnotationPresent(
+      MethodInvocationNode isAnnotationPresentNode, CFStore thenStore) {
+    // TODO(cpovirk): Reduce duplication between this and refineFutureMapGetFromMapContainsKey.
+    Tree isAnnotationPresentReceiver = isAnnotationPresentNode.getTarget().getReceiver().getTree();
+    if (isAnnotationPresentReceiver == null) {
+      /*
+       * See discussion in refineFutureMapGetFromMapContainsKey below. Note that this case should be
+       * even rarer than that method's containsKeyReceiver case (an already rare case), since so few
+       * classes implement AnnotatedElement.
+       */
+      return false;
+    }
+
+    AnnotatedElementAndAnnotationTypes types =
+        new AnnotatedElementAndAnnotationTypes(
+            isAnnotationPresentReceiver, isAnnotationPresentNode.getArgument(0).getTree());
+    if (types.annotationAsDataflowValue == null) {
+      return false;
+    }
+    MethodCall isAnnotationPresentCall =
+        (MethodCall)
+            fromNode(atypeFactory, isAnnotationPresentNode, /*allowNonDeterministic=*/ true);
+
+    List<ExecutableElement> getAnnotationAndOverrides =
+        getAllDeclaredSupertypes(types.annotatedElementType).stream()
+            .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .filter(e -> isOrOverrides(e, annotatedElementGetAnnotationElement))
+            .collect(toList());
+
+    boolean storeChanged = false;
+    for (ExecutableElement getAnnotationAndOverride : getAnnotationAndOverrides) {
+      MethodCall getAnnotationCall =
+          new MethodCall(
+              types.annotationAsDataflowValue.getUnderlyingType(),
+              getAnnotationAndOverride,
+              isAnnotationPresentCall.getReceiver(),
+              isAnnotationPresentCall.getParameters());
+
+      storeChanged |= refine(getAnnotationCall, types.annotationAsDataflowValue, thenStore);
+    }
+    return storeChanged;
+  }
+
+  private final class AnnotatedElementAndAnnotationTypes {
+    final AnnotatedTypeMirror annotatedElementType;
+    final CFValue annotationAsDataflowValue;
+
+    AnnotatedElementAndAnnotationTypes(
+        Tree isAnnotationPresentReceiver, Tree isAnnotationPresentArgument) {
+      annotatedElementType = atypeFactory.getAnnotatedType(isAnnotationPresentReceiver);
+      AnnotatedTypeMirror argumentType = atypeFactory.getAnnotatedType(isAnnotationPresentArgument);
+      /*
+       * The argument's static type could be a type-variable type (or a wildcard, probably, since CF
+       * doesn't implement capture conversation as of this writing). We need it as a Class<T> so
+       * that we can extract the T.
+       */
+      AnnotatedDeclaredType argumentTypeAsClass =
+          asSuper(atypeFactory, argumentType, javaLangClass);
+      AnnotatedTypeMirror annotationType = argumentTypeAsClass.getTypeArguments().get(0);
+      annotationAsDataflowValue =
+          analysis.createAbstractValue(
+              annotationType.getAnnotations(), annotationType.getUnderlyingType());
+    }
   }
 
   private boolean refineFutureMapGetFromMapContainsKey(
