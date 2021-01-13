@@ -182,6 +182,20 @@ public final class NullSpecTransfer extends CFTransfer {
        * more automated. Even before then, consider reducing the scope of this exception to apply
        * only to exceptions thrown by Future.get, which, unlike those thrown by
        * ExecutorService.invokeAny, do have a cause in all real-world implementations I'm aware of.
+       *
+       * TODO(cpovirk): Also, consider banning calls to ExecutionException constructors that pass a
+       * nullable argument or call an overload that does not require a cause.
+       */
+      setResultValueToNonNull(result);
+    }
+
+    if (isGetCauseOnInvocationTargetException(node)) {
+      /*
+       * InvocationTargetException.getCause() is similar to ExecutionException.getCause(), discussed
+       * above. At least with InvocationTargetException, I am not aware of any JDK methods that
+       * produce an instance with a null cause.
+       *
+       * TODO(cpovirk): Still, consider being more conservative, as with ExecutionException.
        */
       setResultValueToNonNull(result);
     }
@@ -436,6 +450,12 @@ public final class NullSpecTransfer extends CFTransfer {
             .isSameType(
                 node.getTarget().getReceiver().getType(), javaUtilConcurrentExecutionException)
         && node.getTarget().getMethod().getSimpleName().contentEquals("getCause");
+  }
+
+  private boolean isGetCauseOnInvocationTargetException(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    return nameMatches(method, "InvocationTargetException", "getCause")
+        || nameMatches(method, "InvocationTargetException", "getTargetException");
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
