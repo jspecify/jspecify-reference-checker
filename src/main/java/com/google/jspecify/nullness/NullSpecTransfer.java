@@ -217,7 +217,8 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
-    if (nameMatches(method, "Preconditions", "checkState")
+    if ((nameMatches(method, "Preconditions", "checkState")
+            || nameMatches(method, "Preconditions", "checkArgument"))
         && node.getArgument(0) instanceof NotEqualNode) {
       storeChanged |=
           refineNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
