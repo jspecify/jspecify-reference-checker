@@ -45,6 +45,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -80,6 +81,7 @@ public final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
   private final AnnotatedDeclaredType javaUtilMap;
+  private final TypeMirror javaUtilConcurrentExecutionException;
 
   public NullSpecTransfer(CFAnalysis analysis) {
     super(analysis);
@@ -96,6 +98,11 @@ public final class NullSpecTransfer extends CFTransfer {
     javaUtilMap =
         (AnnotatedDeclaredType)
             createType(javaUtilMapElement.asType(), atypeFactory, /*isDeclaration=*/ false);
+    javaUtilConcurrentExecutionException =
+        atypeFactory
+            .getElementUtils()
+            .getTypeElement("java.util.concurrent.ExecutionException")
+            .asType();
   }
 
   @Override
@@ -152,6 +159,30 @@ public final class NullSpecTransfer extends CFTransfer {
     }
 
     if (isGetCanonicalNameOnClassLiteral(node)) {
+      setResultValueToNonNull(result);
+    }
+
+    if (isGetCauseOnExecutionException(node)) {
+      /*
+       * ExecutionException.getCause() *can* in fact return null. In fact, the JDK even has methods
+       * that can produce such an exception:
+       * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/src/main/java/util/concurrent/AbstractExecutorService.java?revision=1.54&view=markup#l185
+       *
+       * So the right way to annotate the method is indeed to mark is @Nullable. (Aside: As of this
+       * writing, a declaration of ExecutionException.getCause() in a stub file would have no
+       * effect, since that override of Throwable.getCause() does not exist in the JDK. Such a
+       * declaration may have an effect in the future, though:
+       * https://github.com/typetools/checker-framework/pull/4056)
+       *
+       * Still, in practice, the nullness errors we've reported when people dereference
+       * ExecutionException.getCause() have not been finding real issues. So, for the moment, we'll
+       * pretend that the value returned by that method is never null.
+       *
+       * TODO(cpovirk): Revisit this once we offer ways to suppress errors that are less noisy and
+       * more automated. Even before then, consider reducing the scope of this exception to apply
+       * only to exceptions thrown by Future.get, which, unlike those thrown by
+       * ExecutorService.invokeAny, do have a cause in all real-world implementations I'm aware of.
+       */
       setResultValueToNonNull(result);
     }
 
@@ -392,6 +423,19 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
     return fieldAccess.getFieldName().equals("class");
+  }
+
+  private boolean isGetCauseOnExecutionException(MethodInvocationNode node) {
+    /*
+     * We can't use nameMatches(ExecutionException, getCause) because the ExecutableElement of the
+     * call is that of Throwable.getCause, not ExecutionException.getCause (an override that does
+     * not exist in the JDK).
+     */
+    return analysis
+            .getTypes()
+            .isSameType(
+                node.getTarget().getReceiver().getType(), javaUtilConcurrentExecutionException)
+        && node.getTarget().getMethod().getSimpleName().contentEquals("getCause");
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
