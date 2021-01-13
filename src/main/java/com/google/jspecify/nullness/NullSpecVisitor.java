@@ -293,7 +293,9 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
        * overloads? Plus, all we have access to is the method name (unless we set up thread-local
        * state). *And* note that checkArguments is responsible for scanning subexpressions, and to
        * do so, it must set up the assignment context. So we ideally wouldn't want to just skip it.
-       * (For that reason, maybe commonAssignmentCheck is a better hook than checkArguments?)
+       * (For that reason, maybe commonAssignmentCheck is a better hook than checkArguments?) *And*
+       * note that we would ideally still run checkTypeArguments *if* the user passed explicit type
+       * arguments....
        *
        * Maybe we should just edit BaseTypeVisitor.visitMethodInvocation to contain the special case
        * we need. (Or we could edit it to expose a hook for us. The existing hook, shouldSkipUses,
