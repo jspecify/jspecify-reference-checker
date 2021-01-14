@@ -82,6 +82,8 @@ public final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
   private final AnnotatedDeclaredType javaLangClass;
+  private final ExecutableElement classIsAnonymousClassElement;
+  private final ExecutableElement getEnclosingClassElement;
   private final ExecutableElement annotatedElementIsAnnotationPresentElement;
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
@@ -107,6 +109,8 @@ public final class NullSpecTransfer extends CFTransfer {
     javaLangClass =
         (AnnotatedDeclaredType)
             createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
+    classIsAnonymousClassElement = onlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
+    getEnclosingClassElement = onlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
 
     TypeElement javaLangReflectAnnotatedElementElement =
         atypeFactory.getElementUtils().getTypeElement("java.lang.reflect.AnnotatedElement");
@@ -261,8 +265,29 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= refineFutureGetAnnotationFromIsAnnotationPresent(node, thenStore);
     }
 
+    if (isOrOverrides(method, classIsAnonymousClassElement)) {
+      storeChanged |= refineFutureGetEnclosingClassFromIsAnonymousClass(node, thenStore);
+    }
+
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
+      MethodInvocationNode isAnonymousClassNode, CFStore thenStore) {
+    // TODO(cpovirk): Reduce duplication between this and the methods below.
+    MethodCall isAnonymousClassCall =
+        (MethodCall) fromNode(atypeFactory, isAnonymousClassNode, /*allowNonDeterministic=*/ true);
+    MethodCall getEnclosingClassCall =
+        new MethodCall(
+            javaLangClass.getUnderlyingType(),
+            getEnclosingClassElement,
+            isAnonymousClassCall.getReceiver(),
+            isAnonymousClassCall.getParameters());
+    return refine(
+        getEnclosingClassCall,
+        analysis.createSingleAnnotationValue(nonNull, javaLangClass.getUnderlyingType()),
+        thenStore);
   }
 
   private boolean refineFutureGetAnnotationFromIsAnnotationPresent(
