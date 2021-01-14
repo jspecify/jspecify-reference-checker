@@ -276,8 +276,7 @@ public final class NullSpecTransfer extends CFTransfer {
   private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
       MethodInvocationNode isAnonymousClassNode, CFStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods below.
-    MethodCall isAnonymousClassCall =
-        (MethodCall) fromNode(atypeFactory, isAnonymousClassNode, /*allowNonDeterministic=*/ true);
+    MethodCall isAnonymousClassCall = (MethodCall) fromNode(atypeFactory, isAnonymousClassNode);
     MethodCall getEnclosingClassCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
@@ -310,8 +309,7 @@ public final class NullSpecTransfer extends CFTransfer {
       return false;
     }
     MethodCall isAnnotationPresentCall =
-        (MethodCall)
-            fromNode(atypeFactory, isAnnotationPresentNode, /*allowNonDeterministic=*/ true);
+        (MethodCall) fromNode(atypeFactory, isAnnotationPresentNode);
 
     List<ExecutableElement> getAnnotationAndOverrides =
         getAllDeclaredSupertypes(types.annotatedElementType).stream()
@@ -401,8 +399,7 @@ public final class NullSpecTransfer extends CFTransfer {
        */
       return false;
     }
-    MethodCall containsKeyCall =
-        (MethodCall) fromNode(atypeFactory, containsKeyNode, /*allowNonDeterministic=*/ true);
+    MethodCall containsKeyCall = (MethodCall) fromNode(atypeFactory, containsKeyNode);
 
     /*
      * We want to refine the type of any future call to `map.get(key)`. To do so, we need to create
@@ -497,11 +494,8 @@ public final class NullSpecTransfer extends CFTransfer {
       }
 
       // Is the receiver of map.get(...) the receiver of the foreach's something.keySet()?
-      if (!JavaExpression.fromTree(
-              atypeFactory, mapGetReceiverExpression, /*allowNonDeterministic=*/ true)
-          .equals(
-              JavaExpression.fromTree(
-                  atypeFactory, forExpressionReceiver, /*allowNonDeterministic=*/ true))) {
+      if (!JavaExpression.fromTree(atypeFactory, mapGetReceiverExpression)
+          .equals(JavaExpression.fromTree(atypeFactory, forExpressionReceiver))) {
         continue;
       }
 
@@ -640,7 +634,7 @@ public final class NullSpecTransfer extends CFTransfer {
       // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
       node = ((AssignmentNode) node).getTarget();
     }
-    JavaExpression expression = fromNode(atypeFactory, node, /*allowNonDeterministic=*/ true);
+    JavaExpression expression = fromNode(atypeFactory, node);
     return refineNonNull(expression, store);
   }
 
