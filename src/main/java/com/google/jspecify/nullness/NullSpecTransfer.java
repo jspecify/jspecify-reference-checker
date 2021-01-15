@@ -20,7 +20,6 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
-import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
@@ -42,7 +41,6 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
@@ -51,7 +49,6 @@ import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
-import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
@@ -193,10 +190,6 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= refineNonNull(node.getArgument(0), elseStore);
     }
 
-    if (isGetPackageCallOnClassInNamedPackage(node)) {
-      setResultValueToNonNull(result);
-    }
-
     if (isGetCanonicalNameOnClassLiteral(node)) {
       setResultValueToNonNull(result);
     }
@@ -287,6 +280,9 @@ public final class NullSpecTransfer extends CFTransfer {
        *
        * TODO(cpovirk): Be more conservative for at least the known-not-to-be-present properties.
        */
+      setResultValueToNonNull(result);
+    } else if (nameMatches(method, "Class", "getPackage")) {
+      // This is not sound, but it's very likely to be safe inside Google.
       setResultValueToNonNull(result);
     }
 
@@ -589,23 +585,6 @@ public final class NullSpecTransfer extends CFTransfer {
     }
   }
 
-  private boolean isGetPackageCallOnClassInNamedPackage(MethodInvocationNode node) {
-    ExecutableElement method = node.getTarget().getMethod();
-    if (!nameMatches(method, "Class", "getPackage")) {
-      return false;
-    }
-    Node receiver = node.getTarget().getReceiver();
-    if (!(receiver instanceof FieldAccessNode)) {
-      return false;
-    }
-    FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
-    if (!fieldAccess.getFieldName().equals("class")) {
-      return false;
-    }
-    ClassNameNode className = (ClassNameNode) fieldAccess.getReceiver();
-    return isInPackage(className.getElement());
-  }
-
   private boolean isGetCanonicalNameOnClassLiteral(MethodInvocationNode node) {
     ExecutableElement method = node.getTarget().getMethod();
     if (!nameMatches(method, "Class", "getCanonicalName")) {
@@ -852,15 +831,6 @@ public final class NullSpecTransfer extends CFTransfer {
     return isOrOverrides(overrider, a)
         || isOrOverrides(overrider, b)
         || isOrOverrides(overrider, c);
-  }
-
-  private static boolean isInPackage(Element element) {
-    for (; element != null; element = element.getEnclosingElement()) {
-      if (element.getKind() == PACKAGE && !((PackageElement) element).isUnnamed()) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
