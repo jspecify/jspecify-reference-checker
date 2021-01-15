@@ -895,15 +895,14 @@ public final class NullSpecAnnotatedTypeFactory
      * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
      * defaults that are common to null-aware and non-null-aware code!
      *
-     * - *not* do parts of what the supermethod does. I don't fully understand what the
-     * supermethod's PropagationTypeAnnotator does, but here's part of what I think it does: It
-     * overwrites the annotations on upper bounds of unbounded wildcards to match those on their
-     * corresponding type parameters. This means that it overwrites our not-null-aware default bound
-     * of @NullnessUnspecified. But I also seem to be seeing problems in the *reverse* direction,
-     * and I understand those even less. (To be fair, our entire handling of upper bounds of
-     * unbounded wildcards is a hack: The normal CF quite reasonably doesn't want for them to have
-     * bounds of their own, but we do.) Sadly, it turns out that the supermethod's effects are
-     * sometimes *desirable*, so we reinvent part of it in NullSpecTypeAnnotator.
+     * - *not* do what the supermethod does. I don't fully understand what the supermethod's
+     * PropagationTypeAnnotator does, but here's part of what I think it does: It overwrites the
+     * annotations on upper bounds of unbounded wildcards to match those on their corresponding type
+     * parameters. This means that it overwrites our not-null-aware default bound of
+     * @NullnessUnspecified. But I also seem to be seeing problems in the *reverse* direction, and I
+     * understand those even less. (To be fair, our entire handling of upper bounds of unbounded
+     * wildcards is a hack: The normal CF quite reasonably doesn't want for them to have bounds of
+     * their own, but we do.)
      */
     return new NullSpecTypeAnnotator(this);
   }
@@ -938,82 +937,6 @@ public final class NullSpecAnnotatedTypeFactory
       if (type.getUnderlyingType().getSuperBound() != null) {
         addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
       }
-
-      /*
-       * What we do below is somewhat similar to what super.createTypeAnnotator() would have done
-       * for us if we hadn't overridden it. However, as discussed there, we do need to override it
-       * to avoid other problems. That leaves us to reinvent part of it here.
-       *
-       * The specific place I saw a problem was code similar to:
-       *
-       * Class<?> clazz = ...;
-       *
-       * return (Foo) clazz.newInstance()
-       *
-       * Our checker recognized that `clazz.newInstance()` returned a non-null object, but that
-       * information got lost when the cast happened.
-       *
-       * While I haven't looked into CF's handling of casts in general (though maybe I should), I
-       * think I can see the rough cause: We have special handling for wildcard types in our
-       * subtyping checks -- in our getUpperBounds method, where we look at the corresponding type
-       * parameter's bound -- but it presumably doesn't carry over to the type produced by a cast.
-       * (If we're lukcy, this problem may go away when CF implements capture conversion: Then the
-       * type parameter's bound should come into the picture automatically.)
-       *
-       * (Speaking of getUpperBounds: It's possible that this change renders parts of getUpperBounds
-       * unnecessary. However, I doubt it, as we probably still need to look at any bounds that are
-       * type-variable usages (in order to recognize that Supplier<? extends T> produces instances
-       * that are subtypes of T).)
-       *
-       * The workaround below is incomplete in at least one way: It applies only to the case of
-       * completely unbounded wildcards.
-       *
-       * TODO(cpovirk): Apply it in other cases, too? I had worried about overwriting any annotation
-       * written in source code on the bound, so I had restricted to the unbounded case, in which
-       * there is no bound to write an annotation on. But it should always be safe to overwrite an
-       * annotation when doing so makes the bound *stricter*. (This may be the key difference
-       * between what we do here and what super.createTypeAnnotator() would do -- that is, the
-       * reason that our method is safe but the supermethod is not.) Still, I have fears about
-       * writing an annotation on a bound that exists. In particular, could weird things happens if
-       * the bound is a type variable? Could weird things specifically happen if we were writing
-       * nullnessOperatorUnspecified to a type variable? If nothing else, even the current,
-       * incomplete workaround could produce surprising error messages: "Class<? extends Object>"
-       * instead of plain "Class<?>," etc.
-       *
-       * Additionally, the most-convenient-world part of the workaround causes a problem in our
-       * WildcardsWithDefault sample: Passing a Foo<Object?> to a method that requires a Foo<?> can
-       * now produce a warning. That's because our workaround rewrites that to Foo<? extends
-       * Object*>, and thus Foo<Object?> is out of bounds in strict mode. This is unfortunate, but
-       * it affects only strict mode, and the problem we're working around affects both modes, so
-       * the workaround is a step forward. (Plus, the new warning arises only when using a type,
-       * Foo<Object?>, that already generated a warning when you declared it!)
-       *
-       * Anyway, the incomplete, slightly buggy workaround solves our immediate problem, so that's
-       * good enough for now.
-       */
-
-      WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
-      TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
-      /*
-       * wildcardToTypeParam appears to work for types in source but not in bytecode?
-       *
-       * TODO(cpovirk): Can wildcardToTypeParam and our fallback, type.getTypeVariable(), ever both
-       * be unavailable?
-       */
-      if (typeParameter == null) {
-        typeParameter = (TypeParameterElement) type.getTypeVariable().asElement();
-      }
-      if (typeParameter != null && wildcard.isUnbound()) {
-        AnnotatedTypeMirror typeParameterType = getAnnotatedType(typeParameter);
-        if (withLeastConvenientWorld()
-            .isNullExclusiveUnderEveryParameterization(typeParameterType)) {
-          type.getExtendsBound().replaceAnnotation(nonNull);
-        } else if (withMostConvenientWorld()
-            .isNullExclusiveUnderEveryParameterization(typeParameterType)) {
-          type.getExtendsBound().replaceAnnotation(nullnessOperatorUnspecified);
-        }
-      }
-
       return super.visitWildcard(type, p);
     }
   }
