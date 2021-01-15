@@ -191,6 +191,10 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
+    if (isGetSuperclassOnGetClass(node)) {
+      setResultValueToNonNull(result);
+    }
+
     if (isGetCauseOnExecutionException(node)) {
       /*
        * ExecutionException.getCause() *can* in fact return null. In fact, the JDK even has methods
@@ -588,6 +592,23 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     MethodInvocationNode invocation = (MethodInvocationNode) receiver;
     if (!nameMatches(invocation.getTarget().getMethod(), "Thread", "currentThread")) {
+      return false;
+    }
+    return true;
+  }
+
+  private boolean isGetSuperclassOnGetClass(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Class", "getSuperclass")
+        && !nameMatches(method, "Class", "getGenericSuperclass")) {
+      return false;
+    }
+    Node receiver = node.getTarget().getReceiver();
+    if (!(receiver instanceof MethodInvocationNode)) {
+      return false;
+    }
+    MethodInvocationNode invocation = (MethodInvocationNode) receiver;
+    if (!nameMatches(invocation.getTarget().getMethod(), "Object", "getClass")) {
       return false;
     }
     return true;
