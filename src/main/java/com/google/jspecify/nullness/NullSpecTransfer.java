@@ -85,7 +85,9 @@ public final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement navigableMapDescendingKeySetElement;
   private final AnnotatedDeclaredType javaLangClass;
   private final ExecutableElement classIsAnonymousClassElement;
-  private final ExecutableElement getEnclosingClassElement;
+  private final ExecutableElement classGetEnclosingClassElement;
+  private final ExecutableElement classIsArrayElement;
+  private final ExecutableElement classGetComponentTypeElement;
   private final ExecutableElement annotatedElementIsAnnotationPresentElement;
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
@@ -119,7 +121,10 @@ public final class NullSpecTransfer extends CFTransfer {
         (AnnotatedDeclaredType)
             createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
     classIsAnonymousClassElement = onlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
-    getEnclosingClassElement = onlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
+    classGetEnclosingClassElement =
+        onlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
+    classIsArrayElement = onlyExecutableWithName(javaLangClassElement, "isArray");
+    classGetComponentTypeElement = onlyExecutableWithName(javaLangClassElement, "getComponentType");
 
     TypeElement javaLangReflectAnnotatedElementElement =
         atypeFactory.getElementUtils().getTypeElement("java.lang.reflect.AnnotatedElement");
@@ -301,22 +306,42 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= refineFutureGetEnclosingClassFromIsAnonymousClass(node, thenStore);
     }
 
+    if (isOrOverrides(method, classIsArrayElement)) {
+      storeChanged |= refineFutureGetComponentTypeFromIsArray(node, thenStore);
+    }
+
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
   }
 
   private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
       MethodInvocationNode isAnonymousClassNode, CFStore thenStore) {
-    // TODO(cpovirk): Reduce duplication between this and the methods below.
+    // TODO(cpovirk): Reduce duplication between this and the methods nearby.
     MethodCall isAnonymousClassCall = (MethodCall) fromNode(atypeFactory, isAnonymousClassNode);
     MethodCall getEnclosingClassCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
-            getEnclosingClassElement,
+            classGetEnclosingClassElement,
             isAnonymousClassCall.getReceiver(),
             isAnonymousClassCall.getParameters());
     return refine(
         getEnclosingClassCall,
+        analysis.createSingleAnnotationValue(nonNull, javaLangClass.getUnderlyingType()),
+        thenStore);
+  }
+
+  private boolean refineFutureGetComponentTypeFromIsArray(
+      MethodInvocationNode isArrayNode, CFStore thenStore) {
+    // TODO(cpovirk): Reduce duplication between this and the methods nearby.
+    MethodCall isArrayCall = (MethodCall) fromNode(atypeFactory, isArrayNode);
+    MethodCall getComponentTypeCall =
+        new MethodCall(
+            javaLangClass.getUnderlyingType(),
+            classGetComponentTypeElement,
+            isArrayCall.getReceiver(),
+            isArrayCall.getParameters());
+    return refine(
+        getComponentTypeCall,
         analysis.createSingleAnnotationValue(nonNull, javaLangClass.getUnderlyingType()),
         thenStore);
   }
