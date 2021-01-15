@@ -68,6 +68,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAnalysis;
@@ -547,18 +548,7 @@ public final class NullSpecAnnotatedTypeFactory
 
         bounds.add(asWildcard.getExtendsBound());
 
-        /*
-         * asWildcard.getTypeVariable() is not available in all cases that we need.
-         *
-         * TODO(cpovirk): Now that we use wildcardToTypeParam, do we need to use
-         * asWildcard.getTypeVariable() at all? And is it ever null (which would lead to NPE when we
-         * call asElement())?
-         */
-        WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
-        TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
-        if (typeParameter == null) {
-          typeParameter = (TypeParameterElement) asWildcard.getTypeVariable().asElement();
-        }
+        TypeParameterElement typeParameter = correspondingTypeParameter(asWildcard);
         /*
          * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
          * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the cost of
@@ -895,7 +885,7 @@ public final class NullSpecAnnotatedTypeFactory
      * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
      * defaults that are common to null-aware and non-null-aware code!
      *
-     * - *not* do most of what the supermethod does. I don't fully understand what the supermethod's
+     * - *not* do what the supermethod does. I don't fully understand what the supermethod's
      * PropagationTypeAnnotator does, but here's part of what I think it does: It overwrites the
      * annotations on upper bounds of unbounded wildcards to match those on their corresponding type
      * parameters. This means that it overwrites our not-null-aware default bound of
@@ -903,7 +893,7 @@ public final class NullSpecAnnotatedTypeFactory
      * understand those even less. (To be fair, our entire handling of upper bounds of unbounded
      * wildcards is a hack: The normal CF quite reasonably doesn't want for them to have bounds of
      * their own, but we do.) Sadly, it turns out that the supermethod's effects are sometimes
-     * *desirable*, so we reinvent a tiny part of it in NullSpecTypeAnnotator.
+     * *desirable*, so this workaround causes issues of its own....
      */
     return new NullSpecTypeAnnotator(this);
   }
@@ -938,52 +928,6 @@ public final class NullSpecAnnotatedTypeFactory
       if (type.getUnderlyingType().getSuperBound() != null) {
         addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
       }
-
-      /*
-       * What we do below is somewhat similar to what super.createTypeAnnotator() would have done
-       * for us if we hadn't overridden it. However, as discussed there, we do need to override it
-       * to avoid other problems. That leaves us to reinvent part of it here.
-       *
-       * The specific place I saw a problem was code similar to:
-       *
-       * Class<?> clazz = ...;
-       *
-       * return (Foo) clazz.newInstance()
-       *
-       * Our checker recognized that `clazz.newInstance()` returned a non-null object, but that
-       * information got lost when the cast happened.
-       *
-       * While I haven't looked into CF's handling of casts in general (though maybe I should), I
-       * think I can see the rough cause: We have special handling for wildcard types in our
-       * subtyping checks -- in our getUpperBounds method, where we look at the corresponding type
-       * parameter's bound -- but it presumably doesn't carry over to the type produced by a cast.
-       * (If we're lukcy, this problem may go away when CF implements capture conversion: Then the
-       * type parameter's bound should come into the picture automatically.)
-       *
-       * Originally, I had a more general-purpose (but still incomplete) workaround here. However,
-       * it triggered infinite recursion for types like `Enum<?>`, apparently because the call to
-       * getAnnotatedType initialized some state that super.visitWildcard then visited. As a result,
-       * I'm setting for a tiny fix for the specific class that may commonly be used in a way that
-       * triggers our bug: java.lang.Class.
-       */
-
-      WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
-      TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
-      /*
-       * wildcardToTypeParam appears to work for types in source but not in bytecode?
-       *
-       * TODO(cpovirk): Can wildcardToTypeParam and our fallback, type.getTypeVariable(), ever both
-       * be unavailable?
-       */
-      if (typeParameter == null) {
-        typeParameter = (TypeParameterElement) type.getTypeVariable().asElement();
-      }
-      if (typeParameter != null
-          && typeParameter.getEnclosingElement().getSimpleName().contentEquals("Class")) {
-        // TODO(cpovirk): Ensures that it's java.lang.Class specifically.
-        type.getExtendsBound().replaceAnnotation(nonNull);
-      }
-
       return super.visitWildcard(type, p);
     }
   }
@@ -1348,6 +1292,42 @@ public final class NullSpecAnnotatedTypeFactory
      * type.invalid.conflicting.annos error, which I have described more in
      * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
+  }
+
+  private static TypeParameterElement correspondingTypeParameter(AnnotatedWildcardType type) {
+    /*
+     * type.getTypeVariable() is not available in all cases that we need.
+     *
+     * And wildcardToTypeParam, for its part, appears to work for types in source but not in
+     * bytecode?
+     *
+     * TODO(cpovirk): Still, is wildcardToTypeParam sufficient for our purposes in getUpperBounds? I
+     * added the type.getTypeVariable() fallback only in support of a feature that I've since
+     * removed. Maybe we should remove the fallback until we need it.
+     */
+    WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
+    TypeParameterElement fromInternal = wildcardToTypeParam(wildcard);
+    if (fromInternal != null) {
+      return fromInternal;
+    }
+    TypeVariable typeVariable = type.getTypeVariable();
+    /*
+     * I don't know that I've seen getTypeVariable return null in the case that wildcardToTypeParam
+     * _also_ returned null -- at least not when we call this method only from getUpperBounds. (If
+     * we ever start to return null to getUpperBounds, then we'll need a null check in
+     * getUpperBounds!) However, I did see this method return null _to the call from getUpperBounds_
+     * -- but only when I had changed our code to include _another_ call to this class in
+     * NullSpecTypeAnnotator.visitWildcard. But now I have removed that other call. (It was causing
+     * trouble, even when I added a null check, probably because it let me change the extends bound
+     * of the wildcard in Class<?> _sometimes_ but not 100% consistently, thanks to exactly this
+     * null return.)
+     *
+     * Anyway, I'm leaving this code in a state in which it clearly expects to sometimes return null
+     * but getUpperBounds in a state in which it does not check for null. If we start seeing a null
+     * return here, getUpperBounds will NPE. But that's probably better than silently failing to do
+     * something and then producing a more mysterious bug later.
+     */
+    return type.getTypeVariable() != null ? (TypeParameterElement) typeVariable.asElement() : null;
   }
 
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
