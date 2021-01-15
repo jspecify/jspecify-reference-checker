@@ -236,7 +236,9 @@ public final class NullSpecTransfer extends CFTransfer {
           refineNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
     }
 
-    if (nameMatches(method, "Class", "cast") || nameMatches(method, "Optional", "orElse")) {
+    if (nameMatches(method, "Class", "cast")
+        || nameMatches(method, "Optional", "orElse")
+        || nameMatches(method, "Converter", "convert")) {
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToNonNull(result);
