@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
@@ -831,19 +832,6 @@ public final class NullSpecTransfer extends CFTransfer {
     return isOrOverrides(overrider, a)
         || isOrOverrides(overrider, b)
         || isOrOverrides(overrider, c);
-  }
-
-  private static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
-    List<ExecutableElement> elements =
-        type.getEnclosedElements().stream()
-            .filter(ExecutableElement.class::isInstance)
-            .map(ExecutableElement.class::cast)
-            .filter(x -> x.getSimpleName().contentEquals(name))
-            .collect(toList());
-    if (elements.size() != 1) {
-      throw new IllegalArgumentException(type + "." + name);
-    }
-    return elements.get(0);
   }
 
   /**

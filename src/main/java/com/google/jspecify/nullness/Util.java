@@ -14,11 +14,15 @@
 
 package com.google.jspecify.nullness;
 
+import static java.util.stream.Collectors.toList;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
+import java.util.List;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 
 final class Util {
   /*
@@ -49,6 +53,19 @@ final class Util {
   /** See caveats on {@link #nameMatches(Element, String, String)}. */
   static boolean nameMatches(MemberReferenceTree tree, String clazz, String method) {
     return nameMatches(elementFromUse(tree), clazz, method);
+  }
+
+  static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
+    List<ExecutableElement> elements =
+        type.getEnclosedElements().stream()
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .filter(x -> x.getSimpleName().contentEquals(name))
+            .collect(toList());
+    if (elements.size() != 1) {
+      throw new IllegalArgumentException(type + "." + name);
+    }
+    return elements.get(0);
   }
 
   private Util() {}

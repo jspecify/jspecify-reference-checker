@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.PRIMITIVE_TYPE;
@@ -26,6 +27,8 @@ import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
+import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
+import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
@@ -55,13 +58,17 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -80,12 +87,22 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   private final AnnotationMirror nullable;
   private final AnnotationMirror nullnessUnspecified;
   private final boolean checkImpl;
+  private final AnnotatedDeclaredType javaLangThreadLocal;
+  private final ExecutableElement threadLocalInitialValueElement;
 
   public NullSpecVisitor(BaseTypeChecker checker) {
     super(checker);
     nullable = AnnotationBuilder.fromClass(elements, Nullable.class);
     nullnessUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
     checkImpl = checker.hasOption("checkImpl");
+
+    TypeElement javaLangThreadLocalElement =
+        atypeFactory.getElementUtils().getTypeElement("java.lang.ThreadLocal");
+    javaLangThreadLocal =
+        (AnnotatedDeclaredType)
+            createType(javaLangThreadLocalElement.asType(), atypeFactory, /*isDeclaration=*/ false);
+    threadLocalInitialValueElement =
+        onlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
   }
 
   private void ensureNonNull(Tree tree) {
@@ -309,15 +326,79 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitNewClass(NewClassTree tree, Void p) {
-    ExecutableElement element = elementFromUse(tree);
-    if (nameMatches(element, "AtomicReference", "<init>") && element.getParameters().isEmpty()) {
+    ExecutableElement constructor = elementFromUse(tree);
+    TypeElement clazz = (TypeElement) constructor.getEnclosingElement();
+    if (nameMatches(constructor, "AtomicReference", "<init>")
+        && constructor.getParameters().isEmpty()) {
       // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
+      // TODO(cpovirk): Also handle AtomicReferenceArray.
       AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(tree).getTypeArguments().get(0);
       if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
         checker.reportError(tree, "atomicreference.must.include.null", typeArg);
       }
+    } else {
+      /*
+       * TODO(cpovirk): Figure out whether to report this here (at the instantiation) or at the
+       * declaration of the problem class.
+       *
+       * In some ways, reporting at the declaration of the problem class makes more sense: If
+       * someone defines `final class MyThreadLocal extends ThreadLocal<String>` without overriding
+       * initialValue(), then that class is not a valid implementation of ThreadLocal<String>, and
+       * there's nothing the caller can do -- not subclass it, not assign it to a
+       * ThreadLocal<@Nullable String> instead. So perhaps MyThreadLocal should have been required
+       * to be at least an extensible class -- and perhaps ideally even to redefine initialValue()
+       * as abstract.
+       *
+       * On the other hand, we might not analyze MyThreadLocal at all, so we'd fail to report an
+       * error for code that we know is dangerous. But is that really any different than the normal
+       * dangers of unanalyzed code? It just happens to be one case in which we can catch the
+       * problem anyway.
+       *
+       * In practice, it probably matters little: Most ThreadLocal classes are likely to be used
+       * nearby -- including the specific case of an anonymous ThreadLocal implementation.
+       */
+      if (types.isSubtype(
+              types.erasure(clazz.asType()), types.erasure(javaLangThreadLocal.getUnderlyingType()))
+          && !overridesInitialValue(clazz)) {
+        AnnotatedDeclaredType annotatedType = atypeFactory.getAnnotatedType(tree);
+        AnnotatedDeclaredType annotatedTypeAsThreadLocal =
+            asSuper(atypeFactory, annotatedType, javaLangThreadLocal);
+        AnnotatedTypeMirror typeArg = annotatedTypeAsThreadLocal.getTypeArguments().get(0);
+        if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
+          checker.reportError(tree, "threadlocal.must.include.null", typeArg);
+        }
+      }
     }
     return super.visitNewClass(tree, p);
+  }
+
+  private boolean overridesInitialValue(TypeElement clazz) {
+    return getAllDeclaredSupertypes(clazz.asType()).stream()
+        .flatMap(type -> type.asElement().getEnclosedElements().stream())
+        .filter(ExecutableElement.class::isInstance)
+        .map(ExecutableElement.class::cast)
+        .anyMatch(
+            e ->
+                atypeFactory.getElementUtils().overrides(e, threadLocalInitialValueElement, clazz));
+  }
+
+  /**
+   * Returns all supertypes of the given type, including the type itself and any transitive
+   * supertypes. The returned list may contain duplicates.
+   */
+  private List<DeclaredType> getAllDeclaredSupertypes(TypeMirror type) {
+    List<DeclaredType> result = new ArrayList<>();
+    collectAllDeclaredSupertypes(type, result);
+    return result;
+  }
+
+  private void collectAllDeclaredSupertypes(TypeMirror type, List<DeclaredType> result) {
+    if (type instanceof DeclaredType) {
+      result.add((DeclaredType) type);
+    }
+    for (TypeMirror supertype : types.directSupertypes(type)) {
+      collectAllDeclaredSupertypes(supertype, result);
+    }
   }
 
   /*
