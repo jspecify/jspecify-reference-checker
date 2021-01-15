@@ -895,14 +895,15 @@ public final class NullSpecAnnotatedTypeFactory
      * addElementDefault APIs. But beware: Using TypeAnnotator for this purpose is safe only for
      * defaults that are common to null-aware and non-null-aware code!
      *
-     * - *not* do what the supermethod does. I don't fully understand what the supermethod's
+     * - *not* do most of what the supermethod does. I don't fully understand what the supermethod's
      * PropagationTypeAnnotator does, but here's part of what I think it does: It overwrites the
      * annotations on upper bounds of unbounded wildcards to match those on their corresponding type
      * parameters. This means that it overwrites our not-null-aware default bound of
      * @NullnessUnspecified. But I also seem to be seeing problems in the *reverse* direction, and I
      * understand those even less. (To be fair, our entire handling of upper bounds of unbounded
      * wildcards is a hack: The normal CF quite reasonably doesn't want for them to have bounds of
-     * their own, but we do.)
+     * their own, but we do.) Sadly, it turns out that the supermethod's effects are sometimes
+     * *desirable*, so we reinvent a tiny part of it in NullSpecTypeAnnotator.
      */
     return new NullSpecTypeAnnotator(this);
   }
@@ -937,6 +938,52 @@ public final class NullSpecAnnotatedTypeFactory
       if (type.getUnderlyingType().getSuperBound() != null) {
         addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
       }
+
+      /*
+       * What we do below is somewhat similar to what super.createTypeAnnotator() would have done
+       * for us if we hadn't overridden it. However, as discussed there, we do need to override it
+       * to avoid other problems. That leaves us to reinvent part of it here.
+       *
+       * The specific place I saw a problem was code similar to:
+       *
+       * Class<?> clazz = ...;
+       *
+       * return (Foo) clazz.newInstance()
+       *
+       * Our checker recognized that `clazz.newInstance()` returned a non-null object, but that
+       * information got lost when the cast happened.
+       *
+       * While I haven't looked into CF's handling of casts in general (though maybe I should), I
+       * think I can see the rough cause: We have special handling for wildcard types in our
+       * subtyping checks -- in our getUpperBounds method, where we look at the corresponding type
+       * parameter's bound -- but it presumably doesn't carry over to the type produced by a cast.
+       * (If we're lukcy, this problem may go away when CF implements capture conversion: Then the
+       * type parameter's bound should come into the picture automatically.)
+       *
+       * Originally, I had a more general-purpose (but still incomplete) workaround here. However,
+       * it triggered infinite recursion for types like `Enum<?>`, apparently because the call to
+       * getAnnotatedType initialized some state that super.visitWildcard then visited. As a result,
+       * I'm setting for a tiny fix for the specific class that may commonly be used in a way that
+       * triggers our bug: java.lang.Class.
+       */
+
+      WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
+      TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
+      /*
+       * wildcardToTypeParam appears to work for types in source but not in bytecode?
+       *
+       * TODO(cpovirk): Can wildcardToTypeParam and our fallback, type.getTypeVariable(), ever both
+       * be unavailable?
+       */
+      if (typeParameter == null) {
+        typeParameter = (TypeParameterElement) type.getTypeVariable().asElement();
+      }
+      if (typeParameter != null
+          && typeParameter.getEnclosingElement().getSimpleName().contentEquals("Class")) {
+        // TODO(cpovirk): Ensures that it's java.lang.Class specifically.
+        type.getExtendsBound().replaceAnnotation(nonNull);
+      }
+
       return super.visitWildcard(type, p);
     }
   }
