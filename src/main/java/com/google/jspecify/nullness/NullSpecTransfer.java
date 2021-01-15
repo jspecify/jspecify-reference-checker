@@ -81,6 +81,8 @@ public final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
+  private final ExecutableElement navigableMapNavigableKeySetElement;
+  private final ExecutableElement navigableMapDescendingKeySetElement;
   private final AnnotatedDeclaredType javaLangClass;
   private final ExecutableElement classIsAnonymousClassElement;
   private final ExecutableElement getEnclosingClassElement;
@@ -103,6 +105,13 @@ public final class NullSpecTransfer extends CFTransfer {
     mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
     mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+
+    TypeElement javaUtilNavigableMapElement =
+        atypeFactory.getElementUtils().getTypeElement("java.util.NavigableMap");
+    navigableMapNavigableKeySetElement =
+        onlyExecutableWithName(javaUtilNavigableMapElement, "navigableKeySet");
+    navigableMapDescendingKeySetElement =
+        onlyExecutableWithName(javaUtilNavigableMapElement, "descendingKeySet");
 
     TypeElement javaLangClassElement =
         atypeFactory.getElementUtils().getTypeElement("java.lang.Class");
@@ -517,7 +526,11 @@ public final class NullSpecTransfer extends CFTransfer {
 
       // Is the foreach over something.keySet()?
       ExecutableElement forExpressionElement = elementFromUse(forExpressionAsInvocation);
-      if (!isOrOverrides(forExpressionElement, mapKeySetElement)) {
+      if (!isOrOverridesAnyOf(
+          forExpressionElement,
+          mapKeySetElement,
+          navigableMapNavigableKeySetElement,
+          navigableMapDescendingKeySetElement)) {
         continue;
       }
 
@@ -807,6 +820,13 @@ public final class NullSpecTransfer extends CFTransfer {
         || atypeFactory
             .getElementUtils()
             .overrides(overrider, overridden, (TypeElement) overrider.getEnclosingElement());
+  }
+
+  private boolean isOrOverridesAnyOf(
+      ExecutableElement overrider, ExecutableElement a, ExecutableElement b, ExecutableElement c) {
+    return isOrOverrides(overrider, a)
+        || isOrOverrides(overrider, b)
+        || isOrOverrides(overrider, c);
   }
 
   private static boolean isInPackage(Element element) {
