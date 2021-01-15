@@ -183,6 +183,10 @@ public final class NullSpecTransfer extends CFTransfer {
       setResultValueToNonNull(result);
     }
 
+    if (isGetThreadGroupOnCurrentThread(node)) {
+      setResultValueToNonNull(result);
+    }
+
     if (isGetCauseOnExecutionException(node)) {
       /*
        * ExecutionException.getCause() *can* in fact return null. In fact, the JDK even has methods
@@ -556,6 +560,22 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
     return fieldAccess.getFieldName().equals("class");
+  }
+
+  private boolean isGetThreadGroupOnCurrentThread(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Thread", "getThreadGroup")) {
+      return false;
+    }
+    Node receiver = node.getTarget().getReceiver();
+    if (!(receiver instanceof MethodInvocationNode)) {
+      return false;
+    }
+    MethodInvocationNode invocation = (MethodInvocationNode) receiver;
+    if (!nameMatches(invocation.getTarget().getMethod(), "Thread", "currentThread")) {
+      return false;
+    }
+    return true;
   }
 
   private boolean isGetCauseOnExecutionException(MethodInvocationNode node) {
