@@ -408,6 +408,17 @@ public final class NullSpecTransfer extends CFTransfer {
      * necessarily `java.util.Map.get(Object)` itself, since the call may resolve to an override of
      * that method. Which override? There may be a way to figure it out, but we take the brute-force
      * approach of creating a MethodCall for *every* override and refining the type of each one.
+     *
+     * XXX: It's theoretically possible for an override's return type to be more specific than the
+     * return type of Map.get. This seems extremely unlikely in practice, but maybe it will be more
+     * likely with other methods to which we apply the same pattern in the future.
+     *
+     * To address that theoretical concern (and to move some of the complexity out of this method),
+     * we could consider an alternative approach: Insert an entry only for java.util.Map.get itself,
+     * and make visitMethodInvocation look up that entry whenever the method it visits is an
+     * override of Map.get. However, it worries me that we could potentially end up with different
+     * entries for Map.get and its override. I *suspect* that we could always take the more specific
+     * one, but given that the existing code works, I'm not going to take any risk right now.
      */
     List<ExecutableElement> mapGetAndOverrides =
         getAllDeclaredSupertypes(mapType.type).stream()
