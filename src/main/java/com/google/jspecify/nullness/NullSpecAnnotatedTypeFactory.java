@@ -549,11 +549,9 @@ public final class NullSpecAnnotatedTypeFactory
                  * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
                  * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the
                  * cost of losing substitution.
-                 *
-                 * TODO(cpovirk): Would it make more sense to look at the _bounds_ of the type
-                 * parameter? I feel like I have a long comment about this written somewhere...?
                  */
-                getAnnotatedType(correspondingTypeParameter(asWildcard))));
+                ((AnnotatedTypeVariable) getAnnotatedType(correspondingTypeParameter(asWildcard)))
+                    .getUpperBound()));
 
       default:
         return emptyList();
