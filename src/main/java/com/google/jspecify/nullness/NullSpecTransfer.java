@@ -175,6 +175,10 @@ public final class NullSpecTransfer extends CFTransfer {
       storeChanged |= refineNonNull(node.getArgument(0), thenStore);
     }
 
+    if (nameMatches(method, "Strings", "isNullOrEmpty")) {
+      storeChanged |= refineNonNull(node.getArgument(0), elseStore);
+    }
+
     if (isGetPackageCallOnClassInNamedPackage(node)) {
       setResultValueToNonNull(result);
     }
