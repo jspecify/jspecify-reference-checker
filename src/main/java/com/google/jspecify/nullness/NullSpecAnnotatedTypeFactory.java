@@ -51,7 +51,6 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -543,20 +542,18 @@ public final class NullSpecAnnotatedTypeFactory
 
       case WILDCARD:
         AnnotatedWildcardType asWildcard = (AnnotatedWildcardType) type;
-
-        List<AnnotatedTypeMirror> bounds = new ArrayList<>();
-
-        bounds.add(asWildcard.getExtendsBound());
-
-        TypeParameterElement typeParameter = correspondingTypeParameter(asWildcard);
-        /*
-         * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
-         * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the cost of
-         * losing substitution.
-         */
-        bounds.add(getAnnotatedType(typeParameter));
-
-        return unmodifiableList(bounds);
+        return unmodifiableList(
+            asList(
+                asWildcard.getExtendsBound(),
+                /*
+                 * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
+                 * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the
+                 * cost of losing substitution.
+                 *
+                 * TODO(cpovirk): Would it make more sense to look at the _bounds_ of the type
+                 * parameter? I feel like I have a long comment about this written somewhere...?
+                 */
+                getAnnotatedType(correspondingTypeParameter(asWildcard))));
 
       default:
         return emptyList();
