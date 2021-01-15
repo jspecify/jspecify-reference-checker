@@ -255,6 +255,15 @@ public final class NullSpecTransfer extends CFTransfer {
          */
         setResultValueToNonNull(result);
       }
+    } else if (nameMatches(method, "StandardSystemProperty", "value")) {
+      /*
+       * The following is not completely safe -- not only for the reason discussed in the handling
+       * of System.getProperty itself above but also because StandardSystemProperty provides
+       * constants for properties that are not always present.
+       *
+       * TODO(cpovirk): Be more conservative for at least the known-not-to-be-present properties.
+       */
+      setResultValueToNonNull(result);
     }
 
     if (isOrOverrides(method, mapGetElement)) {
