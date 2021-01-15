@@ -541,24 +541,30 @@ public final class NullSpecAnnotatedTypeFactory
         return singletonList(((AnnotatedTypeVariable) type).getUpperBound());
 
       case WILDCARD:
+        AnnotatedWildcardType asWildcard = (AnnotatedWildcardType) type;
+
         List<AnnotatedTypeMirror> bounds = new ArrayList<>();
 
-        bounds.add(((AnnotatedWildcardType) type).getExtendsBound());
+        bounds.add(asWildcard.getExtendsBound());
 
         /*
-         * We would use `((AnnotatedWildcardType) type).getTypeVariable()`, but it is not available
-         * in all cases that we need.
+         * asWildcard.getTypeVariable() is not available in all cases that we need.
+         *
+         * TODO(cpovirk): Now that we use wildcardToTypeParam, do we need to use
+         * asWildcard.getTypeVariable() at all? And is it ever null (which would lead to NPE when we
+         * call asElement())?
          */
         WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
         TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
-        if (typeParameter != null) {
-          /*
-           * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
-           * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the cost of
-           * losing substitution.
-           */
-          bounds.add(getAnnotatedType(typeParameter));
+        if (typeParameter == null) {
+          typeParameter = (TypeParameterElement) asWildcard.getTypeVariable().asElement();
         }
+        /*
+         * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
+         * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the cost of
+         * losing substitution.
+         */
+        bounds.add(getAnnotatedType(typeParameter));
 
         return unmodifiableList(bounds);
 
@@ -986,14 +992,17 @@ public final class NullSpecAnnotatedTypeFactory
        * good enough for now.
        */
 
-      /*
-       * Based on our experience with our getUpperBounds method, I'm assuming that
-       * `type.getTypeVariable()` is not necessarily always available when we need it.
-       *
-       * TODO(cpovirk): See if it is available.
-       */
       WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
       TypeParameterElement typeParameter = wildcardToTypeParam(wildcard);
+      /*
+       * wildcardToTypeParam appears to work for types in source but not in bytecode?
+       *
+       * TODO(cpovirk): Can wildcardToTypeParam and our fallback, type.getTypeVariable(), ever both
+       * be unavailable?
+       */
+      if (typeParameter == null) {
+        typeParameter = (TypeParameterElement) type.getTypeVariable().asElement();
+      }
       if (typeParameter != null && wildcard.isUnbound()) {
         AnnotatedTypeMirror typeParameterType = getAnnotatedType(typeParameter);
         if (withLeastConvenientWorld()
