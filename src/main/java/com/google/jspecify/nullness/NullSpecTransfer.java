@@ -258,6 +258,20 @@ public final class NullSpecTransfer extends CFTransfer {
       } else if (atypeFactory
           .withMostConvenientWorld()
           .isNullExclusiveUnderEveryParameterization(type)) {
+        /*
+         * If T has a non-null bound -- as it does in our current declarations of the types we're
+         * currently handling here -- then returning `@NullnessUnspecified T` is correct.
+         *
+         * If T has an unspecified bound, then we may return `@NullnessUnspecified T` when we ought
+         * to have returned a plain `T`. Fortunately, this would matter only in strict mode.
+         *
+         * If T has a nullable bound, then returning `@NullnessUnspecified T` would not accomplish
+         * what we want: We want a type that is null-exclusive in lenient mode, but
+         * `@NullnessUnspecified T` does not accomplish that when T has a nullable bound. If we
+         * wanted to handle that case, we'd need to enhance our model to support an additional
+         * nullness operator that "projects" to unspecified nullness, just as @NonNull "projects" to
+         * non-null, regardless of what the type variable it's applied to otherwise permits.
+         */
         setResultValueOperatorToUnspecified(result);
       }
     } else if (nameMatches(method, "System", "getProperty")) {
@@ -832,6 +846,19 @@ public final class NullSpecTransfer extends CFTransfer {
   }
 
   private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
+    /*
+     * TODO(cpovirk): Refine the result, rather than overwrite it. (And rename the method
+     * accordingly.)
+     *
+     * That is, if the result is already @NonNull, don't weaken it to @NullnessUnspecified.
+     *
+     * The reason: The existing result value comes from super.visit*, which may reflect the result
+     * of a null check from earlier in the method. Granted, it is extremely unlikely that there will
+     * have been such a null check in the case of the specific methods we're using
+     * setResultValueOperatorToUnspecified for: Users are unlikely to write code like:
+     *
+     * if (clazz.cast(foo) != null) { return class.cast(foo); }
+     */
     result.setResultValue(
         new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
   }
