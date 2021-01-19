@@ -57,6 +57,7 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.NotEqualNode;
 import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
+import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.MethodCall;
 import org.checkerframework.dataflow.expression.Unknown;
@@ -657,6 +658,21 @@ public final class NullSpecTransfer extends CFTransfer {
     AnnotatedTypeMirror type = createType(node.getType(), atypeFactory, /*isDeclaration=*/ false);
     type.addAnnotations(annotations);
     return type;
+  }
+
+  @Override
+  public TransferResult<CFValue, CFStore> visitTypeCast(
+      TypeCastNode node, TransferInput<CFValue, CFStore> input) {
+    TransferResult<CFValue, CFStore> result = super.visitTypeCast(node, input);
+    if (node.getOperand() instanceof MethodInvocationNode) {
+      if (nameMatches(
+          ((MethodInvocationNode) node.getOperand()).getTarget().getMethod(),
+          "Class",
+          "newInstance")) {
+        setResultValueToNonNull(result);
+      }
+    }
+    return result;
   }
 
   @Override
