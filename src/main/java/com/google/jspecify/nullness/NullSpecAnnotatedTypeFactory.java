@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -36,7 +37,9 @@ import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
+import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
+import static org.checkerframework.javacutil.TreeUtils.isNullExpression;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
@@ -44,11 +47,13 @@ import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
@@ -973,13 +978,33 @@ public final class NullSpecAnnotatedTypeFactory
         return false;
       }
       ExpressionTree predicate = invocation.getArguments().get(0);
-      // TODO(cpovirk): Also check for filter(x -> x != null), filter(Objects::nonNull), others?
-      if (!(predicate instanceof MemberReferenceTree)) {
+      if (predicate instanceof MemberReferenceTree) {
+        MemberReferenceTree memberReferenceTree = (MemberReferenceTree) predicate;
+        /*
+         * TODO(cpovirk): Ensure that it's java.lang.Class.isInstance or java.util.Objects.nonNull
+         * specifically.
+         */
+        return memberReferenceTree.getName().contentEquals("isInstance")
+            || memberReferenceTree.getName().contentEquals("nonNull");
+      } else if (predicate instanceof LambdaExpressionTree) {
+        LambdaExpressionTree lambdaExpressionTree = (LambdaExpressionTree) predicate;
+        if (lambdaExpressionTree.getBody().getKind() == NOT_EQUAL_TO) {
+          VariableTree lambdaParameter = lambdaExpressionTree.getParameters().get(0);
+          BinaryTree binaryTree = (BinaryTree) lambdaExpressionTree.getBody();
+          ExpressionTree left = binaryTree.getLeftOperand();
+          ExpressionTree right = binaryTree.getRightOperand();
+          return areNullAndLambdaParameter(left, right, lambdaParameter)
+              || areNullAndLambdaParameter(right, left, lambdaParameter);
+        }
+        return false;
+      } else {
         return false;
       }
-      MemberReferenceTree memberReferenceTree = (MemberReferenceTree) predicate;
-      // TODO(cpovirk): Ensure that it's java.lang.Class.isInstance specifically.
-      return memberReferenceTree.getName().contentEquals("isInstance");
+    }
+
+    private boolean areNullAndLambdaParameter(
+        ExpressionTree u, ExpressionTree v, VariableTree lambdaParameter) {
+      return isNullExpression(u) && elementFromUse(v) == elementFromDeclaration(lambdaParameter);
     }
 
     @Override
