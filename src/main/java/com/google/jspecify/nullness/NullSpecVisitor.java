@@ -296,6 +296,10 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
 
   @Override
   public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
+    ExecutableElement executable = elementFromUse(tree);
+
+    checkForAtomicReferenceConstructorCall(tree, executable);
+
     if (nameMatches(tree, "Preconditions", "checkNotNull")) {
       ensureNonNull(tree.getArguments().get(0), /*messageKey=*/ "checknotnull");
       /*
@@ -343,50 +347,60 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   @Override
   public Void visitNewClass(NewClassTree tree, Void p) {
     ExecutableElement constructor = elementFromUse(tree);
+
+    checkForAtomicReferenceConstructorCall(tree, constructor);
+
+    /*
+     * TODO(cpovirk): Figure out whether to report this here (at the instantiation) or at the
+     * declaration of the problem class.
+     *
+     * In some ways, reporting at the declaration of the problem class makes more sense: If someone
+     * defines `final class MyThreadLocal extends ThreadLocal<String>` without overriding
+     * initialValue(), then that class is not a valid implementation of ThreadLocal<String>, and
+     * there's nothing the caller can do -- not subclass it, not assign it to a
+     * ThreadLocal<@Nullable String> instead. So perhaps MyThreadLocal should have been required to
+     * be at least an extensible class -- and perhaps ideally even to redefine initialValue() as
+     * abstract.
+     *
+     * On the other hand, we might not analyze MyThreadLocal at all, so we'd fail to report an error
+     * for code that we know is dangerous. But is that really any different than the normal dangers
+     * of unanalyzed code? It just happens to be one case in which we can catch the problem anyway.
+     *
+     * In practice, it probably matters little: Most ThreadLocal classes are likely to be used
+     * nearby -- including the specific case of an anonymous ThreadLocal implementation.
+     */
     TypeElement clazz = (TypeElement) constructor.getEnclosingElement();
-    if (nameMatches(constructor, "AtomicReference", "<init>")
-        && constructor.getParameters().isEmpty()) {
-      // TODO(cpovirk): Handle super() calls. And does this handle anonymous classes right?
-      // TODO(cpovirk): Also handle AtomicReferenceArray.
-      AnnotatedTypeMirror typeArg = atypeFactory.getAnnotatedType(tree).getTypeArguments().get(0);
+    if (types.isSubtype(
+            types.erasure(clazz.asType()), types.erasure(javaLangThreadLocal.getUnderlyingType()))
+        && !overridesInitialValue(clazz)) {
+      AnnotatedDeclaredType annotatedType = atypeFactory.getAnnotatedType(tree);
+      AnnotatedDeclaredType annotatedTypeAsThreadLocal =
+          asSuper(atypeFactory, annotatedType, javaLangThreadLocal);
+      AnnotatedTypeMirror typeArg = annotatedTypeAsThreadLocal.getTypeArguments().get(0);
       if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
-        checker.reportError(tree, "atomicreference.must.include.null", typeArg);
-      }
-    } else {
-      /*
-       * TODO(cpovirk): Figure out whether to report this here (at the instantiation) or at the
-       * declaration of the problem class.
-       *
-       * In some ways, reporting at the declaration of the problem class makes more sense: If
-       * someone defines `final class MyThreadLocal extends ThreadLocal<String>` without overriding
-       * initialValue(), then that class is not a valid implementation of ThreadLocal<String>, and
-       * there's nothing the caller can do -- not subclass it, not assign it to a
-       * ThreadLocal<@Nullable String> instead. So perhaps MyThreadLocal should have been required
-       * to be at least an extensible class -- and perhaps ideally even to redefine initialValue()
-       * as abstract.
-       *
-       * On the other hand, we might not analyze MyThreadLocal at all, so we'd fail to report an
-       * error for code that we know is dangerous. But is that really any different than the normal
-       * dangers of unanalyzed code? It just happens to be one case in which we can catch the
-       * problem anyway.
-       *
-       * In practice, it probably matters little: Most ThreadLocal classes are likely to be used
-       * nearby -- including the specific case of an anonymous ThreadLocal implementation.
-       */
-      if (types.isSubtype(
-              types.erasure(clazz.asType()), types.erasure(javaLangThreadLocal.getUnderlyingType()))
-          && !overridesInitialValue(clazz)) {
-        AnnotatedDeclaredType annotatedType = atypeFactory.getAnnotatedType(tree);
-        AnnotatedDeclaredType annotatedTypeAsThreadLocal =
-            asSuper(atypeFactory, annotatedType, javaLangThreadLocal);
-        AnnotatedTypeMirror typeArg = annotatedTypeAsThreadLocal.getTypeArguments().get(0);
-        if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
-          checker.reportError(tree, "threadlocal.must.include.null", typeArg);
-        }
+        checker.reportError(tree, "threadlocal.must.include.null", typeArg);
       }
     }
     return super.visitNewClass(tree, p);
   }
+
+  private void checkForAtomicReferenceConstructorCall(
+      ExpressionTree tree, ExecutableElement constructor) {
+    // TODO(cpovirk): Also check AtomicReferenceArray.
+    if (nameMatches(constructor, "AtomicReference", "<init>")
+        && constructor.getParameters().isEmpty()) {
+      AnnotatedTypeMirror typeArg =
+          ((AnnotatedDeclaredType) atypeFactory.getAnnotatedType(tree)).getTypeArguments().get(0);
+      if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
+        checker.reportError(tree, "atomicreference.must.include.null", typeArg);
+      }
+    }
+  }
+
+  /*
+   * TODO(cpovirk): Also check AtomicReference and ThreadLocal value types for null-inclusiveness
+   * when users create instances by using method references (e.g., AtomicReference::new).
+   */
 
   private boolean overridesInitialValue(TypeElement clazz) {
     return getAllDeclaredSupertypes(clazz.asType()).stream()
