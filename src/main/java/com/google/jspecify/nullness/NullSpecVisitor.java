@@ -83,14 +83,14 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
-public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
+final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
   private final AnnotationMirror nullable;
   private final AnnotationMirror nullnessUnspecified;
   private final boolean checkImpl;
   private final AnnotatedDeclaredType javaLangThreadLocal;
   private final ExecutableElement threadLocalInitialValueElement;
 
-  public NullSpecVisitor(BaseTypeChecker checker) {
+  NullSpecVisitor(BaseTypeChecker checker) {
     super(checker);
     nullable = AnnotationBuilder.fromClass(elements, Nullable.class);
     nullnessUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
@@ -592,5 +592,10 @@ public final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedType
   @Override
   protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
     return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, NonNull.class)));
+  }
+
+  @Override
+  protected NullSpecAnnotatedTypeFactory createTypeFactory() {
+    return new NullSpecAnnotatedTypeFactory(checker);
   }
 }

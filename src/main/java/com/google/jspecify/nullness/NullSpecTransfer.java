@@ -61,7 +61,7 @@ import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.MethodCall;
 import org.checkerframework.dataflow.expression.Unknown;
-import org.checkerframework.framework.flow.CFAnalysis;
+import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
@@ -71,7 +71,7 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
-public final class NullSpecTransfer extends CFTransfer {
+final class NullSpecTransfer extends CFTransfer {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
   private final AnnotationMirror nonNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
@@ -91,7 +91,7 @@ public final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
 
-  public NullSpecTransfer(CFAnalysis analysis) {
+  NullSpecTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);

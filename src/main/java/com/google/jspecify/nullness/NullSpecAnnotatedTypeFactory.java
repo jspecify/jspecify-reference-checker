@@ -75,6 +75,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
@@ -115,7 +116,7 @@ import org.jspecify.annotations.DefaultNonNull;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
-public final class NullSpecAnnotatedTypeFactory
+final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
   private final AnnotationMirror nonNull;
   private final AnnotationMirror unionNull;
@@ -126,7 +127,7 @@ public final class NullSpecAnnotatedTypeFactory
   private final NullSpecAnnotatedTypeFactory withMostConvenientWorld;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
-  public NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
+  NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
     this(checker, checker.hasOption("strict"), /*withOtherWorld=*/ null);
   }
 
@@ -691,6 +692,12 @@ public final class NullSpecAnnotatedTypeFactory
 
       return substitute;
     }
+  }
+
+  @Override
+  public CFTransfer createFlowTransferFunction(
+      CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
+    return new NullSpecTransfer(analysis);
   }
 
   @Override
