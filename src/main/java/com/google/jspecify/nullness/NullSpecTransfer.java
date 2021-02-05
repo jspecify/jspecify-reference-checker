@@ -855,7 +855,7 @@ final class NullSpecTransfer extends CFTransfer {
      * if (clazz.cast(foo) != null) { return class.cast(foo); }
      */
     result.setResultValue(
-        new CFValue(analysis, singleton(qual), result.getResultValue().getUnderlyingType()));
+        analysis.createAbstractValue(singleton(qual), result.getResultValue().getUnderlyingType()));
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
