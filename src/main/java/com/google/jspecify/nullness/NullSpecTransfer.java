@@ -721,7 +721,7 @@ final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitEqualTo(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = refineNullCheckResult(node, elseStore);
+    boolean storeChanged = refineOrReplaceNullCheckResult(node, elseStore, thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -731,12 +731,12 @@ final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitNotEqual(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = refineNullCheckResult(node, thenStore);
+    boolean storeChanged = refineOrReplaceNullCheckResult(node, thenStore, elseStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
   /*
-   * TODO(cpovirk): What is "result" supposed to mean in this method name? Would something like
+   * TODO(cpovirk): What is "result" supposed to mean in these method names? Would something like
    * "refineEitherOperandIfNullChecked" make more sense?
    */
 
@@ -751,6 +751,23 @@ final class NullSpecTransfer extends CFTransfer {
       return refineNonNull(node.getLeftOperand(), store);
     }
     return false;
+  }
+
+  /**
+   * If one operand is a null literal, marks the other as non-null and null in the respective
+   * stores, and returns whether this is a change in its value.
+   */
+  private boolean refineOrReplaceNullCheckResult(
+      BinaryOperationNode node, CFStore storeForNonNull, CFStore storeForNull) {
+    boolean storeChanged = false;
+    if (isNullLiteral(node.getLeftOperand())) {
+      storeChanged |= refineNonNull(node.getRightOperand(), storeForNonNull);
+      storeChanged |= overwriteWithUnionNull(node.getRightOperand(), storeForNull);
+    } else if (isNullLiteral(node.getRightOperand())) {
+      storeChanged |= refineNonNull(node.getLeftOperand(), storeForNonNull);
+      storeChanged |= overwriteWithUnionNull(node.getLeftOperand(), storeForNull);
+    }
+    return storeChanged;
   }
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
