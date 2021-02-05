@@ -261,8 +261,8 @@ final class NullSpecTransfer extends CFTransfer {
        * IllegalStateException/IllegalArgumentException? If not, then we likely also have the same
        * issue with our handling of requireNonNull.
        */
-      storeChanged |= refineNullCheckResult(notEqualNode, thenStore);
-      storeChanged |= refineNullCheckResult(notEqualNode, elseStore);
+      storeChanged |= storeNonNullIfComparesToNull(notEqualNode, thenStore);
+      storeChanged |= storeNonNullIfComparesToNull(notEqualNode, elseStore);
     }
 
     if (nameMatches(method, "Class", "cast")
@@ -721,7 +721,7 @@ final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitEqualTo(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = refineOrReplaceNullCheckResult(node, elseStore, thenStore);
+    boolean storeChanged = storeNonNullAndNullIfComparesToNull(node, elseStore, thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
@@ -731,20 +731,15 @@ final class NullSpecTransfer extends CFTransfer {
     CFValue resultValue = super.visitNotEqual(node, input).getResultValue();
     CFStore thenStore = input.getThenStore();
     CFStore elseStore = input.getElseStore();
-    boolean storeChanged = refineOrReplaceNullCheckResult(node, thenStore, elseStore);
+    boolean storeChanged = storeNonNullAndNullIfComparesToNull(node, thenStore, elseStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
-
-  /*
-   * TODO(cpovirk): What is "result" supposed to mean in these method names? Would something like
-   * "refineEitherOperandIfNullChecked" make more sense?
-   */
 
   /**
    * If one operand is a null literal, marks the other as non-null, and returns whether this is a
    * change in its value.
    */
-  private boolean refineNullCheckResult(BinaryOperationNode node, CFStore store) {
+  private boolean storeNonNullIfComparesToNull(BinaryOperationNode node, CFStore store) {
     if (isNullLiteral(node.getLeftOperand())) {
       return refineNonNull(node.getRightOperand(), store);
     } else if (isNullLiteral(node.getRightOperand())) {
@@ -757,7 +752,7 @@ final class NullSpecTransfer extends CFTransfer {
    * If one operand is a null literal, marks the other as non-null and null in the respective
    * stores, and returns whether this is a change in its value.
    */
-  private boolean refineOrReplaceNullCheckResult(
+  private boolean storeNonNullAndNullIfComparesToNull(
       BinaryOperationNode node, CFStore storeForNonNull, CFStore storeForNull) {
     boolean storeChanged = false;
     if (isNullLiteral(node.getLeftOperand())) {
