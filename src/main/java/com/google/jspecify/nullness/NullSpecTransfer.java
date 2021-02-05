@@ -181,7 +181,9 @@ public final class NullSpecTransfer extends CFTransfer {
     boolean storeChanged = false;
 
     if (nameMatches(method, "Objects", "requireNonNull")) {
-      storeChanged |= refineNonNull(node.getArgument(0), thenStore, elseStore);
+      // See the discussion of checkState and checkArgument below.
+      storeChanged |= refineNonNull(node.getArgument(0), thenStore);
+      storeChanged |= refineNonNull(node.getArgument(0), elseStore);
     }
 
     if (nameMatches(method, "Class", "isInstance")) {
@@ -245,8 +247,22 @@ public final class NullSpecTransfer extends CFTransfer {
     if ((nameMatches(method, "Preconditions", "checkState")
             || nameMatches(method, "Preconditions", "checkArgument"))
         && node.getArgument(0) instanceof NotEqualNode) {
-      storeChanged |=
-          refineNullCheckResult((NotEqualNode) node.getArgument(0), thenStore, elseStore);
+      NotEqualNode notEqualNode = (NotEqualNode) node.getArgument(0);
+      /*
+       * `check*(x != null)` doesn't return a value, so CF might look at thenStore, elseStore, or
+       * both. Fortunately, we can set x to non-null in both cases:
+       *
+       * - If `check*(x != null)` succeeds, then we've proven that x is non-null.
+       *
+       * - If `check*(x != null)` fails, then it will throw an exception. So it's safe to consider x
+       * to have whatever value we want.
+       *
+       * TODO(cpovirk): Is that actually safe? Does it handle the case in which someone catches the
+       * IllegalStateException/IllegalArgumentException? If not, then we likely also have the same
+       * issue with our handling of requireNonNull.
+       */
+      storeChanged |= refineNullCheckResult(notEqualNode, thenStore);
+      storeChanged |= refineNullCheckResult(notEqualNode, elseStore);
     }
 
     if (nameMatches(method, "Class", "cast")
@@ -732,17 +748,6 @@ public final class NullSpecTransfer extends CFTransfer {
     return false;
   }
 
-  /**
-   * If one operand is a null literal, marks the other as non-null, and returns whether this is a
-   * change in its value in either store.
-   */
-  private boolean refineNullCheckResult(BinaryOperationNode node, CFStore store1, CFStore store2) {
-    boolean storeChanged = false;
-    storeChanged |= refineNullCheckResult(node, store1);
-    storeChanged |= refineNullCheckResult(node, store2);
-    return storeChanged;
-  }
-
   /** Marks the node as non-null, and returns whether this is a change in its value. */
   private boolean refineNonNull(Node node, CFStore store) {
     while (node instanceof AssignmentNode) {
@@ -751,16 +756,6 @@ public final class NullSpecTransfer extends CFTransfer {
     }
     JavaExpression expression = fromNode(atypeFactory, node);
     return refineNonNull(expression, store);
-  }
-
-  /**
-   * Marks the node as non-null, and returns whether this is a change in its value in either store.
-   */
-  private boolean refineNonNull(Node node, CFStore store1, CFStore store2) {
-    boolean storeChanged = false;
-    storeChanged |= refineNonNull(node, store1);
-    storeChanged |= refineNonNull(node, store2);
-    return storeChanged;
   }
 
   /** Marks the expression as non-null, and returns whether this is a change in its value. */
