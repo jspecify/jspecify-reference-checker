@@ -22,6 +22,7 @@ import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
+import static org.checkerframework.framework.flow.CFAbstractStore.canInsertJavaExpression;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
@@ -60,7 +61,6 @@ import org.checkerframework.dataflow.cfg.node.StringLiteralNode;
 import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.MethodCall;
-import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
@@ -828,12 +828,12 @@ final class NullSpecTransfer extends CFTransfer {
      * #shouldNotChangeFromOldToTarget} and returns whether this is a change in its value.
      */
     final boolean update(JavaExpression expression, CFValue target, CFStore store) {
-      if (expression instanceof Unknown) {
+      if (!canInsertJavaExpression(expression)) {
         /*
          * Example: In `requireNonNull((SomeType) x)`, `(SomeType) x` appears as Unknown.
          *
-         * TODO(cpovirk): Unwrap casts and refine the expression that is being cast. (That may or may
-         * not eliminate the need for this check, though.)
+         * TODO(cpovirk): Unwrap casts and refine the expression that is being cast. (That probably
+         * will not fully eliminate the need for this check, though.)
          */
         return false;
       }
