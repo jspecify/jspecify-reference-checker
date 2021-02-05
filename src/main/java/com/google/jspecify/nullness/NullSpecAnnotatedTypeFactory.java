@@ -71,6 +71,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
@@ -779,7 +780,9 @@ final class NullSpecAnnotatedTypeFactory
        * we have already edited getDeclAnnotations to remove its inheritance logic, and we needed to
        * do so to work around another problem (though perhaps we could have found alternatives).
        */
-      if (getDeclAnnotation(elt, DefaultNonNull.class) != null) {
+      if (getDeclAnnotation(elt, DefaultNonNull.class) != null
+          // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
+          || hasAnnotationInCode(elt, "ProtoNonnullApi")) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, nonNull, OTHERWISE);
         addDefaultToTopForLocationsRefinedByDataflow(elt);
@@ -825,9 +828,6 @@ final class NullSpecAnnotatedTypeFactory
         addElementDefault(elt, unionNull, location);
       }
     }
-
-    private final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
-        unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
     @Override
     protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(AnnotationMirror qual) {
@@ -936,6 +936,37 @@ final class NullSpecAnnotatedTypeFactory
         addIfNoAnnotationPresent(type.getExtendsBound(), unionNull);
       }
       return super.visitWildcard(type, p);
+    }
+
+    @Override
+    public Void visitExecutable(AnnotatedExecutableType type, Void p) {
+      /*
+       * This implements a limited degree of support for declaration annotations. Assumptions
+       * include:
+       *
+       * - ProtoNonnullApi really guarantees that *all* types are non-null, even those that would
+       * require type annotations to annotate.
+       *
+       * - Any ProtoMethodMayReturnNull or ProtoMethodAcceptsNullParameter annotation on an array
+       * applies to the array as a whole, not to the element type.
+       *
+       * - maybe other things?
+       *
+       * I suspect that the edge cases don't come up in the simple case of protos, but this may need
+       * more investigation.
+       */
+      ExecutableElement method = type.getElement();
+      if (hasAnnotationInCode(method, "ProtoMethodMayReturnNull")) {
+        type.getReturnType().replaceAnnotation(unionNull);
+      }
+      for (int i = 0; i < type.getParameterTypes().size(); i++) {
+        AnnotatedTypeMirror parameterType = type.getParameterTypes().get(i);
+        VariableElement parameter = method.getParameters().get(i);
+        if (hasAnnotationInCode(parameter, "ProtoMethodAcceptsNullParameter")) {
+          parameterType.replaceAnnotation(unionNull);
+        }
+      }
+      return super.visitExecutable(type, p);
     }
   }
 
@@ -1362,6 +1393,18 @@ final class NullSpecAnnotatedTypeFactory
       type.addAnnotation(annotation);
     }
   }
+
+  /**
+   * Returns whether the given element has an annotation with the given simple name. This method
+   * does not consider stub files.
+   */
+  private static boolean hasAnnotationInCode(Element element, String name) {
+    return element.getAnnotationMirrors().stream()
+        .anyMatch(m -> m.getAnnotationType().asElement().getSimpleName().contentEquals(name));
+  }
+
+  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
+      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
   private <T extends AnnotatedTypeMirror> T withNonNull(T type) {
