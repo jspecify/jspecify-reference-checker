@@ -735,6 +735,11 @@ final class NullSpecTransfer extends CFTransfer {
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
+  /*
+   * TODO(cpovirk): What is "result" supposed to mean in this method name? Would something like
+   * "refineEitherOperandIfNullChecked" make more sense?
+   */
+
   /**
    * If one operand is a null literal, marks the other as non-null, and returns whether this is a
    * change in its value.
@@ -750,12 +755,7 @@ final class NullSpecTransfer extends CFTransfer {
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
   private boolean refineNonNull(Node node, CFStore store) {
-    while (node instanceof AssignmentNode) {
-      // XXX: If there are multiple levels of assignment, we could insertValue for *every* target.
-      node = ((AssignmentNode) node).getTarget();
-    }
-    JavaExpression expression = fromNode(atypeFactory, node);
-    return refineNonNull(expression, store);
+    return refineNonNull(expressionToStoreFor(node), store);
   }
 
   /** Marks the expression as non-null, and returns whether this is a change in its value. */
@@ -768,8 +768,7 @@ final class NullSpecTransfer extends CFTransfer {
    * is a change in its value.
    */
   private boolean refine(JavaExpression expression, AnnotationMirror target, CFStore store) {
-    return refine(
-        expression, analysis.createSingleAnnotationValue(target, expression.getType()), store);
+    return refiner.update(expression, target, store);
   }
 
   /**
@@ -777,23 +776,124 @@ final class NullSpecTransfer extends CFTransfer {
    * is a change in its value.
    */
   private boolean refine(JavaExpression expression, CFValue target, CFStore store) {
-    if (expression instanceof Unknown) {
-      /*
-       * Example: In `requireNonNull((SomeType) x)`, `(SomeType) x` appears as Unknown.
-       *
-       * TODO(cpovirk): Unwrap casts and refine the expression that is being cast. (That may or may
-       * not eliminate the need for this check, though.)
-       */
-      return false;
-    }
-    CFValue oldValue = store.getValue(expression);
-    if (valueIsAtLeastAsSpecificAs(oldValue, target)) {
-      return false;
-    }
-    store.insertValue(expression, target);
-    return true;
+    return refiner.update(expression, target, store);
   }
 
+  /**
+   * Marks the node as unionNull (even if it was previously a more specific type), and returns
+   * whether this is a change in its value.
+   */
+  private boolean overwriteWithUnionNull(Node node, CFStore store) {
+    return overwriteWithUnionNull(expressionToStoreFor(node), store);
+  }
+
+  /**
+   * Marks the expression as unionNull (even if it was previously a more specific type), and returns
+   * whether this is a change in its value.
+   */
+  private boolean overwriteWithUnionNull(JavaExpression expression, CFStore store) {
+    return overwrite(expression, unionNull, store);
+  }
+
+  /**
+   * Marks the expression to be the given target type (even if it was previously a more specific
+   * type), and returns whether this is a change in its value.
+   */
+  private boolean overwrite(JavaExpression expression, AnnotationMirror target, CFStore store) {
+    return overwriter.update(expression, target, store);
+  }
+
+  /**
+   * Marks the expression to be the given target type (even if it was previously a more specific
+   * type), and returns whether this is a change in its value.
+   */
+  private boolean overwrite(JavaExpression expression, CFValue target, CFStore store) {
+    return overwriter.update(expression, target, store);
+  }
+
+  private abstract class Updater {
+    abstract boolean shouldNotChangeFromOldToTarget(CFValue old, CFValue target);
+
+    /**
+     * Updates the expression's value to match the given target, if permitted by {@link
+     * #shouldNotChangeFromOldToTarget}, and returns whether this is a change in its value.
+     */
+    final boolean update(JavaExpression expression, AnnotationMirror target, CFStore store) {
+      return update(
+          expression, analysis.createSingleAnnotationValue(target, expression.getType()), store);
+    }
+
+    /**
+     * Updates the expression's value to match the given target, if permitted by {@link
+     * #shouldNotChangeFromOldToTarget} and returns whether this is a change in its value.
+     */
+    final boolean update(JavaExpression expression, CFValue target, CFStore store) {
+      if (expression instanceof Unknown) {
+        /*
+         * Example: In `requireNonNull((SomeType) x)`, `(SomeType) x` appears as Unknown.
+         *
+         * TODO(cpovirk): Unwrap casts and refine the expression that is being cast. (That may or may
+         * not eliminate the need for this check, though.)
+         */
+        return false;
+      }
+      CFValue old = store.getValue(expression);
+      if (shouldNotChangeFromOldToTarget(old, target)) {
+        return false;
+      }
+      /*
+       * We call replaceValue instead of insertValue for the case in which we want to overwrite the
+       * existing value, rather than just refine it. (In the refining case, we've already performed
+       * our own check of whether an update is necessary, so we still won't overwrite an existing
+       * value that is more specific than the target.)
+       *
+       * By performing our own check, we probably also avoid some of the problems caused by our
+       * unusual rules. However, it's also conceivable that we introduce bugs, especially when
+       * mixing types (like assigning an instance of T and then an instance of Object to the same
+       * variable). It would likely be best for our check above to use an existing CF method whose
+       * behavior we've tweaked by overriding some other method. See the discussion in
+       * valueIsAtLeastAsSpecificAs.
+       */
+      store.replaceValue(expression, target);
+      return true;
+    }
+  }
+
+  @Override
+  public CFValue moreSpecificValue(CFValue value1, CFValue value2) {
+    // See the discussion in valueIsAtLeastAsSpecificAs.
+    if (value2 == null) {
+      return value1;
+    }
+    return valueIsAtLeastAsSpecificAs(value1, value2) ? value1 : value2;
+  }
+
+  private final Updater refiner =
+      new Updater() {
+        @Override
+        boolean shouldNotChangeFromOldToTarget(CFValue old, CFValue target) {
+          return valueIsAtLeastAsSpecificAs(old, target);
+        }
+      };
+  private final Updater overwriter =
+      new Updater() {
+        @Override
+        boolean shouldNotChangeFromOldToTarget(CFValue old, CFValue target) {
+          return target.equals(old);
+        }
+      };
+
+  /*
+   * TODO(cpovirk): Instead of calling into this special method in particular cases, should we
+   * instead edit CFValue.mostSpecific and/or CFAnalysis.something to have the behavior we want in
+   * general? That might avoid any problems like those hypothesized in Updater.update.
+   *
+   * In particular, I fear that the CF code doesn't handle our unusual difference between NonNull
+   * ("project to NonNull") and the other annotations ("most general wins") the way that we'd want.
+   *
+   * (Maybe this is yet another thing that would get better if we fit our substitution/bounds rules
+   * into CF's normal model.)
+   */
   private boolean valueIsAtLeastAsSpecificAs(CFValue value, CFValue targetDataflowValue) {
     if (value == null) {
       return false;
@@ -818,11 +918,6 @@ final class NullSpecTransfer extends CFTransfer {
     if (target == null) {
       return false;
     }
-    /*
-     * TODO(cpovirk): Use methods on CFAbstractValue instead? Do they correctly handle the
-     * difference between NonNull ("project to NonNull") and the other annotations ("most general
-     * wins")? If not, we may have bigger problems....
-     */
     return atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
   }
 
@@ -856,6 +951,14 @@ final class NullSpecTransfer extends CFTransfer {
      */
     result.setResultValue(
         analysis.createAbstractValue(singleton(qual), result.getResultValue().getUnderlyingType()));
+  }
+
+  private JavaExpression expressionToStoreFor(Node node) {
+    while (node instanceof AssignmentNode) {
+      // XXX: If there are multiple levels of assignment, we could replaceValue for *every* target.
+      node = ((AssignmentNode) node).getTarget();
+    }
+    return fromNode(atypeFactory, node);
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
