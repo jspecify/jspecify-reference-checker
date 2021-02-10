@@ -62,8 +62,7 @@ import org.checkerframework.dataflow.cfg.node.TypeCastNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.MethodCall;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
-import org.checkerframework.framework.flow.CFStore;
-import org.checkerframework.framework.flow.CFTransfer;
+import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -71,7 +70,7 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
-final class NullSpecTransfer extends CFTransfer {
+final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, NullSpecTransfer> {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
   private final AnnotationMirror nonNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
@@ -91,7 +90,7 @@ final class NullSpecTransfer extends CFTransfer {
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
 
-  NullSpecTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
+  NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
     nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
@@ -140,9 +139,9 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitFieldAccess(
-      FieldAccessNode node, TransferInput<CFValue, CFStore> input) {
-    TransferResult<CFValue, CFStore> result = super.visitFieldAccess(node, input);
+  public TransferResult<CFValue, NullSpecStore> visitFieldAccess(
+      FieldAccessNode node, TransferInput<CFValue, NullSpecStore> input) {
+    TransferResult<CFValue, NullSpecStore> result = super.visitFieldAccess(node, input);
     if (node.getFieldName().equals("class")) {
       /*
        * TODO(cpovirk): Would it make more sense to do this in our TreeAnnotator? Alternatively,
@@ -171,11 +170,11 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitMethodInvocation(
-      MethodInvocationNode node, TransferInput<CFValue, CFStore> input) {
-    TransferResult<CFValue, CFStore> result = super.visitMethodInvocation(node, input);
-    CFStore thenStore = input.getThenStore();
-    CFStore elseStore = input.getElseStore();
+  public TransferResult<CFValue, NullSpecStore> visitMethodInvocation(
+      MethodInvocationNode node, TransferInput<CFValue, NullSpecStore> input) {
+    TransferResult<CFValue, NullSpecStore> result = super.visitMethodInvocation(node, input);
+    NullSpecStore thenStore = input.getThenStore();
+    NullSpecStore elseStore = input.getElseStore();
     ExecutableElement method = node.getTarget().getMethod();
 
     boolean storeChanged = false;
@@ -343,7 +342,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
-      MethodInvocationNode isAnonymousClassNode, CFStore thenStore) {
+      MethodInvocationNode isAnonymousClassNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods nearby.
     MethodCall isAnonymousClassCall = (MethodCall) fromNode(atypeFactory, isAnonymousClassNode);
     MethodCall getEnclosingClassCall =
@@ -359,7 +358,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean refineFutureGetComponentTypeFromIsArray(
-      MethodInvocationNode isArrayNode, CFStore thenStore) {
+      MethodInvocationNode isArrayNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods nearby.
     MethodCall isArrayCall = (MethodCall) fromNode(atypeFactory, isArrayNode);
     MethodCall getComponentTypeCall =
@@ -375,7 +374,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean refineFutureGetAnnotationFromIsAnnotationPresent(
-      MethodInvocationNode isAnnotationPresentNode, CFStore thenStore) {
+      MethodInvocationNode isAnnotationPresentNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and refineFutureMapGetFromMapContainsKey.
     Tree isAnnotationPresentReceiver = isAnnotationPresentNode.getTarget().getReceiver().getTree();
     if (isAnnotationPresentReceiver == null) {
@@ -441,7 +440,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private boolean refineFutureMapGetFromMapContainsKey(
-      MethodInvocationNode containsKeyNode, CFStore thenStore) {
+      MethodInvocationNode containsKeyNode, NullSpecStore thenStore) {
     Tree containsKeyReceiver = containsKeyNode.getTarget().getReceiver().getTree();
     if (containsKeyReceiver == null) {
       // TODO(cpovirk): Handle the case of a null containsKeyReceiver (probably ImplicitThisNode).
@@ -537,7 +536,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private void refineMapGetResultIfKeySetLoop(
-      MethodInvocationNode mapGetNode, TransferResult<CFValue, CFStore> input) {
+      MethodInvocationNode mapGetNode, TransferResult<CFValue, NullSpecStore> input) {
     Tree mapGetReceiver = mapGetNode.getTarget().getReceiver().getTree();
     if (!(mapGetReceiver instanceof ExpressionTree)) {
       /*
@@ -683,7 +682,7 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
-      TransferInput<CFValue, CFStore> input, Node node) {
+      TransferInput<CFValue, NullSpecStore> input, Node node) {
     Set<AnnotationMirror> annotations = input.getValueOfSubNode(node).getAnnotations();
     AnnotatedTypeMirror type = createType(node.getType(), atypeFactory, /*isDeclaration=*/ false);
     type.addAnnotations(annotations);
@@ -691,9 +690,9 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitTypeCast(
-      TypeCastNode node, TransferInput<CFValue, CFStore> input) {
-    TransferResult<CFValue, CFStore> result = super.visitTypeCast(node, input);
+  public TransferResult<CFValue, NullSpecStore> visitTypeCast(
+      TypeCastNode node, TransferInput<CFValue, NullSpecStore> input) {
+    TransferResult<CFValue, NullSpecStore> result = super.visitTypeCast(node, input);
     if (node.getOperand() instanceof MethodInvocationNode) {
       if (nameMatches(
           ((MethodInvocationNode) node.getOperand()).getTarget().getMethod(),
@@ -706,31 +705,31 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitInstanceOf(
-      InstanceOfNode node, TransferInput<CFValue, CFStore> input) {
+  public TransferResult<CFValue, NullSpecStore> visitInstanceOf(
+      InstanceOfNode node, TransferInput<CFValue, NullSpecStore> input) {
     CFValue resultValue = super.visitInstanceOf(node, input).getResultValue();
-    CFStore thenStore = input.getThenStore();
-    CFStore elseStore = input.getElseStore();
+    NullSpecStore thenStore = input.getThenStore();
+    NullSpecStore elseStore = input.getElseStore();
     boolean storeChanged = refineNonNull(node.getOperand(), thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitEqualTo(
-      EqualToNode node, TransferInput<CFValue, CFStore> input) {
+  public TransferResult<CFValue, NullSpecStore> visitEqualTo(
+      EqualToNode node, TransferInput<CFValue, NullSpecStore> input) {
     CFValue resultValue = super.visitEqualTo(node, input).getResultValue();
-    CFStore thenStore = input.getThenStore();
-    CFStore elseStore = input.getElseStore();
+    NullSpecStore thenStore = input.getThenStore();
+    NullSpecStore elseStore = input.getElseStore();
     boolean storeChanged = storeNonNullAndNullIfComparesToNull(node, elseStore, thenStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
 
   @Override
-  public TransferResult<CFValue, CFStore> visitNotEqual(
-      NotEqualNode node, TransferInput<CFValue, CFStore> input) {
+  public TransferResult<CFValue, NullSpecStore> visitNotEqual(
+      NotEqualNode node, TransferInput<CFValue, NullSpecStore> input) {
     CFValue resultValue = super.visitNotEqual(node, input).getResultValue();
-    CFStore thenStore = input.getThenStore();
-    CFStore elseStore = input.getElseStore();
+    NullSpecStore thenStore = input.getThenStore();
+    NullSpecStore elseStore = input.getElseStore();
     boolean storeChanged = storeNonNullAndNullIfComparesToNull(node, thenStore, elseStore);
     return new ConditionalTransferResult<>(resultValue, thenStore, elseStore, storeChanged);
   }
@@ -739,7 +738,7 @@ final class NullSpecTransfer extends CFTransfer {
    * If one operand is a null literal, marks the other as non-null, and returns whether this is a
    * change in its value.
    */
-  private boolean storeNonNullIfComparesToNull(BinaryOperationNode node, CFStore store) {
+  private boolean storeNonNullIfComparesToNull(BinaryOperationNode node, NullSpecStore store) {
     if (isNullLiteral(node.getLeftOperand())) {
       return refineNonNull(node.getRightOperand(), store);
     } else if (isNullLiteral(node.getRightOperand())) {
@@ -753,7 +752,7 @@ final class NullSpecTransfer extends CFTransfer {
    * stores, and returns whether this is a change in its value.
    */
   private boolean storeNonNullAndNullIfComparesToNull(
-      BinaryOperationNode node, CFStore storeForNonNull, CFStore storeForNull) {
+      BinaryOperationNode node, NullSpecStore storeForNonNull, NullSpecStore storeForNull) {
     boolean storeChanged = false;
     if (isNullLiteral(node.getLeftOperand())) {
       storeChanged |= refineNonNull(node.getRightOperand(), storeForNonNull);
@@ -766,12 +765,12 @@ final class NullSpecTransfer extends CFTransfer {
   }
 
   /** Marks the node as non-null, and returns whether this is a change in its value. */
-  private boolean refineNonNull(Node node, CFStore store) {
+  private boolean refineNonNull(Node node, NullSpecStore store) {
     return refineNonNull(expressionToStoreFor(node), store);
   }
 
   /** Marks the expression as non-null, and returns whether this is a change in its value. */
-  private boolean refineNonNull(JavaExpression expression, CFStore store) {
+  private boolean refineNonNull(JavaExpression expression, NullSpecStore store) {
     return refine(expression, nonNull, store);
   }
 
@@ -779,7 +778,7 @@ final class NullSpecTransfer extends CFTransfer {
    * Refines the expression to be at least as specific as the target type, and returns whether this
    * is a change in its value.
    */
-  private boolean refine(JavaExpression expression, AnnotationMirror target, CFStore store) {
+  private boolean refine(JavaExpression expression, AnnotationMirror target, NullSpecStore store) {
     return refiner.update(expression, target, store);
   }
 
@@ -787,7 +786,7 @@ final class NullSpecTransfer extends CFTransfer {
    * Refines the expression to be at least as specific as the target type, and returns whether this
    * is a change in its value.
    */
-  private boolean refine(JavaExpression expression, CFValue target, CFStore store) {
+  private boolean refine(JavaExpression expression, CFValue target, NullSpecStore store) {
     return refiner.update(expression, target, store);
   }
 
@@ -795,7 +794,7 @@ final class NullSpecTransfer extends CFTransfer {
    * Marks the node as unionNull (even if it was previously a more specific type), and returns
    * whether this is a change in its value.
    */
-  private boolean overwriteWithUnionNull(Node node, CFStore store) {
+  private boolean overwriteWithUnionNull(Node node, NullSpecStore store) {
     return overwriteWithUnionNull(expressionToStoreFor(node), store);
   }
 
@@ -803,7 +802,7 @@ final class NullSpecTransfer extends CFTransfer {
    * Marks the expression as unionNull (even if it was previously a more specific type), and returns
    * whether this is a change in its value.
    */
-  private boolean overwriteWithUnionNull(JavaExpression expression, CFStore store) {
+  private boolean overwriteWithUnionNull(JavaExpression expression, NullSpecStore store) {
     return overwrite(expression, unionNull, store);
   }
 
@@ -811,7 +810,8 @@ final class NullSpecTransfer extends CFTransfer {
    * Marks the expression to be the given target type (even if it was previously a more specific
    * type), and returns whether this is a change in its value.
    */
-  private boolean overwrite(JavaExpression expression, AnnotationMirror target, CFStore store) {
+  private boolean overwrite(
+      JavaExpression expression, AnnotationMirror target, NullSpecStore store) {
     return overwriter.update(expression, target, store);
   }
 
@@ -819,7 +819,7 @@ final class NullSpecTransfer extends CFTransfer {
    * Marks the expression to be the given target type (even if it was previously a more specific
    * type), and returns whether this is a change in its value.
    */
-  private boolean overwrite(JavaExpression expression, CFValue target, CFStore store) {
+  private boolean overwrite(JavaExpression expression, CFValue target, NullSpecStore store) {
     return overwriter.update(expression, target, store);
   }
 
@@ -830,7 +830,7 @@ final class NullSpecTransfer extends CFTransfer {
      * Updates the expression's value to match the given target, if permitted by {@link
      * #shouldNotChangeFromOldToTarget}, and returns whether this is a change in its value.
      */
-    final boolean update(JavaExpression expression, AnnotationMirror target, CFStore store) {
+    final boolean update(JavaExpression expression, AnnotationMirror target, NullSpecStore store) {
       return update(
           expression, analysis.createSingleAnnotationValue(target, expression.getType()), store);
     }
@@ -839,7 +839,7 @@ final class NullSpecTransfer extends CFTransfer {
      * Updates the expression's value to match the given target, if permitted by {@link
      * #shouldNotChangeFromOldToTarget} and returns whether this is a change in its value.
      */
-    final boolean update(JavaExpression expression, CFValue target, CFStore store) {
+    final boolean update(JavaExpression expression, CFValue target, NullSpecStore store) {
       if (!canInsertJavaExpression(expression)) {
         /*
          * Example: In `requireNonNull((SomeType) x)`, `(SomeType) x` appears as Unknown.
@@ -939,15 +939,16 @@ final class NullSpecTransfer extends CFTransfer {
 
   // TODO(cpovirk): Maybe avoid mutating the result value in place?
 
-  private void setResultValueToNonNull(TransferResult<CFValue, CFStore> result) {
+  private void setResultValueToNonNull(TransferResult<CFValue, NullSpecStore> result) {
     setResultValue(result, nonNull);
   }
 
-  private void setResultValueOperatorToUnspecified(TransferResult<CFValue, CFStore> result) {
+  private void setResultValueOperatorToUnspecified(TransferResult<CFValue, NullSpecStore> result) {
     setResultValue(result, nullnessOperatorUnspecified);
   }
 
-  private void setResultValue(TransferResult<CFValue, CFStore> result, AnnotationMirror qual) {
+  private void setResultValue(
+      TransferResult<CFValue, NullSpecStore> result, AnnotationMirror qual) {
     /*
      * TODO(cpovirk): Refine the result, rather than overwrite it. (And rename the method
      * accordingly.)

@@ -77,9 +77,6 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
-import org.checkerframework.framework.flow.CFAnalysis;
-import org.checkerframework.framework.flow.CFStore;
-import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -113,12 +110,15 @@ import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.Pair;
 import org.jspecify.annotations.DefaultNonNull;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullnessUnspecified;
 
 final class NullSpecAnnotatedTypeFactory
-    extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
+    extends GenericAnnotatedTypeFactory<
+        CFValue, NullSpecStore, NullSpecTransfer, NullSpecAnalysis> {
+  // TODO(cpovirk): Consider creating these once and passing them to all other classes.
   private final AnnotationMirror nonNull;
   private final AnnotationMirror unionNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
@@ -696,8 +696,8 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  public CFTransfer createFlowTransferFunction(
-      CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
+  public NullSpecTransfer createFlowTransferFunction(
+      CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
     return new NullSpecTransfer(analysis);
   }
 
@@ -1078,6 +1078,11 @@ final class NullSpecAnnotatedTypeFactory
         type.replaceAnnotation(nonNull);
       }
     }
+  }
+
+  @Override
+  protected NullSpecAnalysis createFlowAnalysis(List<Pair<VariableElement, CFValue>> fieldValues) {
+    return new NullSpecAnalysis(checker, this, fieldValues);
   }
 
   @Override
