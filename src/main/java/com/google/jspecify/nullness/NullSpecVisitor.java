@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_KINDS;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
@@ -23,12 +24,8 @@ import static com.sun.source.tree.Tree.Kind.SUPER_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
-import static javax.lang.model.element.ElementKind.EXCEPTION_PARAMETER;
-import static javax.lang.model.element.ElementKind.LOCAL_VARIABLE;
 import static javax.lang.model.element.ElementKind.PACKAGE;
-import static javax.lang.model.element.ElementKind.RESOURCE_VARIABLE;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
@@ -492,7 +489,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     if (kind == ENUM_CONSTANT) {
       checkNoNullnessAnnotations(
           tree, tree.getModifiers().getAnnotations(), "enum.constant.annotated");
-    } else if (LOCAL_VARIABLE_KINDS.contains(kind)) {
+    } else if (IMPLEMENTATION_VARIABLE_KINDS.contains(kind)) {
       checkNoNullnessAnnotations(
           tree, tree.getModifiers().getAnnotations(), "local.variable.annotated");
     }
@@ -605,8 +602,4 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   protected NullSpecAnnotatedTypeFactory createTypeFactory() {
     return new NullSpecAnnotatedTypeFactory(checker);
   }
-
-  private static final Set<ElementKind> LOCAL_VARIABLE_KINDS =
-      unmodifiableSet(
-          new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE, EXCEPTION_PARAMETER)));
 }

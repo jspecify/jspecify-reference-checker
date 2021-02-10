@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
@@ -23,18 +24,14 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
-import static java.util.Collections.unmodifiableSet;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
-import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
 import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
-import static org.checkerframework.framework.qual.TypeUseLocation.LOCAL_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
-import static org.checkerframework.framework.qual.TypeUseLocation.RESOURCE_VARIABLE;
 import static org.checkerframework.framework.qual.TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
@@ -58,7 +55,6 @@ import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -822,7 +818,7 @@ final class NullSpecAnnotatedTypeFactory
     }
 
     private void addDefaultToTopForLocationsRefinedByDataflow(Element elt) {
-      for (TypeUseLocation location : LOCATIONS_REFINED_BY_DATAFLOW) {
+      for (TypeUseLocation location : IMPLEMENTATION_VARIABLE_LOCATIONS) {
         addElementDefault(elt, unionNull, location);
       }
     }
@@ -1405,10 +1401,6 @@ final class NullSpecAnnotatedTypeFactory
     return element.getAnnotationMirrors().stream()
         .anyMatch(m -> m.getAnnotationType().asElement().getSimpleName().contentEquals(name));
   }
-
-  private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
-      unmodifiableSet(
-          new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE, EXCEPTION_PARAMETER)));
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
   private <T extends AnnotatedTypeMirror> T withMinusNull(T type) {

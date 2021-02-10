@@ -14,15 +14,21 @@
 
 package com.google.jspecify.nullness;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
   /*
@@ -67,6 +73,22 @@ final class Util {
     }
     return elements.get(0);
   }
+
+  static final Set<TypeUseLocation> IMPLEMENTATION_VARIABLE_LOCATIONS =
+      unmodifiableSet(
+          new HashSet<>(
+              asList(
+                  TypeUseLocation.LOCAL_VARIABLE,
+                  TypeUseLocation.RESOURCE_VARIABLE,
+                  TypeUseLocation.EXCEPTION_PARAMETER)));
+
+  static final Set<ElementKind> IMPLEMENTATION_VARIABLE_KINDS =
+      unmodifiableSet(
+          new HashSet<>(
+              asList(
+                  ElementKind.LOCAL_VARIABLE,
+                  ElementKind.RESOURCE_VARIABLE,
+                  ElementKind.EXCEPTION_PARAMETER)));
 
   private Util() {}
 }
