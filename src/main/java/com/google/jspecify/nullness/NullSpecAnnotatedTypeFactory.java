@@ -811,11 +811,8 @@ final class NullSpecAnnotatedTypeFactory
         addDefaultToTopForLocationsRefinedByDataflow(elt);
         addElementDefault(elt, minusNull, IMPLICIT_LOWER_BOUND);
 
-        // But for exception parameters, we want the default to be minusNull:
-        addElementDefault(elt, minusNull, EXCEPTION_PARAMETER);
-
         /*
-         * Note one other difference from the CLIMB defaults: We want the default for implicit upper
+         * But note one difference from the CLIMB defaults: We want the default for implicit upper
          * bounds to match the "default default" of nullnessOperatorUnspecified, not to be
          * top/unionNull. We accomplished this already simply by not making our
          * addCheckedStandardDefaults implementation call its supermethod (which would otherwise
@@ -1410,7 +1407,8 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   private static final Set<TypeUseLocation> LOCATIONS_REFINED_BY_DATAFLOW =
-      unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
+      unmodifiableSet(
+          new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE, EXCEPTION_PARAMETER)));
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
   private <T extends AnnotatedTypeMirror> T withMinusNull(T type) {
