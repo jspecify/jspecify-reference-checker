@@ -115,7 +115,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   private void ensureNonNull(Tree tree, String messageKey) {
     AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-    // Maybe this should call isSubtype(type, nonNullObject)? I'd need to create nonNullObject.
+    // Maybe this should call isSubtype(type, objectMinusNull)? I'd need to create objectMinusNull.
     if (!isPrimitive(type.getUnderlyingType())
         && !atypeFactory.isNullExclusiveUnderEveryParameterization(type)) {
       String origin = originString(tree);
@@ -598,7 +598,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, NonNull.class)));
+    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, MinusNull.class)));
   }
 
   @Override

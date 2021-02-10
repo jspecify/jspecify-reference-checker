@@ -21,4 +21,4 @@ import org.checkerframework.framework.qual.InvisibleQualifier;
 
 @Target(TYPE_USE)
 @InvisibleQualifier
-@interface NonNull {}
+@interface MinusNull {}

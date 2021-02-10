@@ -72,7 +72,7 @@ import org.jspecify.annotations.NullnessUnspecified;
 
 final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, NullSpecTransfer> {
   private final NullSpecAnnotatedTypeFactory atypeFactory;
-  private final AnnotationMirror nonNull;
+  private final AnnotationMirror minusNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
   private final AnnotatedDeclaredType javaUtilMap;
@@ -93,7 +93,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
-    nonNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NonNull.class);
+    minusNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), MinusNull.class);
     nullnessOperatorUnspecified =
         AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
@@ -353,7 +353,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
             isAnonymousClassCall.getParameters());
     return refine(
         getEnclosingClassCall,
-        analysis.createSingleAnnotationValue(nonNull, javaLangClass.getUnderlyingType()),
+        analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
         thenStore);
   }
 
@@ -369,7 +369,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
             isArrayCall.getParameters());
     return refine(
         getComponentTypeCall,
-        analysis.createSingleAnnotationValue(nonNull, javaLangClass.getUnderlyingType()),
+        analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
         thenStore);
   }
 
@@ -771,7 +771,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
   /** Marks the expression as non-null, and returns whether this is a change in its value. */
   private boolean refineNonNull(JavaExpression expression, NullSpecStore store) {
-    return refine(expression, nonNull, store);
+    return refine(expression, minusNull, store);
   }
 
   /**
@@ -918,10 +918,10 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
         atypeFactory
             .getQualifierHierarchy()
             .findAnnotationInHierarchy(targetDataflowValue.getAnnotations(), unionNull);
-    if (existing != null && areSame(existing, nonNull)) {
+    if (existing != null && areSame(existing, minusNull)) {
       return true;
     }
-    if (target != null && areSame(target, nonNull)) {
+    if (target != null && areSame(target, minusNull)) {
       return false;
     }
     if (existing == null) {
@@ -940,7 +940,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   // TODO(cpovirk): Maybe avoid mutating the result value in place?
 
   private void setResultValueToNonNull(TransferResult<CFValue, NullSpecStore> result) {
-    setResultValue(result, nonNull);
+    setResultValue(result, minusNull);
   }
 
   private void setResultValueOperatorToUnspecified(TransferResult<CFValue, NullSpecStore> result) {

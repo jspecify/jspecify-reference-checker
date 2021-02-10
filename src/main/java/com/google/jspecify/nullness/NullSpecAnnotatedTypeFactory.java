@@ -119,7 +119,7 @@ final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<
         CFValue, NullSpecStore, NullSpecTransfer, NullSpecAnalysis> {
   // TODO(cpovirk): Consider creating these once and passing them to all other classes.
-  private final AnnotationMirror nonNull;
+  private final AnnotationMirror minusNull;
   private final AnnotationMirror unionNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
 
@@ -145,7 +145,7 @@ final class NullSpecAnnotatedTypeFactory
     super(checker, checker.hasOption("checkImpl"));
 
     /*
-     * Under our proposed subtyping rules, every type has an "additional nullness." There are 3
+     * Under our proposed subtyping rules, every type has an "additional nullness." There are 4
      * additional-nullness values. In this implementation, we *mostly* represent each one with an
      * AnnotationMirror.
      *
@@ -153,9 +153,9 @@ final class NullSpecAnnotatedTypeFactory
      * NO_CHANGE. When we need to represent NO_CHANGE, we take one of two approaches, depending on
      * the base type:
      *
-     * - On most types, we use an extra AnnotationMirror we've defined, nonNull.
-     *
      * - On type-variable usage, we use *no* annotation.
+     *
+     * - On other types, we use minusNull.
      *
      * For further discussion of this, see isNullExclusiveUnderEveryParameterization.
      *
@@ -165,7 +165,7 @@ final class NullSpecAnnotatedTypeFactory
      * nullness of a type nullnessOperatorUnspecified?" (The latter can happen not only from a
      * @NullnessUnspecified annotation but also from the default in effect.)
      */
-    nonNull = AnnotationBuilder.fromClass(elements, NonNull.class);
+    minusNull = AnnotationBuilder.fromClass(elements, MinusNull.class);
     unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
     nullnessOperatorUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
     /*
@@ -177,17 +177,17 @@ final class NullSpecAnnotatedTypeFactory
      * need to include the JSpecify annotations jar on the classpath, even if the annotations don't
      * appear in any of the sources or libraries.
      *
-     * For NonNull, it's worse: Since NonNull doesn't exist in the *annotations* jar (since we
+     * For MinusNull, it's worse: Since MinusNull doesn't exist in the *annotations* jar (since we
      * aren't exposing it to end users, at least currently), checker invocations must put the
      * *checker* jar on the *classpath* (not just the processorpath). Perhaps we should include
-     * NonNull in the annotations jar (as a package-private class that the checker refers to only by
-     * name, including looking up reflectively in createSupportedTypeQualifiers?)? It would be nice
-     * if we didn't need a full AnnotationMirror at all, only a class name, but AnnotationMirror is
-     * baked into CF deeply, since CF needs to support generalized annotation types, write
-     * annotations back to bytecode, and perhaps more.
+     * MinusNull in the annotations jar (as a package-private class that the checker refers to only
+     * by name, including looking up reflectively in createSupportedTypeQualifiers?)? It would be
+     * nice if we didn't need a full AnnotationMirror at all, only a class name, but
+     * AnnotationMirror is baked into CF deeply, since CF needs to support generalized annotation
+     * types, write annotations back to bytecode, and perhaps more.
      *
      * For NullnessUnspecified, it depends on whether we expose NullnessUnspecified to users or not:
-     * If we do, then it's like Nullable. If we don't, then it's like NonNull.
+     * If we do, then it's like Nullable. If we don't, then it's like MinusNull.
      *
      * TODO(cpovirk): See if we can avoid requiring the checker on the classpath.
      */
@@ -225,7 +225,7 @@ final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new LinkedHashSet<>(asList(Nullable.class, NullnessUnspecified.class, NonNull.class));
+    return new LinkedHashSet<>(asList(Nullable.class, NullnessUnspecified.class, MinusNull.class));
   }
 
   @Override
@@ -264,24 +264,24 @@ final class NullSpecAnnotatedTypeFactory
       if (!isLeastConvenientWorld && eitherIsUnspecified) {
         return true;
       }
-      return areSame(subAnno, nonNull) || areSame(superAnno, unionNull);
+      return areSame(subAnno, minusNull) || areSame(superAnno, unionNull);
     }
 
     @Override
     protected QualifierKindHierarchy createQualifierKindHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses) {
-      return new DefaultQualifierKindHierarchy(qualifierClasses, /*bottom=*/ NonNull.class) {
+      return new DefaultQualifierKindHierarchy(qualifierClasses, /*bottom=*/ MinusNull.class) {
         @Override
         protected Map<DefaultQualifierKind, Set<DefaultQualifierKind>> createDirectSuperMap() {
-          DefaultQualifierKind nonNullKind =
-              nameToQualifierKind.get(NonNull.class.getCanonicalName());
+          DefaultQualifierKind minusNullKind =
+              nameToQualifierKind.get(MinusNull.class.getCanonicalName());
           DefaultQualifierKind unionNullKind =
               nameToQualifierKind.get(Nullable.class.getCanonicalName());
           DefaultQualifierKind nullnessOperatorUnspecified =
               nameToQualifierKind.get(NullnessUnspecified.class.getCanonicalName());
 
           Map<DefaultQualifierKind, Set<DefaultQualifierKind>> supers = new HashMap<>();
-          supers.put(nonNullKind, singleton(nullnessOperatorUnspecified));
+          supers.put(minusNullKind, singleton(nullnessOperatorUnspecified));
           supers.put(nullnessOperatorUnspecified, singleton(unionNullKind));
           supers.put(unionNullKind, emptySet());
           return supers;
@@ -354,7 +354,7 @@ final class NullSpecAnnotatedTypeFactory
        * TODO(cpovirk): Why are the supertype cases so different from the subtype cases above? In
        * particular: Why is it important to replace the subtype instead of the supertype?
        */
-      return super.visitTypevarSupertype(withNonNull(subtype), supertype);
+      return super.visitTypevarSupertype(withMinusNull(subtype), supertype);
     }
 
     @Override
@@ -366,7 +366,7 @@ final class NullSpecAnnotatedTypeFactory
        * Plus: TODO(cpovirk): Why is it important to replace an argument only conditionally?
        */
       return super.visitWildcardSupertype(
-          isNullInclusiveUnderEveryParameterization(supertype) ? withNonNull(subtype) : subtype,
+          isNullInclusiveUnderEveryParameterization(supertype) ? withMinusNull(subtype) : subtype,
           supertype);
     }
 
@@ -460,8 +460,9 @@ final class NullSpecAnnotatedTypeFactory
   private boolean nullnessEstablishingPathExists(
       AnnotatedTypeMirror subtype, Predicate<TypeMirror> supertypeMatcher) {
     /*
-     * In most cases, we do not need to check specifically for nonNull because the remainder of the
-     * method is sufficient. However, consider a type that meets all 3 of the following criteria:
+     * In most cases, we do not need to check specifically for minusNull because the remainder of
+     * the method is sufficient. However, consider a type that meets all 3 of the following
+     * criteria:
      *
      * 1. a local variable
      *
@@ -473,7 +474,7 @@ final class NullSpecAnnotatedTypeFactory
      * sense... until an implementation checks it with `if (foo != null)`. At that point, we need to
      * store an additional piece of information: Yes, _the type written in code_ can permit null,
      * but we know from dataflow that _this particular value_ is _not_ null. That additional
-     * information is stored by attaching nonNull to the type-variable usage. This produces a type
+     * information is stored by attaching minusNull to the type-variable usage. This produces a type
      * distinct from all of:
      *
      * - `T`: `T` with additional nullness NO_CHANGE
@@ -484,14 +485,14 @@ final class NullSpecAnnotatedTypeFactory
      *
      * It is unfortunate that this forces us to represent type-variable usages differently from how
      * we represent all other types. For all other types, the way to represent a type with
-     * additional nullness NO_CHANGE is to attach nonNull. But again, for type-variable usages, the
-     * way to do it is to attach *no* annotation.
+     * additional nullness NO_CHANGE is to attach minusNull. But again, for type-variable usages,
+     * the way to do it is to attach *no* annotation.
      *
-     * TODO(cpovirk): Is the check for nonNull also important for the special case of nonNull
+     * TODO(cpovirk): Is the check for minusNull also important for the special case of minusNull
      * type-variable usages generated by substituteTypeVariable? If so, add a sample input that
      * demonstrates it.
      */
-    if (subtype.hasAnnotation(nonNull)) {
+    if (subtype.hasAnnotation(minusNull)) {
       return true;
     }
 
@@ -639,14 +640,14 @@ final class NullSpecAnnotatedTypeFactory
       if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type1)
           && withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type2)) {
         /*
-         * One is `T`, and the other is `@NonNull T`, and `T` has a non-nullable bound. Thus, the
+         * One is `T`, and the other is `@MinusNull T`, and `T` has a non-nullable bound. Thus, the
          * two are effectively the same.
          *
          * TODO(cpovirk): Why do we sometimes end up with one of those and sometimes with the other?
-         * Can we ensure that we always end up with `@NonNull T`? Alternatively, can we avoid
-         * creating `@NonNull T` when `T` is already known to be non-nullable? And whether we leave
-         * this code in or replace it with other code, do we need to update our subtyping rules to
-         * reflect this case?
+         * Can we ensure that we always end up with `@MinusNull T`? Alternatively, can we avoid
+         * creating `@MinusNull T` when `T` is already known to be non-nullable? And whether we
+         * leave this code in or replace it with other code, do we need to update our subtyping
+         * rules to reflect this case?
          */
         return true;
       }
@@ -680,10 +681,10 @@ final class NullSpecAnnotatedTypeFactory
        * `ImmutableList.Builder<E>` in non-null-aware code: Technically, we aren't sure if the
        * non-null-aware class might be instantiated with a nullable argument for E. But we know
        * that, no matter what, if someone calls `listBuilder.add(null)`, that is bad. So we treat
-       * the declaration as if it said `ImmutableList.Builder<@NonNull E>`.
+       * the declaration as if it said `ImmutableList.Builder<@MinusNull E>`.
        */
       if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(use)) {
-        substitute.replaceAnnotation(nonNull);
+        substitute.replaceAnnotation(minusNull);
       } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
       } else if (argument.hasAnnotation(nullnessOperatorUnspecified)
@@ -704,7 +705,7 @@ final class NullSpecAnnotatedTypeFactory
   @Override
   public AnnotatedDeclaredType getSelfType(Tree tree) {
     AnnotatedDeclaredType superResult = super.getSelfType(tree);
-    return superResult == null ? null : withNonNull(superResult);
+    return superResult == null ? null : withMinusNull(superResult);
   }
 
   @Override
@@ -784,13 +785,13 @@ final class NullSpecAnnotatedTypeFactory
           // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
           || hasAnnotationInCode(elt, "ProtoNonnullApi")) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
-        addElementDefault(elt, nonNull, OTHERWISE);
+        addElementDefault(elt, minusNull, OTHERWISE);
         addDefaultToTopForLocationsRefinedByDataflow(elt);
         /*
          * (For any TypeUseLocation that we don't set an explicit value for, we inherit any value
          * from the enclosing element, which might be a non-null-aware element. That's fine: While
          * our non-null-aware setup sets defaults for more locations than just these, it sets those
-         * locations' defaults to nonNull -- matching the value that we want here.)
+         * locations' defaults to minusNull -- matching the value that we want here.)
          */
       } else if (initialDefaultsAreEmpty) {
         /*
@@ -803,15 +804,15 @@ final class NullSpecAnnotatedTypeFactory
         addElementDefault(elt, nullnessOperatorUnspecified, OTHERWISE);
 
         // Some locations are intrinsically non-nullable:
-        addElementDefault(elt, nonNull, CONSTRUCTOR_RESULT);
-        addElementDefault(elt, nonNull, RECEIVER);
+        addElementDefault(elt, minusNull, CONSTRUCTOR_RESULT);
+        addElementDefault(elt, minusNull, RECEIVER);
 
         // We do want *some* of the CLIMB standard defaults:
         addDefaultToTopForLocationsRefinedByDataflow(elt);
-        addElementDefault(elt, nonNull, IMPLICIT_LOWER_BOUND);
+        addElementDefault(elt, minusNull, IMPLICIT_LOWER_BOUND);
 
-        // But for exception parameters, we want the default to be nonNull:
-        addElementDefault(elt, nonNull, EXCEPTION_PARAMETER);
+        // But for exception parameters, we want the default to be minusNull:
+        addElementDefault(elt, minusNull, EXCEPTION_PARAMETER);
 
         /*
          * Note one other difference from the CLIMB defaults: We want the default for implicit upper
@@ -846,12 +847,12 @@ final class NullSpecAnnotatedTypeFactory
        *
        * - Non-null-aware code (discussed above) is easy: We apply nullnessOperatorUnspecified to
        * everything except local variables. But null-aware code more complex. First, set aside local
-       * variables, which we handle as discussed above. After that, we need to apply nonNull to most
-       * types, but we need to *not* apply it to (non-local-variable) type-variable usages. (For
-       * more on this, see isNullExclusiveUnderEveryParameterization.) This need is weird enough
-       * that stock CF doesn't appear to support it. Our solution is to introduce this hook method
-       * into our CF fork and then override it here. Our solution also requires that we set up
-       * defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
+       * variables, which we handle as discussed above. After that, we need to apply minusNull to
+       * most types, but we need to *not* apply it to (non-local-variable) type-variable usages.
+       * (For more on this, see isNullExclusiveUnderEveryParameterization.) This need is weird
+       * enough that stock CF doesn't appear to support it. Our solution is to introduce this hook
+       * method into our CF fork and then override it here. Our solution also requires that we set
+       * up defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
        * locations.
        */
       return areSame(qual, nullnessOperatorUnspecified);
@@ -919,14 +920,14 @@ final class NullSpecAnnotatedTypeFactory
          * AnnotatedTypeMirror objects, then change this code to fill in this value unconditionally
          * (matching visitPrimitive below).
          */
-        addIfNoAnnotationPresent(enclosingType, nonNull);
+        addIfNoAnnotationPresent(enclosingType, minusNull);
       }
       return super.visitDeclared(type, p);
     }
 
     @Override
     public Void visitPrimitive(AnnotatedPrimitiveType type, Void p) {
-      type.replaceAnnotation(nonNull);
+      type.replaceAnnotation(minusNull);
       return super.visitPrimitive(type, p);
     }
 
@@ -983,7 +984,7 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
       if (tree.getKind().asInterface() == LiteralTree.class) {
-        type.addAnnotation(tree.getKind() == NULL_LITERAL ? unionNull : nonNull);
+        type.addAnnotation(tree.getKind() == NULL_LITERAL ? unionNull : minusNull);
       }
 
       return super.visitLiteral(tree, type);
@@ -991,7 +992,7 @@ final class NullSpecAnnotatedTypeFactory
 
     @Override
     public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
-      type.addAnnotation(nonNull);
+      type.addAnnotation(minusNull);
       return super.visitBinary(tree, type);
     }
 
@@ -1000,7 +1001,7 @@ final class NullSpecAnnotatedTypeFactory
       if (establishesStreamElementsAreNonNull(tree)) {
         AnnotatedTypeMirror returnedStreamElementType =
             ((AnnotatedDeclaredType) type).getTypeArguments().get(0);
-        returnedStreamElementType.replaceAnnotation(nonNull);
+        returnedStreamElementType.replaceAnnotation(minusNull);
       }
 
       return super.visitMethodInvocation(tree, type);
@@ -1075,7 +1076,7 @@ final class NullSpecAnnotatedTypeFactory
          * And consequently, defaults.visit(...), which ran before us, applied a default of
          * nullnessOperatorUnspecified. Again, that default isn't correct, so we override it here.
          */
-        type.replaceAnnotation(nonNull);
+        type.replaceAnnotation(minusNull);
       }
     }
   }
@@ -1137,7 +1138,7 @@ final class NullSpecAnnotatedTypeFactory
       AnnotatedTypeMirror lowerBound = ((AnnotatedTypeVariable) type).getLowerBound();
       if (lowerBound instanceof AnnotatedNullType
           && !lowerBound.isAnnotatedInHierarchy(unionNull)) {
-        lowerBound.addAnnotation(nonNull);
+        lowerBound.addAnnotation(minusNull);
       }
     }
   }
@@ -1342,8 +1343,8 @@ final class NullSpecAnnotatedTypeFactory
      * (including this one!) to depend on those annotations. All core JSpecify nullness information
      * should be derivable from the originally written annotations.
      *
-     * (We especially don't want to write @NonNull to bytecode, since it is an implementation detail
-     * of this current checker implementation.)
+     * (We especially don't want to write @MinusNull to bytecode, since it is an implementation
+     * detail of this current checker implementation.)
      *
      * "Computed annotations" includes not only annotations added from defaults but also any
      * @Inherited/@InheritedAnnotation declaration annotations copied from supertypes. We may or may
@@ -1412,17 +1413,17 @@ final class NullSpecAnnotatedTypeFactory
       unmodifiableSet(new HashSet<>(asList(LOCAL_VARIABLE, RESOURCE_VARIABLE)));
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
-  private <T extends AnnotatedTypeMirror> T withNonNull(T type) {
+  private <T extends AnnotatedTypeMirror> T withMinusNull(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     /*
      * TODO(cpovirk): In the case of a type-variable usage, I feel like we should need to *remove*
-     * any existing annotation but then not *add* nonNull. (This is because of the difference
+     * any existing annotation but then not *add* minusNull. (This is because of the difference
      * between type-variable usages and all other types, as discussed near the end of the giant
      * comment in isNullExclusiveUnderEveryParameterization.) However, the current code passes all
      * tests. Figure out whether that makes sense or we need more tests to show why not.
      */
-    type.replaceAnnotation(nonNull);
+    type.replaceAnnotation(minusNull);
     return type;
   }
 
