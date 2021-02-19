@@ -24,6 +24,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -31,6 +32,14 @@ import javax.lang.model.element.TypeElement;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
+  static boolean nameMatches(Element element, String name) {
+    return element.getSimpleName().contentEquals(name);
+  }
+
+  static boolean nameMatches(AnnotationMirror m, String name) {
+    return nameMatches(m.getAnnotationType().asElement(), name);
+  }
+
   /*
    * NOTE: This DOES NOT match methods that OVERRIDE the given method. For example,
    * `nameMatches(method, "Map", "get")` will NOT match a call that is statically resolved to
@@ -47,8 +56,7 @@ final class Util {
    * TODO(cpovirk): Require a fully qualified class name (e.g., "java.util.Objects" vs. "Objects").
    */
   static boolean nameMatches(Element element, String clazz, String method) {
-    return element.getSimpleName().contentEquals(method)
-        && element.getEnclosingElement().getSimpleName().contentEquals(clazz);
+    return nameMatches(element, method) && nameMatches(element.getEnclosingElement(), clazz);
   }
 
   /** See caveats on {@link #nameMatches(Element, String, String)}. */
@@ -66,7 +74,7 @@ final class Util {
         type.getEnclosedElements().stream()
             .filter(ExecutableElement.class::isInstance)
             .map(ExecutableElement.class::cast)
-            .filter(x -> x.getSimpleName().contentEquals(name))
+            .filter(x -> nameMatches(x, name))
             .collect(toList());
     if (elements.size() != 1) {
       throw new IllegalArgumentException(type + "." + name);

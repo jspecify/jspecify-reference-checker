@@ -680,12 +680,16 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
      * We can't use nameMatches(ExecutionException, getCause) because the ExecutableElement of the
      * call is that of Throwable.getCause, not ExecutionException.getCause (an override that does
      * not exist in the JDK).
+     *
+     * (But using TypeMirror is technically superior: It checks the whole class name, and it could
+     * be extended to look for subtypes. Ideally we'd also replace the method-name check with a
+     * full-on override check.)
      */
     return analysis
             .getTypes()
             .isSameType(
                 node.getTarget().getReceiver().getType(), javaUtilConcurrentExecutionException)
-        && node.getTarget().getMethod().getSimpleName().contentEquals("getCause");
+        && nameMatches(node.getTarget().getMethod(), "getCause");
   }
 
   private boolean isGetCauseOnInvocationTargetException(MethodInvocationNode node) {

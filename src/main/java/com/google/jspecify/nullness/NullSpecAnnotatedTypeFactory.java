@@ -1384,7 +1384,7 @@ final class NullSpecAnnotatedTypeFactory
      * return here, getUpperBounds will NPE. But that's probably better than silently failing to do
      * something and then producing a more mysterious bug later.
      */
-    return type.getTypeVariable() != null ? (TypeParameterElement) typeVariable.asElement() : null;
+    return type.getTypeVariable() != null ? asElement(typeVariable) : null;
   }
 
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
@@ -1398,8 +1398,7 @@ final class NullSpecAnnotatedTypeFactory
    * does not consider stub files.
    */
   private static boolean hasAnnotationInCode(Element element, String name) {
-    return element.getAnnotationMirrors().stream()
-        .anyMatch(m -> m.getAnnotationType().asElement().getSimpleName().contentEquals(name));
+    return element.getAnnotationMirrors().stream().anyMatch(m -> nameMatches(m, name));
   }
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
@@ -1423,6 +1422,10 @@ final class NullSpecAnnotatedTypeFactory
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     type.replaceAnnotation(unionNull);
     return type;
+  }
+
+  private static TypeParameterElement asElement(TypeVariable typeVariable) {
+    return (TypeParameterElement) typeVariable.asElement();
   }
 
   NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {
