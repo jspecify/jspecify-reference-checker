@@ -772,15 +772,8 @@ final class NullSpecAnnotatedTypeFactory
        *
        * Note: Setting a default here affects not only this element but also its descendants in the
        * syntax tree.
-       *
-       * XXX: When adding support for aliases, make sure to support them here. But consider how to
-       * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular,
-       * we have already edited getDeclAnnotations to remove its inheritance logic, and we needed to
-       * do so to work around another problem (though perhaps we could have found alternatives).
        */
-      if (getDeclAnnotation(elt, DefaultNonNull.class) != null
-          // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
-          || hasAnnotationInCode(elt, "ProtoNonnullApi")) {
+      if (hasNullAwareOrEquivalent(elt)) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, minusNull, OTHERWISE);
         addDefaultToTopForLocationsRefinedByDataflow(elt);
@@ -1392,6 +1385,18 @@ final class NullSpecAnnotatedTypeFactory
     if (!type.isAnnotatedInHierarchy(unionNull)) {
       type.addAnnotation(annotation);
     }
+  }
+
+  /*
+   * XXX: When adding support for aliases, make sure to support them here. But consider how to
+   * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular, we
+   * have already edited getDeclAnnotations to remove its inheritance logic, and we needed to do so
+   * to work around another problem (though perhaps we could have found alternatives).
+   */
+  private boolean hasNullAwareOrEquivalent(Element elt) {
+    return getDeclAnnotation(elt, DefaultNonNull.class) != null
+        // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
+        || hasAnnotationInCode(elt, "ProtoNonnullApi");
   }
 
   /**
