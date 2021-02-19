@@ -62,6 +62,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -1397,8 +1398,8 @@ final class NullSpecAnnotatedTypeFactory
    * Returns whether the given element has an annotation with the given simple name. This method
    * does not consider stub files.
    */
-  private static boolean hasAnnotationInCode(Element element, String name) {
-    return element.getAnnotationMirrors().stream().anyMatch(m -> nameMatches(m, name));
+  private static boolean hasAnnotationInCode(AnnotatedConstruct construct, String name) {
+    return construct.getAnnotationMirrors().stream().anyMatch(a -> nameMatches(a, name));
   }
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
