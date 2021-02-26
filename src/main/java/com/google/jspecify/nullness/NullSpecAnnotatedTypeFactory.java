@@ -382,6 +382,21 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     protected boolean isSubtype(
         AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype, AnnotationMirror top) {
+      if (subtype instanceof AnnotatedUnionType) {
+        /*
+         * Union types arise only with caught exceptions. Caught exceptions are always non-null, and
+         * they are unlikely to be compared to a generic supertype, so there is rarely a need to
+         * perform further checks. And that's fortunate, as the further checks are broken for
+         * reasons that I haven't dug into.
+         *
+         * TODO(cpovirk): This does break the checks of type arguments if we're comparing
+         * `FooException | BarException` to `InterfaceThatTheyImplement<Baz>`. (I *think* that's
+         * possible?) The fix is probably to override visitUnionSupertype similarly to how we
+         * override visitTypevarSubtype, etc. Or ideally, this probably will go away when we rework
+         * our handling of types to more closely match CF's rules.
+         */
+        return true;
+      }
       return super.isSubtype(subtype, supertype, top) && isNullnessSubtype(subtype, supertype);
     }
 
