@@ -17,6 +17,7 @@ package com.google.jspecify.nullness;
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_KINDS;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
+import static com.sun.source.tree.Tree.Kind.ANNOTATED_TYPE;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
 import static com.sun.source.tree.Tree.Kind.PRIMITIVE_TYPE;
@@ -490,8 +491,23 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
       checkNoNullnessAnnotations(
           tree, tree.getModifiers().getAnnotations(), "enum.constant.annotated");
     } else if (IMPLEMENTATION_VARIABLE_KINDS.contains(kind)) {
-      checkNoNullnessAnnotations(
-          tree, tree.getModifiers().getAnnotations(), "local.variable.annotated");
+      /*
+       * I had hoped to look up the annotations for "the variable type itself" with
+       * Element.getAnnotationMirrors, but that appears not to include annotations at all.
+       *
+       * I have an alternative that appears to work, but it could probably be simplified.
+       */
+      if (tree.getType().getKind() == ARRAY_TYPE) {
+        checkNoNullnessAnnotationsOnArrayItself(tree, "local.variable.annotated");
+      } else if (tree.getType().getKind() == ANNOTATED_TYPE) {
+        checkNoNullnessAnnotations(
+            tree,
+            ((AnnotatedTypeTree) tree.getType()).getAnnotations(),
+            "local.variable.annotated");
+      } else {
+        checkNoNullnessAnnotations(
+            tree, tree.getModifiers().getAnnotations(), "local.variable.annotated");
+      }
     }
     return super.visitVariable(tree, p);
   }
@@ -512,12 +528,24 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
             && ((ArrayTypeTree) type).getType().getKind() == PRIMITIVE_TYPE);
   }
 
+  private void checkNoNullnessAnnotationsOnArrayItself(
+      VariableTree treeToReportOn, String messageKey) {
+    Tree tree = treeToReportOn.getType();
+    while (tree.getKind() == ARRAY_TYPE) {
+      tree = ((ArrayTypeTree) tree).getType();
+    }
+    if (tree.getKind() == ANNOTATED_TYPE) {
+      checkNoNullnessAnnotations(
+          treeToReportOn, ((AnnotatedTypeTree) tree).getAnnotations(), messageKey);
+    }
+  }
+
   private void checkNoNullnessAnnotations(
-      Tree tree, List<? extends AnnotationTree> annotations, String messageKey) {
+      Tree treeToReportOn, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
       // TODO(cpovirk): Check for aliases here (and perhaps elsewhere).
       if (areSameByName(annotation, nullable) || areSameByName(annotation, nullnessUnspecified)) {
-        checker.reportError(tree, messageKey);
+        checker.reportError(treeToReportOn, messageKey);
       }
     }
   }
