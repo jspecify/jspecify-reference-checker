@@ -199,6 +199,21 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       setResultValueToNonNull(result);
     }
 
+    if (isGetClassLoaderClassLiteral(node)) {
+      /*
+       * getClassLoader can return null for classes from the bootstrap class loader. Here, we assume
+       * that it returns non-null -- but only if it's called on a class literal. That assumption is
+       * still unsound, but it at least ensures (outside of unusual cases) that a given call to
+       * getClassLoader will either always return null or never do so. Users may be surprised and
+       * annoyed if they find that we don't catch the problem with String.class.getClassLoader(),
+       * but those users are likely to be surprised and annoyed by the null return regardless. We'd
+       * still ideally not make their experience *worse*, but I think it's worth trying as a
+       * pragmatic compromise, given that the alternative is to produce an error for common, safe
+       * code like `MyService.class.getClassLoader().getResource("foo")`.
+       */
+      setResultValueToNonNull(result);
+    }
+
     if (isGetThreadGroupOnCurrentThread(node)) {
       setResultValueToNonNull(result);
     }
@@ -634,6 +649,18 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     if (!nameMatches(method, "Class", "getCanonicalName")) {
       return false;
     }
+    return isOnClassLiteral(node);
+  }
+
+  private boolean isGetClassLoaderClassLiteral(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Class", "getClassLoader")) {
+      return false;
+    }
+    return isOnClassLiteral(node);
+  }
+
+  private boolean isOnClassLiteral(MethodInvocationNode node) {
     Node receiver = node.getTarget().getReceiver();
     if (!(receiver instanceof FieldAccessNode)) {
       return false;
