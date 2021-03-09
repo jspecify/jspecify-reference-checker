@@ -471,25 +471,26 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   public Void visitAnnotatedType(AnnotatedTypeTree tree, Void p) {
+    List<? extends AnnotationTree> annotations = tree.getAnnotations();
     Kind kind = tree.getUnderlyingType().getKind();
     if (kind == UNBOUNDED_WILDCARD || kind == EXTENDS_WILDCARD || kind == SUPER_WILDCARD) {
-      checkNoNullnessAnnotations(tree, tree.getAnnotations(), "wildcard.annotated");
+      checkNoNullnessAnnotations(tree, annotations, "wildcard.annotated");
     } else if (kind == PRIMITIVE_TYPE) {
-      checkNoNullnessAnnotations(tree, tree.getAnnotations(), "primitive.annotated");
+      checkNoNullnessAnnotations(tree, annotations, "primitive.annotated");
     }
     return super.visitAnnotatedType(tree, p);
   }
 
   @Override
   public Void visitVariable(VariableTree tree, Void p) {
+    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
     if (isPrimitiveOrArrayOfPrimitive(tree.getType())) {
-      checkNoNullnessAnnotations(tree, tree.getModifiers().getAnnotations(), "primitive.annotated");
+      checkNoNullnessAnnotations(tree, annotations, "primitive.annotated");
     }
 
     ElementKind kind = elementFromDeclaration(tree).getKind();
     if (kind == ENUM_CONSTANT) {
-      checkNoNullnessAnnotations(
-          tree, tree.getModifiers().getAnnotations(), "enum.constant.annotated");
+      checkNoNullnessAnnotations(tree, annotations, "enum.constant.annotated");
     } else if (IMPLEMENTATION_VARIABLE_KINDS.contains(kind)) {
       /*
        * I had hoped to look up the annotations for "the variable type itself" with
@@ -505,8 +506,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
             ((AnnotatedTypeTree) tree.getType()).getAnnotations(),
             "local.variable.annotated");
       } else {
-        checkNoNullnessAnnotations(
-            tree, tree.getModifiers().getAnnotations(), "local.variable.annotated");
+        checkNoNullnessAnnotations(tree, annotations, "local.variable.annotated");
       }
     }
     return super.visitVariable(tree, p);
@@ -514,13 +514,15 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   public Void visitMethod(MethodTree tree, Void p) {
-    if (tree.getReturnType() != null && isPrimitiveOrArrayOfPrimitive(tree.getReturnType())) {
-      checkNoNullnessAnnotations(tree, tree.getModifiers().getAnnotations(), "primitive.annotated");
+    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
+    Tree returnType = tree.getReturnType();
+    if (returnType != null) {
+      if (isPrimitiveOrArrayOfPrimitive(returnType)) {
+        checkNoNullnessAnnotations(tree, annotations, "primitive.annotated");
+      }
     }
     return super.visitMethod(tree, p);
   }
-
-  // TODO(cpovirk): Are there any more visit* methods that might run for annotated primitives?
 
   private boolean isPrimitiveOrArrayOfPrimitive(Tree type) {
     return type.getKind() == PRIMITIVE_TYPE
