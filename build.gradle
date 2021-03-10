@@ -81,6 +81,8 @@ spotless {
 task ensureCheckerFrameworkBuilt() {
     description 'Clone or update the Checker Framework and then build it and all dependencies'
     doLast {
+        def jspecifyExisted = file(jspecifyHome).exists()
+
         if (file(cfHome).exists()) {
             /* Introduce an autoUpdateCF variable if we want to support that usage.
             if (autoUpdateCF) {
@@ -105,6 +107,16 @@ task ensureCheckerFrameworkBuilt() {
             workingDir cfHome
             executable './gradlew'
             args = ['cloneAndBuildDependencies']
+        }
+
+        // We test using some modified samples in a different branch of the jspecify repo, so we want to change to that branch.
+        // However, if there was a JSpecify client to begin with, don't mess with it, as the developer may be running tests in a different branch.
+        if (!jspecifyExisted) {
+            exec {
+                workingDir "${jspecifyHome}/"
+                executable 'git'
+                args = ['checkout', '-q', 'samples-google-prototype']
+            }
         }
     }
 }

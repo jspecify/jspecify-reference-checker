@@ -32,9 +32,8 @@ public class NullSpecTest {
           testFiles,
           NullSpecChecker.class,
           "NullSpec",
-          "-nowarn",
+          "-AassumePure",
           "-Anomsgtext",
-          "-Astubs=stubs/",
           "-AcheckImpl",
           "-AsuppressWarnings=conditional.type.incompatible");
     }
@@ -51,9 +50,8 @@ public class NullSpecTest {
           testFiles,
           NullSpecChecker.class,
           "NullSpec",
-          "-nowarn",
+          "-AassumePure",
           "-Anomsgtext",
-          "-Astubs=stubs/",
           "-AcheckImpl",
           "-AsuppressWarnings=conditional.type.incompatible");
     }
@@ -75,9 +73,8 @@ public class NullSpecTest {
           testFiles,
           NullSpecChecker.class,
           "NullSpec",
-          "-nowarn",
+          "-AassumePure",
           "-Anomsgtext",
-          "-Astubs=stubs/",
           "-AcheckImpl",
           "-AsuppressWarnings=conditional.type.incompatible",
           "-Astrict");
@@ -100,6 +97,16 @@ public class NullSpecTest {
     List<TestDiagnostic> missing = testResult.getMissingDiagnostics();
     List<TestDiagnostic> unexpected = testResult.getUnexpectedDiagnostics();
 
+    missing.removeIf(m -> m.getMessage().contains("jspecify_but_expect_nothing"));
+    if (!strict) {
+      // Filter out all errors due to limited information
+      missing.removeIf(m -> m.getMessage().contains("jspecify_but_expect_warning"));
+      missing.removeIf(
+          m ->
+              m.getMessage().contains("jspecify_nullness_not_enough_information")
+                  && !m.getMessage().contains("jspecify_but_expect_error"));
+    }
+
     // The original values to allow multiple complete iterations - multiple unexpected errors
     // can be mapped to a single missing error.
     List<TestDiagnostic> origMissing = new ArrayList<>(missing);
@@ -111,11 +118,7 @@ public class NullSpecTest {
     for (TestDiagnostic u : origUnexpected) {
       missing.removeIf(m -> corresponds(m, u, strict));
     }
-    if (!strict) {
-      // Filter out all errors do to limited information
-      missing.removeIf(m -> m.getMessage().equals("jspecify_nullness_not_enough_information"));
-    }
-    // TODO: should only errors matter? Only in strict mode?
+    // Remove explicit.annotation.ignored and deprecation warnings:
     unexpected.removeIf(u -> u.getKind() != DiagnosticKind.Error);
 
     return testResult;
@@ -129,26 +132,32 @@ public class NullSpecTest {
       return false;
     }
 
-    switch (missing.getMessage()) {
-      case "jspecify_nullness_not_enough_information":
-        if (!strict) {
+    if (missing.getMessage().contains("jspecify_but_expect_error")
+        || missing.getMessage().contains("jspecify_but_expect_warning")
+        || missing.getMessage().contains("jspecify_nullness_not_enough_information")
+        || missing.getMessage().contains("jspecify_nullness_mismatch")) {
+      switch (unexpected.getMessage()) {
+        case "argument.type.incompatible":
+        case "assignment.type.incompatible":
+        case "atomicreference.must.include.null":
+        case "cast.unsafe":
+        case "dereference":
+        case "lambda.param.type.incompatible":
+        case "methodref.receiver.bound.invalid":
+        case "methodref.receiver.invalid":
+        case "methodref.return.invalid":
+        case "override.param.invalid":
+        case "override.return.invalid":
+        case "return.type.incompatible":
+        case "threadlocal.must.include.null":
+        case "type.argument.type.incompatible":
           return true;
-        }
-        // fall through
-      case "jspecify_nullness_mismatch":
-        switch (unexpected.getMessage()) {
-          case "argument.type.incompatible":
-          case "assignment.type.incompatible":
-          case "cast.unsafe":
-          case "dereference":
-          case "override.param.invalid":
-          case "override.return.invalid":
-          case "return.type.incompatible":
-          case "type.argument.type.incompatible":
-            return true;
-          default:
-            return false;
-        }
+        default:
+          return false;
+      }
+    }
+
+    switch (missing.getMessage()) {
       case "jspecify_nullness_intrinsically_not_nullable":
         switch (unexpected.getMessage()) {
           case "enum.constant.annotated":
@@ -160,6 +169,7 @@ public class NullSpecTest {
         }
       case "jspecify_unrecognized_location":
         switch (unexpected.getMessage()) {
+          case "local.variable.annotated":
           case "type.parameter.annotated":
           case "wildcard.annotated":
             return true;
