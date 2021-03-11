@@ -112,6 +112,17 @@ task ensureCheckerFrameworkBuilt() {
         // We test using some modified samples in a different branch of the jspecify repo, so we want to change to that branch.
         // However, if there was a JSpecify client to begin with, don't mess with it, as the developer may be running tests in a different branch.
         if (!jspecifyExisted) {
+            // The CF build process uses --single-branch when it clones the jspecify repo, so the resulting clone doesn't have the branch we want.
+            exec {
+                workingDir "${jspecifyHome}/"
+                executable 'git'
+                args = ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*']
+            }
+            exec {
+                workingDir "${jspecifyHome}/"
+                executable 'git'
+                args = ['fetch']
+            }
             exec {
                 workingDir "${jspecifyHome}/"
                 executable 'git'
