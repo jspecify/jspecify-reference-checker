@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFValue;
 
@@ -24,5 +25,11 @@ final class NullSpecStore extends CFAbstractStore<CFValue, NullSpecStore> {
 
   NullSpecStore(NullSpecStore other) {
     super(other);
+  }
+
+  @Override
+  protected boolean shouldInsert(
+      JavaExpression expr, CFValue value, boolean permitNondeterministic) {
+    return super.shouldInsert(expr, value, /*permitNondeterministic=*/ true);
   }
 }

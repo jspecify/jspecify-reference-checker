@@ -402,13 +402,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
       MethodInvocationNode isAnonymousClassNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods nearby.
-    MethodCall isAnonymousClassCall = (MethodCall) fromNode(atypeFactory, isAnonymousClassNode);
+    MethodCall isAnonymousClassCall = (MethodCall) fromNode(isAnonymousClassNode);
     MethodCall getEnclosingClassCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
             classGetEnclosingClassElement,
             isAnonymousClassCall.getReceiver(),
-            isAnonymousClassCall.getParameters());
+            isAnonymousClassCall.getArguments());
     return refine(
         getEnclosingClassCall,
         analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
@@ -418,13 +418,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private boolean refineFutureGetComponentTypeFromIsArray(
       MethodInvocationNode isArrayNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods nearby.
-    MethodCall isArrayCall = (MethodCall) fromNode(atypeFactory, isArrayNode);
+    MethodCall isArrayCall = (MethodCall) fromNode(isArrayNode);
     MethodCall getComponentTypeCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
             classGetComponentTypeElement,
             isArrayCall.getReceiver(),
-            isArrayCall.getParameters());
+            isArrayCall.getArguments());
     return refine(
         getComponentTypeCall,
         analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
@@ -450,8 +450,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     if (types.annotationAsDataflowValue == null) {
       return false;
     }
-    MethodCall isAnnotationPresentCall =
-        (MethodCall) fromNode(atypeFactory, isAnnotationPresentNode);
+    MethodCall isAnnotationPresentCall = (MethodCall) fromNode(isAnnotationPresentNode);
 
     List<ExecutableElement> getAnnotationAndOverrides =
         getAllDeclaredSupertypes(types.annotatedElementType).stream()
@@ -468,7 +467,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
               types.annotationAsDataflowValue.getUnderlyingType(),
               getAnnotationAndOverride,
               isAnnotationPresentCall.getReceiver(),
-              isAnnotationPresentCall.getParameters());
+              isAnnotationPresentCall.getArguments());
 
       storeChanged |= refine(getAnnotationCall, types.annotationAsDataflowValue, thenStore);
     }
@@ -541,7 +540,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        */
       return false;
     }
-    MethodCall containsKeyCall = (MethodCall) fromNode(atypeFactory, containsKeyNode);
+    MethodCall containsKeyCall = (MethodCall) fromNode(containsKeyNode);
 
     /*
      * We want to refine the type of any future call to `map.get(key)`. To do so, we need to create
@@ -581,7 +580,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
               mapType.mapValueAsDataflowValue.getUnderlyingType(),
               mapGetOrOverride,
               containsKeyCall.getReceiver(),
-              containsKeyCall.getParameters());
+              containsKeyCall.getArguments());
 
       /*
        * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
@@ -651,8 +650,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       }
 
       // Is the receiver of map.get(...) the receiver of the foreach's something.keySet()?
-      if (!JavaExpression.fromTree(atypeFactory, mapGetReceiverExpression)
-          .equals(JavaExpression.fromTree(atypeFactory, forExpressionReceiver))) {
+      if (!JavaExpression.fromTree(mapGetReceiverExpression)
+          .equals(JavaExpression.fromTree(forExpressionReceiver))) {
         continue;
       }
 
@@ -1050,7 +1049,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       // XXX: If there are multiple levels of assignment, we could replaceValue for *every* target.
       node = ((AssignmentNode) node).getTarget();
     }
-    return fromNode(atypeFactory, node);
+    return fromNode(node);
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
@@ -1082,7 +1081,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     if (type instanceof AnnotatedDeclaredType) {
       result.add((AnnotatedDeclaredType) type);
     }
-    for (AnnotatedTypeMirror supertype : type.directSuperTypes()) {
+    for (AnnotatedTypeMirror supertype : type.directSupertypes()) {
       collectAllDeclaredSupertypes(supertype, result);
     }
   }
