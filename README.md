@@ -48,8 +48,8 @@ $ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/j
 # For example:
 
 $ cat > SomeTest.java
-import org.jspecify.annotations.DefaultNonNull;
-import org.jspecify.annotations.Nullable;
+import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.Nullable;
 
 @DefaultNonNull
 class SomeTest {
