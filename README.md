@@ -48,10 +48,10 @@ $ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/j
 # For example:
 
 $ cat > SomeTest.java
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 
-@DefaultNonNull
+@NullMarked
 class SomeTest {
   Object passThrough(@Nullable Object o) {
     return o;

@@ -109,7 +109,7 @@ import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.Pair;
-import org.jspecify.nullness.DefaultNonNull;
+import org.jspecify.nullness.NullMarked;
 import org.jspecify.nullness.Nullable;
 import org.jspecify.nullness.NullnessUnspecified;
 
@@ -774,7 +774,7 @@ final class NullSpecAnnotatedTypeFactory
        * Note: Setting a default here affects not only this element but also its descendants in the
        * syntax tree.
        */
-      if (hasNullAwareOrEquivalent(elt)) {
+      if (hasNullMarkedOrEquivalent(elt)) {
         addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
         addElementDefault(elt, minusNull, OTHERWISE);
         addDefaultToTopForLocationsRefinedByDataflow(elt);
@@ -1403,8 +1403,8 @@ final class NullSpecAnnotatedTypeFactory
    * have already edited getDeclAnnotations to remove its inheritance logic, and we needed to do so
    * to work around another problem (though perhaps we could have found alternatives).
    */
-  private boolean hasNullAwareOrEquivalent(Element elt) {
-    return getDeclAnnotation(elt, DefaultNonNull.class) != null
+  private boolean hasNullMarkedOrEquivalent(Element elt) {
+    return getDeclAnnotation(elt, NullMarked.class) != null
         // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
         || hasAnnotationInCode(elt, "ProtoNonnullApi");
   }
