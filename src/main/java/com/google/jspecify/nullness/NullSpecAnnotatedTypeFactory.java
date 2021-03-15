@@ -1355,6 +1355,25 @@ final class NullSpecAnnotatedTypeFactory
      */
   }
 
+  @Override
+  protected void applyQualifierParameterDefaults(Element elt, AnnotatedTypeMirror type) {
+    /*
+     * The supermethod implements support for HasQualifierParameter, which we don't use. Still, the
+     * supermethod adds 2-3 seconds to the time it takes to check Guava (and perhaps a second to the
+     * time it takes to check the samples). So we skip it entirely.
+     */
+  }
+
+  @Override
+  protected void addAnnotationsFromDefaultForType(Element element, AnnotatedTypeMirror type) {
+    /*
+     * The supermethod implements support for DefaultQualifierForUseTypeAnnotator and
+     * DefaultForTypeAnnotator, which we don't use. Still, the supermethod adds ~3 seconds to the
+     * time it takes to check Guava (and a fraction of a second to the time it takes to check the
+     * samples). So we skip it entirely.
+     */
+  }
+
   private static TypeParameterElement correspondingTypeParameter(AnnotatedWildcardType type) {
     /*
      * type.getTypeVariable() is not available in all cases that we need.
