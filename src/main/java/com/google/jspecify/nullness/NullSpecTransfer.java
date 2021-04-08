@@ -52,7 +52,9 @@ import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
 import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.dataflow.cfg.node.EqualToNode;
+import org.checkerframework.dataflow.cfg.node.ExplicitThisNode;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
+import org.checkerframework.dataflow.cfg.node.ImplicitThisNode;
 import org.checkerframework.dataflow.cfg.node.InstanceOfNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -208,6 +210,15 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        * still ideally not make their experience *worse*, but I think it's worth trying as a
        * pragmatic compromise, given that the alternative is to produce an error for common, safe
        * code like `MyService.class.getClassLoader().getResource("foo")`.
+       */
+      setResultValueToNonNull(result);
+    }
+
+    if (isGetClassLoaderClassOnThisGetClass(node)) {
+      /*
+       * This is similar to the case above but even less likely to be a problem in practice: Unless
+       * the call is occurring in a class that is itself loaded by the bootstrap class loader, the
+       * return value will be non-null.
        */
       setResultValueToNonNull(result);
     }
@@ -696,6 +707,24 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     }
     FieldAccessNode fieldAccess = (FieldAccessNode) receiver;
     return fieldAccess.getFieldName().equals("class");
+  }
+
+  private boolean isGetClassLoaderClassOnThisGetClass(MethodInvocationNode node) {
+    ExecutableElement method = node.getTarget().getMethod();
+    if (!nameMatches(method, "Class", "getClassLoader")) {
+      return false;
+    }
+    Node receiver = node.getTarget().getReceiver();
+    if (!(receiver instanceof MethodInvocationNode)) {
+      return false;
+    }
+    MethodInvocationNode invocation = (MethodInvocationNode) receiver;
+    if (!nameMatches(invocation.getTarget().getMethod(), "Object", "getClass")) {
+      return false;
+    }
+    Node invocationTargetReceiver = invocation.getTarget().getReceiver();
+    return invocationTargetReceiver instanceof ExplicitThisNode
+        || invocationTargetReceiver instanceof ImplicitThisNode;
   }
 
   private boolean isGetThreadGroupOnCurrentThread(MethodInvocationNode node) {
