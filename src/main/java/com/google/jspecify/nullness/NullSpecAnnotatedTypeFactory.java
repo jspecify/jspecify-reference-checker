@@ -194,6 +194,11 @@ final class NullSpecAnnotatedTypeFactory
       addAliasedTypeAnnotation(
           org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
     }
+    // Yes, it's valid to pass declaration annotations to addAliased*Type*Annotation.
+    addAliasedTypeAnnotation("javax.annotation.CheckForNull", unionNull);
+    addAliasedTypeAnnotation(
+        "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter", unionNull);
+    addAliasedTypeAnnotation("com.google.protobuf.Internal.ProtoMethodMayReturnNull", unionNull);
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
@@ -935,37 +940,6 @@ final class NullSpecAnnotatedTypeFactory
       }
       return super.visitWildcard(type, p);
     }
-
-    @Override
-    public Void visitExecutable(AnnotatedExecutableType type, Void p) {
-      /*
-       * This implements a limited degree of support for declaration annotations. Assumptions
-       * include:
-       *
-       * - ProtoNonnullApi really guarantees that *all* types are non-null, even those that would
-       * require type annotations to annotate.
-       *
-       * - Any ProtoMethodMayReturnNull or ProtoMethodAcceptsNullParameter annotation on an array
-       * applies to the array as a whole, not to the element type.
-       *
-       * - maybe other things?
-       *
-       * I suspect that the edge cases don't come up in the simple case of protos, but this may need
-       * more investigation.
-       */
-      ExecutableElement method = type.getElement();
-      if (hasAnnotationInCode(method, "ProtoMethodMayReturnNull")) {
-        type.getReturnType().replaceAnnotation(unionNull);
-      }
-      for (int i = 0; i < type.getParameterTypes().size(); i++) {
-        AnnotatedTypeMirror parameterType = type.getParameterTypes().get(i);
-        VariableElement parameter = method.getParameters().get(i);
-        if (hasAnnotationInCode(parameter, "ProtoMethodAcceptsNullParameter")) {
-          parameterType.replaceAnnotation(unionNull);
-        }
-      }
-      return super.visitExecutable(type, p);
-    }
   }
 
   @Override
@@ -1424,7 +1398,12 @@ final class NullSpecAnnotatedTypeFactory
    */
   private boolean hasNullMarkedOrEquivalent(Element elt) {
     return getDeclAnnotation(elt, NullMarked.class) != null
-        // For discussion of ProtoNonnullApi, see NullSpecTypeAnnotator.visitExecutable.
+        /*
+         * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
+         * are non-null, even those that would require type annotations to annotate (e.g.,
+         * type-parameter bounds). This is probably a safe assumption, if only because such types
+         * might not arise at all in the generated code where ProtoNonnullApi is used.
+         */
         || hasAnnotationInCode(elt, "ProtoNonnullApi");
   }
 
