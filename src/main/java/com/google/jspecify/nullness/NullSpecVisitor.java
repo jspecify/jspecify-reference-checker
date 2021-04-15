@@ -464,15 +464,19 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   }
 
   /*
-   * We report some errors of the form "X should not be annotated" in isTopLevelValidType. We do
-   * that because visitAnnotatedType is not invoked in many cases we might like for it to be
-   * invoked. For example, it doesn't run on an annotated return type. That's because the visit*
-   * methods are triggered based on javac tree structure, and the return type's annotations get
-   * attached to the *method* tree.
+   * We perform our checks for errors of the form "X should not be annotated" here. This requires
+   * some gymnastics to deal with annotations on arrays, etc. and with the general problem that
+   * visitAnnotatedType is not invoked in many cases we might like for it to be invoked. For
+   * example, it doesn't run on an annotated return type. That's because the visit* methods are
+   * triggered based on javac tree structure, and the return type's annotations get attached to the
+   * *method* tree.
    *
-   * Still, visitTypeParameter and visitAnnotatedType are the best places I have found for at least
-   * few specific checks. That's because, for those checks especially, we probably want to operate
-   * on source trees, rather than on derived types. The advantages of operating on source trees are:
+   * It would be appealing to instead perform the checks in an implementation of
+   * isTopLevelValidType. However, this has several downsides. In short, we need to use methods like
+   * visitTypeParameter and visitAnnotatedType because we want to operate on source trees, rather
+   * than on derived types. For more details, see the bullet points below, plus the additional notes
+   * in the commit message of
+   * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/611717437c3c8b967de6d21615223975dd97b60a
    *
    * - If we instead want to look for annotations on a type parameter or wildcard based on the
    * derived types, we need to ask CF questions like "What is the lower/upper bound?" since that is
@@ -481,10 +485,6 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
    * (like the upper bound of `@Nullable ? super Foo`). This is likely to be clumsy at best,
    * requiring us to effectively look at information in the source code, anyway -- if sufficient
    * information is even available, especially across compilation boundaries!
-   *
-   * - IIUC, the visit* methods run only on source code that is compiled by CF. By implementing
-   * those methods, we ensure that we don't report problems in our dependencies. (Or might we be
-   * able to avoid that by checking isDeclaration()?)
    *
    * - We might also like that the visit* methods can check specifically for the JSpecify
    * annotations. This means that people can alias annotations like CF's own @Nullable to ours, and
