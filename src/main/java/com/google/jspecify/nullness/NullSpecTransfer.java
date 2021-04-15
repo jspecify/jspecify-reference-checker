@@ -85,6 +85,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement navigableMapDescendingKeySetElement;
   private final AnnotatedDeclaredType javaLangClass;
   private final ExecutableElement classIsAnonymousClassElement;
+  private final ExecutableElement classIsMemberClassElement;
   private final ExecutableElement classGetEnclosingClassElement;
   private final ExecutableElement classIsArrayElement;
   private final ExecutableElement classGetComponentTypeElement;
@@ -121,6 +122,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
         (AnnotatedDeclaredType)
             createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
     classIsAnonymousClassElement = onlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
+    classIsMemberClassElement = onlyExecutableWithName(javaLangClassElement, "isMemberClass");
     classGetEnclosingClassElement =
         onlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
     classIsArrayElement = onlyExecutableWithName(javaLangClassElement, "isArray");
@@ -398,8 +400,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       storeChanged |= refineFutureGetAnnotationFromIsAnnotationPresent(node, thenStore);
     }
 
-    if (isOrOverrides(method, classIsAnonymousClassElement)) {
-      storeChanged |= refineFutureGetEnclosingClassFromIsAnonymousClass(node, thenStore);
+    if (isOrOverrides(method, classIsAnonymousClassElement)
+        || isOrOverrides(method, classIsMemberClassElement)) {
+      storeChanged |= refineFutureGetEnclosingClassFromIsEnclosedClass(node, thenStore);
     }
 
     if (isOrOverrides(method, classIsArrayElement)) {
@@ -410,16 +413,16 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
         result.getResultValue(), thenStore, elseStore, storeChanged);
   }
 
-  private boolean refineFutureGetEnclosingClassFromIsAnonymousClass(
-      MethodInvocationNode isAnonymousClassNode, NullSpecStore thenStore) {
+  private boolean refineFutureGetEnclosingClassFromIsEnclosedClass(
+      MethodInvocationNode isEnclosedClassNode, NullSpecStore thenStore) {
     // TODO(cpovirk): Reduce duplication between this and the methods nearby.
-    MethodCall isAnonymousClassCall = (MethodCall) fromNode(isAnonymousClassNode);
+    MethodCall isEnclosedClassCall = (MethodCall) fromNode(isEnclosedClassNode);
     MethodCall getEnclosingClassCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
             classGetEnclosingClassElement,
-            isAnonymousClassCall.getReceiver(),
-            isAnonymousClassCall.getArguments());
+            isEnclosedClassCall.getReceiver(),
+            isEnclosedClassCall.getArguments());
     return refine(
         getEnclosingClassCall,
         analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
