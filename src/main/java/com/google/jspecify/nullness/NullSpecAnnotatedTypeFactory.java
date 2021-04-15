@@ -969,20 +969,46 @@ final class NullSpecAnnotatedTypeFactory
 
     @Override
     public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
+      ExecutableElement method = elementFromUse(tree);
+
       if (establishesStreamElementsAreNonNull(tree)) {
         AnnotatedTypeMirror returnedStreamElementType =
             ((AnnotatedDeclaredType) type).getTypeArguments().get(0);
         returnedStreamElementType.replaceAnnotation(minusNull);
       }
 
+      /*
+       * Unsoundly assume that copyOf and copyOfRange return an array of non-null elements. This is
+       * doubly unsound:
+       *
+       * - Both methods permit creating a larger array than the original -- and padding the result
+       * with nulls. That said, this is no worse a problem than we have with array initialization in
+       * general: We already allow users to write `Object[] o = new Object[10];`, and that has the
+       * same problem. Not to mention that we further treat arrays as covariant, so it's always
+       * possible to "break" an `Object[]` by assigning it to a `@Nullable Object[]` and writing
+       * null into it.
+       *
+       * - Even if the *input* array *already* has an element type that includes null, we *still*
+       * claim that the output array's element type does not. This could probably be fixed
+       * relatively easily, but: First, I'm always at least a little nervous about calling
+       * getAnnotatedType (or even the more lightweight fromExpression), both because I worry
+       * specifically that it might call back into this method (infinite recursion?) and generally
+       * that it might be expensive. Second, I imagine that a call to copyOf or copyOfRange is often
+       * used to "trim" uninitialized elements from the end of an array. Thus, we'd like to make
+       * the use of those methods a pleasant experience so as to encourage users to be "honest"
+       * about having a `@Nullable Object[]` at the beginning, which they convert to an `Object[]`
+       * only later.
+       *
+       * Still, we may want to revisit all this.
+       */
+      if (nameMatches(method, "Arrays", "copyOf") || nameMatches(method, "Arrays", "copyOfRange")) {
+        ((AnnotatedArrayType) type).getComponentType().replaceAnnotation(minusNull);
+      }
+
       return super.visitMethodInvocation(tree, type);
     }
 
-    private boolean establishesStreamElementsAreNonNull(ExpressionTree tree) {
-      if (!(tree instanceof MethodInvocationTree)) {
-        return false;
-      }
-      MethodInvocationTree invocation = (MethodInvocationTree) tree;
+    private boolean establishesStreamElementsAreNonNull(MethodInvocationTree invocation) {
       ExecutableElement method = elementFromUse(invocation);
       if (!nameMatches(method, "Stream", "filter")) {
         return false;

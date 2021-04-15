@@ -290,7 +290,10 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        * Arguably this is a better option, anyway, since it lets users of "strict mode" see errors
        * in that case. (But we suspect that few users, if any, will use strict mode. So this is
        * mostly academic.) It also causes us to show the type in error messages as Object* instead
-       * of Object, which is arguably better (though more noisy).
+       * of Object, which is arguably better (though more noisy). Finally, if we track metrics for
+       * the percentage of our calls in the depot for which we have nullness information, it seems
+       * more honest to treat these cases like unspecified nullness, since we're not actually
+       * providing nullness checking for them.
        *
        * The Right Way to address "demoting" is probably to avoid it entirely. Instead, we should
        * continue to track the result as @Nullable, but we should also track an additional "but
