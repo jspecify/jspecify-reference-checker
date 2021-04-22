@@ -46,6 +46,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -92,16 +94,18 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement annotatedElementIsAnnotationPresentElement;
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
+  private final TypeMirror uncheckedExecutionException;
 
   NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
     super(analysis);
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
-    minusNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), MinusNull.class);
-    nullnessOperatorUnspecified =
-        AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), NullnessUnspecified.class);
-    unionNull = AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), Nullable.class);
+    Elements e = atypeFactory.getElementUtils();
 
-    TypeElement javaUtilMapElement = atypeFactory.getElementUtils().getTypeElement("java.util.Map");
+    minusNull = AnnotationBuilder.fromClass(e, MinusNull.class);
+    nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
+    unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
+
+    TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
     javaUtilMap =
         (AnnotatedDeclaredType)
             createType(javaUtilMapElement.asType(), atypeFactory, /*isDeclaration=*/ false);
@@ -109,15 +113,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
     mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
 
-    TypeElement javaUtilNavigableMapElement =
-        atypeFactory.getElementUtils().getTypeElement("java.util.NavigableMap");
+    TypeElement javaUtilNavigableMapElement = e.getTypeElement("java.util.NavigableMap");
     navigableMapNavigableKeySetElement =
         onlyExecutableWithName(javaUtilNavigableMapElement, "navigableKeySet");
     navigableMapDescendingKeySetElement =
         onlyExecutableWithName(javaUtilNavigableMapElement, "descendingKeySet");
 
-    TypeElement javaLangClassElement =
-        atypeFactory.getElementUtils().getTypeElement("java.lang.Class");
+    TypeElement javaLangClassElement = e.getTypeElement("java.lang.Class");
     javaLangClass =
         (AnnotatedDeclaredType)
             createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
@@ -129,17 +131,21 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     classGetComponentTypeElement = onlyExecutableWithName(javaLangClassElement, "getComponentType");
 
     TypeElement javaLangReflectAnnotatedElementElement =
-        atypeFactory.getElementUtils().getTypeElement("java.lang.reflect.AnnotatedElement");
+        e.getTypeElement("java.lang.reflect.AnnotatedElement");
     annotatedElementIsAnnotationPresentElement =
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
     annotatedElementGetAnnotationElement =
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
 
     javaUtilConcurrentExecutionException =
-        atypeFactory
-            .getElementUtils()
-            .getTypeElement("java.util.concurrent.ExecutionException")
-            .asType();
+        e.getTypeElement("java.util.concurrent.ExecutionException").asType();
+
+    TypeElement uncheckedExecutionExceptionElement =
+        e.getTypeElement("com.google.common.util.concurrent.UncheckedExecutionException");
+    uncheckedExecutionException =
+        uncheckedExecutionExceptionElement == null
+            ? null
+            : uncheckedExecutionExceptionElement.asType();
   }
 
   @Override
@@ -776,11 +782,47 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
      * be extended to look for subtypes. Ideally we'd also replace the method-name check with a
      * full-on override check.)
      */
-    return analysis
-            .getTypes()
-            .isSameType(
-                node.getTarget().getReceiver().getType(), javaUtilConcurrentExecutionException)
+    return isAnyOf(
+            node.getTarget().getReceiver().getType(),
+            javaUtilConcurrentExecutionException,
+            /*
+             * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case here,
+             * we can edit the class definition itself. That is, we edit it to override getCause()
+             * to declare the return type we want. And, to make that actually safe, we would likely
+             * also want to annotate its constructor to require a non-null exception parameter.
+             *
+             * However, there are at least two complications:
+             *
+             * 1. If we annotate the constructor parameter, that would also affect existing users of
+             * stock CF. In particular, it would make `new
+             * UncheckedExecutionException(executionException.getCause())` an error, since stock CF
+             * does not share our unsound assumption that executionException.getCause() returns
+             * non-null. We could reduce the fallout from this by introducing an internal stub for
+             * UncheckedExecutionException (which we would enable only for users of stock CF). For
+             * that matter, we could introduce an internal (unsound) stub for ExecutionException
+             * itself (though that may not be a complete solution, since users may be passing a
+             * nullable cause that they got from any number of places). Or we could always just
+             * suppress the new errors we create. *Or* we can change getCause) but unsoundly leave
+             * the constructor parameter as @Nullable.
+             *
+             * 2. UncheckedExecutionException has constructors that do not even accept a cause.
+             * Therefore, if we want to guarantee that its getCause() method never returns null,
+             * then we need to ban all use of those constructors (or at least use that isn't
+             * followed by a call to initCause()). Such a ban would likely be implemented as a
+             * checker-specific behavior. That argues for leaving UncheckedExecutionException
+             * annotated with nullable types and adding in the non-null behavior in our specific
+             * checker.
+             *
+             * This deserves more thought, especially given the potential impact on external users.
+             */
+            uncheckedExecutionException)
         && nameMatches(node.getTarget().getMethod(), "getCause");
+  }
+
+  private boolean isAnyOf(TypeMirror actual, TypeMirror a, TypeMirror b) {
+    Types typeUtils = analysis.getTypes();
+    return (a != null && typeUtils.isSameType(actual, a))
+        || (b != null && typeUtils.isSameType(actual, b));
   }
 
   private boolean isGetCauseOnInvocationTargetException(MethodInvocationNode node) {
@@ -1088,12 +1130,17 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
-    return Util.isOrOverrides(atypeFactory.getElementUtils(), overrider, overridden);
+    return overrider.equals(overridden)
+        || atypeFactory
+            .getElementUtils()
+            .overrides(overrider, overridden, (TypeElement) overrider.getEnclosingElement());
   }
 
   private boolean isOrOverridesAnyOf(
       ExecutableElement overrider, ExecutableElement a, ExecutableElement b, ExecutableElement c) {
-    return Util.isOrOverridesAnyOf(atypeFactory.getElementUtils(), overrider, a, b, c);
+    return isOrOverrides(overrider, a)
+        || isOrOverrides(overrider, b)
+        || isOrOverrides(overrider, c);
   }
 
   /**
