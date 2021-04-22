@@ -31,6 +31,8 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     // The jsr305 dep lets us use its annotations in some of the sample inputs we test against.
     testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
+    // The Guava dep lets us test our special handling of some Guava classes.
+    testImplementation 'com.google.guava:guava:30.1.1-jre'
     testImplementation 'org.plumelib:plume-util:1.3.0'
     testImplementation files("${cfHome}/framework-test/build/libs/framework-test-3.11.1-SNAPSHOT.jar")
 

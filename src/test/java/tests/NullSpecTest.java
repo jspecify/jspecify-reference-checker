@@ -141,6 +141,7 @@ public class NullSpecTest {
         case "assignment.type.incompatible":
         case "atomicreference.must.include.null":
         case "cast.unsafe":
+        case "checknotnull":
         case "dereference":
         case "lambda.param.type.incompatible":
         case "methodref.receiver.bound.invalid":
