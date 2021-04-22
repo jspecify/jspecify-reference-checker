@@ -1088,17 +1088,12 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
-    return overrider.equals(overridden)
-        || atypeFactory
-            .getElementUtils()
-            .overrides(overrider, overridden, (TypeElement) overrider.getEnclosingElement());
+    return Util.isOrOverrides(atypeFactory.getElementUtils(), overrider, overridden);
   }
 
   private boolean isOrOverridesAnyOf(
       ExecutableElement overrider, ExecutableElement a, ExecutableElement b, ExecutableElement c) {
-    return isOrOverrides(overrider, a)
-        || isOrOverrides(overrider, b)
-        || isOrOverrides(overrider, c);
+    return Util.isOrOverridesAnyOf(atypeFactory.getElementUtils(), overrider, a, b, c);
   }
 
   /**

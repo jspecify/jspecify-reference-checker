@@ -16,6 +16,9 @@ package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
+import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
+import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
@@ -33,8 +36,11 @@ import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARA
 import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
+import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
+import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.framework.util.defaults.QualifierDefaults.AdditionalTypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
+import static org.checkerframework.javacutil.TreePathUtil.enclosingClass;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TreeUtils.isNullExpression;
@@ -68,6 +74,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
@@ -124,6 +131,9 @@ final class NullSpecAnnotatedTypeFactory
   private final boolean isLeastConvenientWorld;
   private final NullSpecAnnotatedTypeFactory withLeastConvenientWorld;
   private final NullSpecAnnotatedTypeFactory withMostConvenientWorld;
+
+  private final AnnotatedDeclaredType javaUtilCollection;
+  private final ExecutableElement collectionToArrayNoArgElement;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
@@ -201,6 +211,14 @@ final class NullSpecAnnotatedTypeFactory
     addAliasedTypeAnnotation("com.google.protobuf.Internal.ProtoMethodMayReturnNull", unionNull);
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
+
+    TypeElement javaUtilCollectionElement =
+        getElementUtils().getTypeElement("java.util.Collection");
+    javaUtilCollection =
+        (AnnotatedDeclaredType)
+            createType(javaUtilCollectionElement.asType(), this, /*isDeclaration=*/ false);
+    collectionToArrayNoArgElement =
+        onlyNoArgExecutableWithName(javaUtilCollectionElement, "toArray");
 
     postInit();
 
@@ -1005,7 +1023,94 @@ final class NullSpecAnnotatedTypeFactory
         ((AnnotatedArrayType) type).getComponentType().replaceAnnotation(minusNull);
       }
 
+      /*
+       * If this is a call to `Collection.toArray()`, then try to produce a more specific return
+       * type than `@Nullable Object[]`.
+       *
+       * *Ideally* we would do this not just for method invocations but also for method references
+       * and even other lookups of methods, like checking whether MyList.toArray is a valid override
+       * of Collection.toArray. (That is, if MyList is restricted to non-null types, then
+       * MyList.toArray should not declare a return type of `@Nullable Object[]`.)
+       */
+      AnnotationMirror upperBoundOnArrayElementType = upperBoundOnToArrayElementType(tree);
+      if (upperBoundOnArrayElementType != null) {
+        ((AnnotatedArrayType) type)
+            .getComponentType()
+            .replaceAnnotation(upperBoundOnArrayElementType);
+      }
+
       return super.visitMethodInvocation(tree, type);
+    }
+
+    private AnnotationMirror upperBoundOnToArrayElementType(MethodInvocationTree tree) {
+      ExecutableElement method = elementFromUse(tree);
+      if (!isOrOverrides(method, collectionToArrayNoArgElement)) {
+        return null;
+      }
+
+      Tree receiver;
+      if (tree.getMethodSelect().getKind() == MEMBER_SELECT) {
+        receiver = ((MemberSelectTree) tree.getMethodSelect()).getExpression();
+      } else if (tree.getMethodSelect().getKind() == IDENTIFIER) {
+        receiver = enclosingClass(getPath(tree));
+      } else {
+        // TODO(cpovirk): Can this happen? Maybe throw an exception?
+        return null;
+      }
+
+      AnnotatedDeclaredType collectionType =
+          asSuper(
+              NullSpecAnnotatedTypeFactory.this,
+              /*
+               * As discussed in visitMethodInvocation, I am nervous about calling getAnnotatedType
+               * from here. (But for what it's worth, a quick test on com.google.common.primitives
+               * suggests no performance impact.)
+               *
+               * If we run into problems, we could explore simpler alternatives. In
+               * particular, if the problem is dataflow, we could consider creating a second
+               * instance of NullSpecAnnotatedTypeFactory that passes useFlow=false, and then we
+               * could use that here. That should be safe: We don't need dataflow because we care
+               * only about the _type argument_.
+               *
+               * (OK, now I'm imagining a scenario in which the Checker Framework infers the type
+               * argument to `new MyList<>(delegate) { ... }` based on dataflow analysis of the
+               * `delegate` variable :) But I don't even know if it would take dataflow into account
+               * there. And if does, I could live with not handling that edge case :))
+               */
+              getAnnotatedType(receiver),
+              javaUtilCollection);
+      AnnotatedTypeMirror elementType = collectionType.getTypeArguments().get(0);
+      if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(elementType)) {
+        return minusNull;
+      } else if (withMostConvenientWorld().isNullExclusiveUnderEveryParameterization(elementType)) {
+        return nullnessOperatorUnspecified;
+      }
+      /*
+       * We could `return unionNull`, but there's no need because the type was already set to that
+       * from the declaration `@Nullable Object[] toArray` in the annotated JDK.
+       *
+       * (And there's no harm in forcing the caller to perform a null check: The caller already
+       * needs to make its call to getComponentType().replaceAnnotation(...) a conditional call
+       * because the caller doesn't know if the method invocation was a call to toArray() or not.)
+       *
+       * Conceivably, the compiler might even see the method invocation as a call to
+       * `MyList.toArray()`, where `MyList.toArray()` is an override that declares a more specific
+       * return type than the default `@Nullable Object[]`. Then it would be odd for us to overwrite
+       * that with a the more general type. To be fair, we would do that only in the case in which
+       * MyList was incorrectly annotated: If it were annotated correctly, then it would restrict
+       * its element type to non-null values, and thus we'd return minusNull here.
+       *
+       * OK, fine: Suppose that `MyList.toArray()` declares a return type of `Object[]` but leaves
+       * *unspecified* whether its element type includes null. (This would be an incorrect (or rather
+       * "incomplete") declaration but one that we would let through in "lenient mode.") Then, when
+       * someone calls that method, we would overwrite its declared return type with
+       * `@NullnessUnspecified Object[]`. That's technically wrong, and what we technically *should*
+       * do is probably:
+       *
+       * TODO(cpovirk): Have visitMethodInvocation set the array element type to the least upper
+       * bound of the type we return and the type it already has. And add sample inputs to test.
+       */
+      return null;
     }
 
     private boolean establishesStreamElementsAreNonNull(MethodInvocationTree invocation) {
@@ -1466,6 +1571,10 @@ final class NullSpecAnnotatedTypeFactory
 
   private static TypeParameterElement asElement(TypeVariable typeVariable) {
     return (TypeParameterElement) typeVariable.asElement();
+  }
+
+  private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
+    return Util.isOrOverrides(getElementUtils(), overrider, overridden);
   }
 
   NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {

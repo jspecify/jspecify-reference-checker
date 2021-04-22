@@ -24,14 +24,34 @@ import com.sun.source.tree.MethodInvocationTree;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
+  static boolean isOrOverrides(
+      Elements elementUtils, ExecutableElement overrider, ExecutableElement overridden) {
+    return overrider.equals(overridden)
+        || elementUtils.overrides(
+            overrider, overridden, (TypeElement) overrider.getEnclosingElement());
+  }
+
+  static boolean isOrOverridesAnyOf(
+      Elements elementUtils,
+      ExecutableElement overrider,
+      ExecutableElement a,
+      ExecutableElement b,
+      ExecutableElement c) {
+    return isOrOverrides(elementUtils, overrider, a)
+        || isOrOverrides(elementUtils, overrider, b)
+        || isOrOverrides(elementUtils, overrider, c);
+  }
+
   static boolean nameMatches(Element element, String name) {
     return element.getSimpleName().contentEquals(name);
   }
@@ -70,16 +90,27 @@ final class Util {
   }
 
   static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
-    List<ExecutableElement> elements =
-        type.getEnclosedElements().stream()
-            .filter(ExecutableElement.class::isInstance)
-            .map(ExecutableElement.class::cast)
-            .filter(x -> nameMatches(x, name))
-            .collect(toList());
+    List<ExecutableElement> elements = executablesWithName(type, name).collect(toList());
     if (elements.size() != 1) {
       throw new IllegalArgumentException(type + "." + name);
     }
     return elements.get(0);
+  }
+
+  static ExecutableElement onlyNoArgExecutableWithName(TypeElement type, String name) {
+    List<ExecutableElement> elements =
+        executablesWithName(type, name).filter(m -> m.getParameters().isEmpty()).collect(toList());
+    if (elements.size() != 1) {
+      throw new IllegalArgumentException(type + "." + name);
+    }
+    return elements.get(0);
+  }
+
+  private static Stream<ExecutableElement> executablesWithName(TypeElement type, String name) {
+    return type.getEnclosedElements().stream()
+        .filter(ExecutableElement.class::isInstance)
+        .map(ExecutableElement.class::cast)
+        .filter(x -> nameMatches(x, name));
   }
 
   static final Set<TypeUseLocation> IMPLEMENTATION_VARIABLE_LOCATIONS =
