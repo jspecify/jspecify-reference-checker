@@ -395,6 +395,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     } else if (nameMatches(method, "Class", "getPackage")) {
       // This is not sound, but it's very likely to be safe inside Google.
       setResultValueToNonNull(result);
+    } else if (nameMatches(method, "Matcher", "group")) {
+      // Also not sound, but the alternative is a lot of noise.
+      setResultValueToNonNull(result);
     }
 
     if (isOrOverrides(method, mapGetElement)) {
