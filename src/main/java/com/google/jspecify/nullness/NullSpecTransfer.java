@@ -16,9 +16,12 @@ package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
+import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singleton;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
@@ -37,8 +40,11 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -95,6 +101,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement annotatedElementGetAnnotationElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
   private final TypeMirror uncheckedExecutionException;
+  private final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
   NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
     super(analysis);
@@ -146,6 +153,26 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
         uncheckedExecutionExceptionElement == null
             ? null
             : uncheckedExecutionExceptionElement.asType();
+
+    Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
+    TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
+    if (uriBuilderElement != null) {
+      put(getterForSetter, uriBuilderElement, "setScheme", "getScheme");
+      put(getterForSetter, uriBuilderElement, "setAuthority", "getAuthority");
+      put(getterForSetter, uriBuilderElement, "setPath", "getPath");
+      // NOT query: After setQuery(""), getQuery() returns null :(
+      put(getterForSetter, uriBuilderElement, "setFragment", "getFragment");
+    }
+    this.getterForSetter = unmodifiableMap(getterForSetter);
+  }
+
+  private static void put(
+      Map<ExecutableElement, ExecutableElement> getterForSetter,
+      TypeElement type,
+      String setter,
+      String getter) {
+    getterForSetter.put(
+        onlyExecutableWithName(type, setter), onlyNoArgExecutableWithName(type, getter));
   }
 
   @Override
@@ -400,6 +427,18 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       setResultValueToNonNull(result);
     }
 
+    for (Entry<ExecutableElement, ExecutableElement> entry : getterForSetter.entrySet()) {
+      if (method.equals(entry.getKey())) {
+        storeChanged |=
+            overwriteGetterFromSetter(
+                node,
+                entry.getValue(),
+                input.getValueOfSubNode(node.getArgument(0)),
+                thenStore,
+                elseStore);
+      }
+    }
+
     if (isOrOverrides(method, mapGetElement)) {
       refineMapGetResultIfKeySetLoop(node, result);
     }
@@ -423,6 +462,33 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     return new ConditionalTransferResult<>(
         result.getResultValue(), thenStore, elseStore, storeChanged);
+  }
+
+  private boolean overwriteGetterFromSetter(
+      MethodInvocationNode setterNode,
+      ExecutableElement getter,
+      CFValue argument,
+      NullSpecStore thenStore,
+      NullSpecStore elseStore) {
+    boolean storeChanged = false;
+    storeChanged |= overwriteGetterFromSetter(setterNode, getter, argument, thenStore);
+    storeChanged |= overwriteGetterFromSetter(setterNode, getter, argument, elseStore);
+    return storeChanged;
+  }
+
+  private boolean overwriteGetterFromSetter(
+      MethodInvocationNode setterNode,
+      ExecutableElement getter,
+      CFValue argument,
+      NullSpecStore store) {
+    MethodCall setterCall = (MethodCall) fromNode(setterNode);
+    MethodCall getterCall =
+        new MethodCall(
+            argument.getUnderlyingType(),
+            getter,
+            setterCall.getReceiver(),
+            /*arguments=*/ emptyList());
+    return overwrite(getterCall, argument, store);
   }
 
   private boolean refineFutureGetEnclosingClassFromIsEnclosedClass(
