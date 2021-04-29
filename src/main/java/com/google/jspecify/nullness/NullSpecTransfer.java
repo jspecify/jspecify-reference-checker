@@ -51,9 +51,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -99,8 +97,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement classGetComponentTypeElement;
   private final ExecutableElement annotatedElementIsAnnotationPresentElement;
   private final ExecutableElement annotatedElementGetAnnotationElement;
-  private final TypeMirror javaUtilConcurrentExecutionException;
-  private final TypeMirror uncheckedExecutionException;
   private final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
   NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
@@ -144,16 +140,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     annotatedElementGetAnnotationElement =
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
 
-    javaUtilConcurrentExecutionException =
-        e.getTypeElement("java.util.concurrent.ExecutionException").asType();
-
-    TypeElement uncheckedExecutionExceptionElement =
-        e.getTypeElement("com.google.common.util.concurrent.UncheckedExecutionException");
-    uncheckedExecutionException =
-        uncheckedExecutionExceptionElement == null
-            ? null
-            : uncheckedExecutionExceptionElement.asType();
-
     Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
     TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
     if (uriBuilderElement != null) {
@@ -181,25 +167,50 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     TransferResult<CFValue, NullSpecStore> result = super.visitFieldAccess(node, input);
     if (node.getFieldName().equals("class")) {
       /*
-       * TODO(cpovirk): Would it make more sense to do this in our TreeAnnotator? Alternatively,
-       * would it make more sense to move most of our code out of TreeAnnotator and perform the same
-       * actions here instead?
+       * TODO(cpovirk): Move our "non-dataflow" special cases out of NullSpecTransfer and into our
+       * TreeAnnotator.
        *
-       * TreeAnnotator could make more sense if we needed to change types that appear in
-       * "non-dataflow" locations -- perhaps if we needed to change the types of a method's
-       * parameters or return type before overload checking occurs? But I don't know that we'll need
-       * to do that.
+       * *Or*: Would an even *better* option be to override a method like fromElement or
+       * getAnnotatedType? While methods like TreeAnnotator.visitMethodInvocation handle specific
+       * kinds of usages (like, well, "method invocations"), a method like fromElement or
+       * getAnnotatedType could handle all kinds of usages (including method references). Or maybe
+       * that's bad: When we analyze a method implementation in com.google.common itself, we
+       * probably don't want the checker to ignore the annotations that we've written on, e.g., its
+       * return type in favor of the "pretend" annotations that we apply for users here. On top of
+       * all that, another potentially tricky bit is to ensure that we have access to all the
+       * information we need. In particular, we sometimes need a Tree, not just an Element, such as
+       * when we look for calls to Throwable.getCause() that happens specifically on an instance of
+       * ExecutionException.
        *
-       * One case in which we _do_ need TreeAnnotator is when we change the nullness of a
-       * _non-top-level_ type. Currently, we do this to change the element type of a Stream when we
-       * know that it is non-nullable. (Aside: Another piece of that logic -- well, a somewhat
-       * different piece of logic with a similar purpose -- lives in
-       * checkMethodReferenceAsOverride. So that logic is already split across files.)
+       * *Or*: Would we prefer to just define stub files, since we're essentially recreating them
+       * here? However, we've seen slowness from using -Astubs (perhaps solvable by building the
+       * stub files into the Checker Framework itself, similar to the JDK stubs), *and* we've seen
+       * crashes (at least with our custom checker) when we analyze a codebase that we supply stubs
+       * for. Even if that doesn't work, though, maybe we should look to hook into CF in similar
+       * places to where the stub-file logic appears?
        *
-       * A possible downside of TreeAnnotator is that it applies only to constructs whose _source
-       * code_ we check. But I'm not sure how much of a problem this is in practice, either: During
-       * dataflow checks, we're more interested in the _usages_ of APIs than in their declarations,
-       * and the _usages_ appear in source we're checking.
+       * Anyway, TreeAnnotator (or any other approach discussed above) offers advantages over
+       * NullSpecTransfer:
+       *
+       * - It runs in cases in which NullSpecTransfer (somewhat mysteriously) does not. See
+       *   https://github.com/jspecify/jspecify/blob/ef834e47eb83cdf3fb912d07705aa40808584a6a/samples/GetCauseNonNull.java#L46
+       *
+       * - TreeAnnotator lets us change the nullness of a _non-top-level_ type. Currently, we do
+       *   this to change the element type of a Stream when we know that it is non-nullable. (Aside:
+       *   Another piece of that logic -- well, a somewhat different piece of logic with a similar
+       *   purpose -- lives in checkMethodReferenceAsOverride. So that logic is already split across
+       *   files.)
+       *
+       * - I haven't measured performance, but I would assume that anything that runs during
+       *   dataflow is not going to be *faster* :) Perhaps more importantly, if we ever try to
+       *   improve performance by skipping dataflow in cases in which we can prove what we need
+       *   without it (as NullAway does), then we'll want to move our handling for as many simple
+       *   cases as we can to run it outside of dataflow.
+       *
+       * - Hypothetically, TreeAnnotator would make more sense if we needed to change types that
+       *   appear in "non-dataflow" locations -- perhaps if we needed to change the types of a
+       *   method's parameters or return type before overload checking occurs? But I don't know that
+       *   we'll need to do that.
        */
       setResultValueToNonNull(result);
     }
@@ -263,44 +274,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     }
 
     if (isGetSuperclassOnGetClass(node)) {
-      setResultValueToNonNull(result);
-    }
-
-    if (isGetCauseOnExecutionException(node)) {
-      /*
-       * ExecutionException.getCause() *can* in fact return null. In fact, the JDK even has methods
-       * that can produce such an exception:
-       * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/src/main/java/util/concurrent/AbstractExecutorService.java?revision=1.54&view=markup#l185
-       *
-       * So the right way to annotate the method is indeed to mark is @Nullable. (Aside: As of this
-       * writing, a declaration of ExecutionException.getCause() in a stub file would have no
-       * effect, since that override of Throwable.getCause() does not exist in the JDK. Such a
-       * declaration may have an effect in the future, though:
-       * https://github.com/typetools/checker-framework/pull/4056)
-       *
-       * Still, in practice, the nullness errors we've reported when people dereference
-       * ExecutionException.getCause() have not been finding real issues. So, for the moment, we'll
-       * pretend that the value returned by that method is never null.
-       *
-       * TODO(cpovirk): Revisit this once we offer ways to suppress errors that are less noisy and
-       * more automated. Even before then, consider reducing the scope of this exception to apply
-       * only to exceptions thrown by Future.get, which, unlike those thrown by
-       * ExecutorService.invokeAny, do have a cause in all real-world implementations I'm aware of.
-       *
-       * TODO(cpovirk): Also, consider banning calls to ExecutionException constructors that pass a
-       * nullable argument or call an overload that does not require a cause.
-       */
-      setResultValueToNonNull(result);
-    }
-
-    if (isGetCauseOnInvocationTargetException(node)) {
-      /*
-       * InvocationTargetException.getCause() is similar to ExecutionException.getCause(), discussed
-       * above. At least with InvocationTargetException, I am not aware of any JDK methods that
-       * produce an instance with a null cause.
-       *
-       * TODO(cpovirk): Still, consider being more conservative, as with ExecutionException.
-       */
       setResultValueToNonNull(result);
     }
 
@@ -839,65 +812,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       return false;
     }
     return true;
-  }
-
-  private boolean isGetCauseOnExecutionException(MethodInvocationNode node) {
-    /*
-     * We can't use nameMatches(ExecutionException, getCause) because the ExecutableElement of the
-     * call is that of Throwable.getCause, not ExecutionException.getCause (an override that does
-     * not exist in the JDK).
-     *
-     * (But using TypeMirror is technically superior: It checks the whole class name, and it could
-     * be extended to look for subtypes. Ideally we'd also replace the method-name check with a
-     * full-on override check.)
-     */
-    return isAnyOf(
-            node.getTarget().getReceiver().getType(),
-            javaUtilConcurrentExecutionException,
-            /*
-             * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case here,
-             * we can edit the class definition itself. That is, we edit it to override getCause()
-             * to declare the return type we want. And, to make that actually safe, we would likely
-             * also want to annotate its constructor to require a non-null exception parameter.
-             *
-             * However, there are at least two complications:
-             *
-             * 1. If we annotate the constructor parameter, that would also affect existing users of
-             * stock CF. In particular, it would make `new
-             * UncheckedExecutionException(executionException.getCause())` an error, since stock CF
-             * does not share our unsound assumption that executionException.getCause() returns
-             * non-null. We could reduce the fallout from this by introducing an internal stub for
-             * UncheckedExecutionException (which we would enable only for users of stock CF). For
-             * that matter, we could introduce an internal (unsound) stub for ExecutionException
-             * itself (though that may not be a complete solution, since users may be passing a
-             * nullable cause that they got from any number of places). Or we could always just
-             * suppress the new errors we create. *Or* we can change getCause) but unsoundly leave
-             * the constructor parameter as @Nullable.
-             *
-             * 2. UncheckedExecutionException has constructors that do not even accept a cause.
-             * Therefore, if we want to guarantee that its getCause() method never returns null,
-             * then we need to ban all use of those constructors (or at least use that isn't
-             * followed by a call to initCause()). Such a ban would likely be implemented as a
-             * checker-specific behavior. That argues for leaving UncheckedExecutionException
-             * annotated with nullable types and adding in the non-null behavior in our specific
-             * checker.
-             *
-             * This deserves more thought, especially given the potential impact on external users.
-             */
-            uncheckedExecutionException)
-        && nameMatches(node.getTarget().getMethod(), "getCause");
-  }
-
-  private boolean isAnyOf(TypeMirror actual, TypeMirror a, TypeMirror b) {
-    Types typeUtils = analysis.getTypes();
-    return (a != null && typeUtils.isSameType(actual, a))
-        || (b != null && typeUtils.isSameType(actual, b));
-  }
-
-  private boolean isGetCauseOnInvocationTargetException(MethodInvocationNode node) {
-    ExecutableElement method = node.getTarget().getMethod();
-    return nameMatches(method, "InvocationTargetException", "getCause")
-        || nameMatches(method, "InvocationTargetException", "getTargetException");
   }
 
   private boolean isReflectiveRead(MethodInvocationNode node) {

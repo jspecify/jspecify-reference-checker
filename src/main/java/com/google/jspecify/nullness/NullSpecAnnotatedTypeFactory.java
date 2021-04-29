@@ -80,6 +80,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
@@ -134,6 +135,8 @@ final class NullSpecAnnotatedTypeFactory
 
   private final AnnotatedDeclaredType javaUtilCollection;
   private final ExecutableElement collectionToArrayNoArgElement;
+  private final TypeMirror javaUtilConcurrentExecutionException;
+  private final TypeMirror uncheckedExecutionException;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
@@ -212,13 +215,21 @@ final class NullSpecAnnotatedTypeFactory
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
-    TypeElement javaUtilCollectionElement =
-        getElementUtils().getTypeElement("java.util.Collection");
+    Elements e = getElementUtils();
+    TypeElement javaUtilCollectionElement = e.getTypeElement("java.util.Collection");
     javaUtilCollection =
         (AnnotatedDeclaredType)
             createType(javaUtilCollectionElement.asType(), this, /*isDeclaration=*/ false);
     collectionToArrayNoArgElement =
         onlyNoArgExecutableWithName(javaUtilCollectionElement, "toArray");
+    javaUtilConcurrentExecutionException =
+        e.getTypeElement("java.util.concurrent.ExecutionException").asType();
+    TypeElement uncheckedExecutionExceptionElement =
+        e.getTypeElement("com.google.common.util.concurrent.UncheckedExecutionException");
+    uncheckedExecutionException =
+        uncheckedExecutionExceptionElement == null
+            ? null
+            : uncheckedExecutionExceptionElement.asType();
 
     postInit();
 
@@ -965,6 +976,7 @@ final class NullSpecAnnotatedTypeFactory
     return new ListTreeAnnotator(new NullSpecTreeAnnotator(this), super.createTreeAnnotator());
   }
 
+  // TODO(cpovirk): Promote this to a top-level class.
   private final class NullSpecTreeAnnotator extends TreeAnnotator {
     NullSpecTreeAnnotator(AnnotatedTypeFactory typeFactory) {
       super(typeFactory);
@@ -1039,7 +1051,122 @@ final class NullSpecAnnotatedTypeFactory
             .replaceAnnotation(upperBoundOnArrayElementType);
       }
 
+      if (isGetCauseOnExecutionException(tree)) {
+        /*
+         * ExecutionException.getCause() *can* in fact return null. In fact, the JDK even has
+         * methods that can produce such an exception:
+         * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/src/main/java/util/concurrent/AbstractExecutorService.java?revision=1.54&view=markup#l185
+         *
+         * So the right way to annotate the method is indeed to mark is @Nullable. (Aside: When I
+         * first wrote this comment, a declaration of ExecutionException.getCause() in a stub file
+         * would have had no effect, since that override of Throwable.getCause() does not exist in
+         * the JDK. However, I'm now updating this comment to say that such declarations may have
+         * started working with version 3.11.0, thanks to
+         * https://github.com/typetools/checker-framework/pull/4275. But I haven't tested.)
+         *
+         * Still, in practice, the nullness errors we've reported when people dereference
+         * ExecutionException.getCause() have not been finding real issues. So, for the moment,
+         * we'll pretend that the value returned by that method is never null.
+         *
+         * TODO(cpovirk): Revisit this once we offer ways to suppress errors that are less noisy and
+         * more automated. Even before then, consider reducing the scope of this exception to apply
+         * only to exceptions thrown by Future.get, which, unlike those thrown by
+         * ExecutorService.invokeAny, do have a cause in all real-world implementations I'm aware
+         * of.
+         *
+         * TODO(cpovirk): Also, consider banning calls to ExecutionException constructors that pass
+         * a nullable argument or call an overload that does not require a cause.
+         */
+        type.replaceAnnotation(minusNull);
+      }
+
+      if (isGetCauseOnInvocationTargetException(tree)) {
+        /*
+         * InvocationTargetException.getCause() is similar to ExecutionException.getCause(),
+         * discussed above. At least with InvocationTargetException, I am not aware of any JDK
+         * methods that produce an instance with a null cause.
+         *
+         * TODO(cpovirk): Still, consider being more conservative, as with ExecutionException.
+         */
+        type.replaceAnnotation(minusNull);
+      }
+
       return super.visitMethodInvocation(tree, type);
+    }
+
+    private boolean isGetCauseOnExecutionException(MethodInvocationTree node) {
+      if (node.getMethodSelect().getKind() != MEMBER_SELECT) {
+        /*
+         * We don't care much about handling IDENTIFIER, since we're not likely to be analyzing
+         * ExecutionException itself (nor a subclass of it).
+         */
+        return false;
+      }
+      MemberSelectTree methodSelect = (MemberSelectTree) node.getMethodSelect();
+      Element element = elementFromUse(methodSelect.getExpression());
+      if (element == null) {
+        return false;
+      }
+
+      /*
+       * We can't use nameMatches(ExecutionException, getCause) because the ExecutableElement of the
+       * call is that of Throwable.getCause, not ExecutionException.getCause (an override that does
+       * not exist in the JDK).
+       *
+       * (But using TypeMirror is technically superior: It checks the whole class name, and it could
+       * be extended to look for subtypes. Ideally we'd also replace the method-name check with a
+       * full-on override check.)
+       */
+      return isAnyOf(
+              element.asType(),
+              javaUtilConcurrentExecutionException,
+              /*
+               * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case here,
+               * we can edit the class definition itself. That is, we edit it to override getCause() to
+               * declare the return type we want. And, to make that actually safe, we would likely also
+               * want to annotate its constructor to require a non-null exception parameter.
+               *
+               * However, there are at least two complications:
+               *
+               * 1. If we annotate the constructor parameter, that would also affect existing users of
+               * stock CF. In particular, it would make `new
+               * UncheckedExecutionException(executionException.getCause())` an error, since stock CF
+               * does not share our unsound assumption that executionException.getCause() returns
+               * non-null. We could reduce the fallout from this by introducing an internal stub for
+               * UncheckedExecutionException (which we would enable only for users of stock CF). For
+               * that matter, we could introduce an internal (unsound) stub for ExecutionException
+               * itself (though that may not be a complete solution, since users may be passing a
+               * nullable cause that they got from any number of places). Or we could always just
+               * suppress the new errors we create. *Or* we can change getCause) but unsoundly leave the
+               * constructor parameter as @Nullable.
+               *
+               * 2. UncheckedExecutionException has constructors that do not even accept a cause.
+               * Therefore, if we want to guarantee that its getCause() method never returns null, then
+               * we need to ban all use of those constructors (or at least use that isn't followed by a
+               * call to initCause()). Such a ban would likely be implemented as a checker-specific
+               * behavior. That argues for leaving UncheckedExecutionException annotated with nullable
+               * types and adding in the non-null behavior in our specific checker.
+               *
+               * This deserves more thought, especially given the potential impact on external users.
+               */
+              uncheckedExecutionException)
+          && methodSelect.getIdentifier().contentEquals("getCause");
+    }
+
+    private boolean isAnyOf(TypeMirror actual, TypeMirror a, TypeMirror b) {
+      Types typeUtils = analysis.getTypes();
+      /*
+       * TODO(cpovirk): Eliminate null permissiveness by accepting a Collection<TypeMirror> and just
+       * not inserting types into it unless they're available on this compilation's classpath.
+       */
+      return (a != null && typeUtils.isSameType(actual, a))
+          || (b != null && typeUtils.isSameType(actual, b));
+    }
+
+    private boolean isGetCauseOnInvocationTargetException(MethodInvocationTree tree) {
+      ExecutableElement method = elementFromUse(tree);
+      return nameMatches(method, "InvocationTargetException", "getCause")
+          || nameMatches(method, "InvocationTargetException", "getTargetException");
     }
 
     private AnnotationMirror upperBoundOnToArrayElementType(MethodInvocationTree tree) {
