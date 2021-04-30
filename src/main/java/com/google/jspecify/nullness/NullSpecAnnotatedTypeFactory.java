@@ -44,6 +44,7 @@ import static org.checkerframework.javacutil.TreePathUtil.enclosingClass;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TreeUtils.isNullExpression;
+import static org.checkerframework.javacutil.TreeUtils.typeOf;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
@@ -1094,19 +1095,16 @@ final class NullSpecAnnotatedTypeFactory
       return super.visitMethodInvocation(tree, type);
     }
 
-    private boolean isGetCauseOnExecutionException(MethodInvocationTree node) {
-      if (node.getMethodSelect().getKind() != MEMBER_SELECT) {
+    private boolean isGetCauseOnExecutionException(MethodInvocationTree tree) {
+      if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
         /*
          * We don't care much about handling IDENTIFIER, since we're not likely to be analyzing
-         * ExecutionException itself (nor a subclass of it).
+         * ExecutionException itself (nor a subclass of it). But see the TODO in
+         * upperBoundOnToArrayElementType.
          */
         return false;
       }
-      MemberSelectTree methodSelect = (MemberSelectTree) node.getMethodSelect();
-      Element element = elementFromUse(methodSelect.getExpression());
-      if (element == null) {
-        return false;
-      }
+      MemberSelectTree methodSelect = (MemberSelectTree) tree.getMethodSelect();
 
       /*
        * We can't use nameMatches(ExecutionException, getCause) because the ExecutableElement of the
@@ -1118,7 +1116,7 @@ final class NullSpecAnnotatedTypeFactory
        * full-on override check.)
        */
       return isAnyOf(
-              element.asType(),
+              typeOf(methodSelect.getExpression()),
               javaUtilConcurrentExecutionException,
               /*
                * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case here,
@@ -1175,6 +1173,15 @@ final class NullSpecAnnotatedTypeFactory
         return null;
       }
 
+      /*
+       * TODO(cpovirk): Consider using this code in isGetCauseOnExecutionException (which currently
+       * handles only MEMBER_SELECT). And consider changing *this* code to use
+       * AnnotatedTypeFactory.getReceiverType, since we need a full-on AnnotatedTypeMirror here. No,
+       * getReceiverType doesn't eliminate the getAnnotatedType call that I worry about below. But
+       * it could save us some code and probably handle more cases than we do. Arguably that extra
+       * handling is enough reason to use getReceiverType even when we could get by with a plain
+       * TypeMirror, as in isGetCauseOnExecutionException.
+       */
       Tree receiver;
       if (tree.getMethodSelect().getKind() == MEMBER_SELECT) {
         receiver = ((MemberSelectTree) tree.getMethodSelect()).getExpression();
