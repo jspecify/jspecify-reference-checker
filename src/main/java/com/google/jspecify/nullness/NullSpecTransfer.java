@@ -32,6 +32,7 @@ import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromTree;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
+import static org.checkerframework.javacutil.TreeUtils.typeOf;
 
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
@@ -51,7 +52,9 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -83,6 +86,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final AnnotationMirror minusNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
+  private final TypeMirror javaNioFileDrectoryStream;
+  private final ExecutableElement pathGetFileNameElement;
   private final AnnotatedDeclaredType javaUtilMap;
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
@@ -107,6 +112,11 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     minusNull = AnnotationBuilder.fromClass(e, MinusNull.class);
     nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
+
+    javaNioFileDrectoryStream = e.getTypeElement("java.nio.file.DirectoryStream").asType();
+
+    TypeElement javaNioFilePathElement = e.getTypeElement("java.nio.file.Path");
+    pathGetFileNameElement = onlyExecutableWithName(javaNioFilePathElement, "getFileName");
 
     TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
     javaUtilMap =
@@ -412,6 +422,10 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       }
     }
 
+    if (isOrOverrides(method, pathGetFileNameElement)) {
+      refinePathGetFileNameResultIfDirectoryStreamLoop(node, result);
+    }
+
     if (isOrOverrides(method, mapGetElement)) {
       refineMapGetResultIfKeySetLoop(node, result);
     }
@@ -657,6 +671,39 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     return storeChanged;
   }
 
+  private void refinePathGetFileNameResultIfDirectoryStreamLoop(
+      MethodInvocationNode pathGetFileNameNode, TransferResult<CFValue, NullSpecStore> input) {
+    Tree pathGetFileNameReceiver = pathGetFileNameNode.getTarget().getReceiver().getTree();
+    Element pathGetFileNameReceiverElement = elementFromTree(pathGetFileNameReceiver);
+    if (pathGetFileNameReceiverElement == null) {
+      return;
+    }
+
+    for (TreePath path = pathGetFileNameNode.getTreePath();
+        path != null;
+        path = path.getParentPath()) {
+      if (!(path.getLeaf() instanceof EnhancedForLoopTree)) {
+        continue;
+      }
+      EnhancedForLoopTree forLoop = (EnhancedForLoopTree) path.getLeaf();
+
+      // Is the foreach over a DirectoryStream?
+      if (!isErasedSubtype(typeOf(forLoop.getExpression()), javaNioFileDrectoryStream)) {
+        continue;
+      }
+
+      // Is the receiver of path.getFileName(...) the variable from the foreach?
+      VariableElement forVariableElement = elementFromDeclaration(forLoop.getVariable());
+      if (pathGetFileNameReceiverElement != forVariableElement) {
+        continue;
+      }
+
+      input.setResultValue(
+          analysis.createSingleAnnotationValue(
+              minusNull, input.getResultValue().getUnderlyingType()));
+    }
+  }
+
   private void refineMapGetResultIfKeySetLoop(
       MethodInvocationNode mapGetNode, TransferResult<CFValue, NullSpecStore> input) {
     Tree mapGetReceiver = mapGetNode.getTarget().getReceiver().getTree();
@@ -680,6 +727,15 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       return;
     }
 
+    /*
+     * TODO(cpovirk): Benchmark the cost of looking the entire way up the tree path. Maybe we should
+     * stop at the first foreach or even the first block of any kind?
+     *
+     * If performance is bad enough, consider this an additional reason to move this code out of
+     * NullSpecStore and into our TreeAnnotator, as discussed in visitFieldAccess: TreeAnnotator
+     * could make a single pass over the file to infer the return types of all calls to
+     * map.get(...), path.getFileName(), and any other APIs en masse.
+     */
     for (TreePath path = mapGetNode.getTreePath(); path != null; path = path.getParentPath()) {
       if (!(path.getLeaf() instanceof EnhancedForLoopTree)) {
         continue;
@@ -1124,6 +1180,11 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     return isOrOverrides(overrider, a)
         || isOrOverrides(overrider, b)
         || isOrOverrides(overrider, c);
+  }
+
+  private boolean isErasedSubtype(TypeMirror sub, TypeMirror sup) {
+    Types types = atypeFactory.types;
+    return types.isSubtype(types.erasure(sub), types.erasure(sup));
   }
 
   /**
