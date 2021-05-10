@@ -332,47 +332,6 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
     checkForAtomicReferenceConstructorCall(tree, executable);
 
-    if (nameMatches(tree, "Preconditions", "checkNotNull")) {
-      ensureNonNull(tree.getArguments().get(0), /*messageKey=*/ "checknotnull");
-      /*
-       * We don't return here: We still want to descend into arguments, as they may themselves
-       * contain method calls, etc. that we want to check.
-       *
-       * This means that the supertype will report *another* error for this call -- two errors, in
-       * fact. But at least we get to get in first and present a better message.
-       *
-       * If we prefer, we could instead return here -- but only if ensureNonNull reported an error!
-       * In the error case, that could hide additional errors related to subexpressions, but it
-       * would eliminate the warning spam from the superclass.
-       *
-       * I considered programmatically overriding the annotation on checkNotNull's parameter from
-       * NullSpecTypeAnnotator.visitExecutable. That lets us prevent the superclass from reporting
-       * an error while still checking subexpressions. However, that would prevent other
-       * NullSpecVisitor methods from seeing the right signature, such as for uses of the method
-       * reference Preconditions::checkNotNull.
-       *
-       * We could try hooking into the checking process elsewhere, such as:
-       *
-       * - GenericAnnotatedTypeFactory.methodFromUse? But it's used elsewhere, so might this cause
-       * problems?
-       *
-       * - BaseTypeVisitor.checkTypeArguments and checkArguments? But might we still need to check
-       * *other* arguments to checkNotNull after the first? All the Object arguments are @Nullable,
-       * and so is the String template, but could anything go wrong with the primitive-accepting
-       * overloads? Plus, all we have access to is the method name (unless we set up thread-local
-       * state). *And* note that checkArguments is responsible for scanning subexpressions, and to
-       * do so, it must set up the assignment context. So we ideally wouldn't want to just skip it.
-       * (For that reason, maybe commonAssignmentCheck is a better hook than checkArguments?) *And*
-       * note that we would ideally still run checkTypeArguments *if* the user passed explicit type
-       * arguments....
-       *
-       * Maybe we should just edit BaseTypeVisitor.visitMethodInvocation to contain the special case
-       * we need. (Or we could edit it to expose a hook for us. The existing hook, shouldSkipUses,
-       * is not ideal because it applies to a full class.)
-       *
-       * TODO(cpovirk): Do *something* to reduce error spam, even if it has some side effects?
-       */
-    }
     return super.visitMethodInvocation(tree, p);
   }
 
