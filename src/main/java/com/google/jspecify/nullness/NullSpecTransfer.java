@@ -17,6 +17,7 @@ package com.google.jspecify.nullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
+import static com.google.jspecify.nullness.Util.onlyOneArgExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -92,6 +93,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
+  private final ExecutableElement mapRemoveElement;
   private final ExecutableElement navigableMapNavigableKeySetElement;
   private final ExecutableElement navigableMapDescendingKeySetElement;
   private final AnnotatedDeclaredType javaLangClass;
@@ -125,6 +127,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
     mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+    mapRemoveElement = onlyOneArgExecutableWithName(javaUtilMapElement, "remove");
 
     TypeElement javaUtilNavigableMapElement = e.getTypeElement("java.util.NavigableMap");
     navigableMapNavigableKeySetElement =
@@ -532,12 +535,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     MethodCall isAnnotationPresentCall = (MethodCall) fromNode(isAnnotationPresentNode);
 
     List<ExecutableElement> getAnnotationAndOverrides =
-        getAllDeclaredSupertypes(types.annotatedElementType).stream()
-            .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
-            .filter(ExecutableElement.class::isInstance)
-            .map(ExecutableElement.class::cast)
-            .filter(e -> isOrOverrides(e, annotatedElementGetAnnotationElement))
-            .collect(toList());
+        methodAndOverrides(annotatedElementGetAnnotationElement, types.annotatedElementType);
 
     boolean storeChanged = false;
     for (ExecutableElement getAnnotationAndOverride : getAnnotationAndOverrides) {
@@ -640,24 +638,16 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
      * entries for Map.get and its override. I *suspect* that we could always take the more specific
      * one, but given that the existing code works, I'm not going to take any risk right now.
      */
-    List<ExecutableElement> mapGetAndOverrides =
-        getAllDeclaredSupertypes(mapType.type).stream()
-            .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
-            .filter(ExecutableElement.class::isInstance)
-            .map(ExecutableElement.class::cast)
-            /*
-             * TODO(cpovirk): It would be more correct to pass the corresponding `TypeElement type`
-             * to Elements.overrides.
-             */
-            .filter(e -> isOrOverrides(e, mapGetElement))
-            .collect(toList());
+    List<ExecutableElement> mapGetAndRemoveAndOverrides = new ArrayList<>();
+    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(mapGetElement, mapType.type));
+    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(mapRemoveElement, mapType.type));
 
     boolean storeChanged = false;
-    for (ExecutableElement mapGetOrOverride : mapGetAndOverrides) {
-      MethodCall getCall =
+    for (ExecutableElement mapGetOrRemoveOrOverride : mapGetAndRemoveAndOverrides) {
+      MethodCall getOrRemoveCall =
           new MethodCall(
               mapType.mapValueAsDataflowValue.getUnderlyingType(),
-              mapGetOrOverride,
+              mapGetOrRemoveOrOverride,
               containsKeyCall.getReceiver(),
               containsKeyCall.getArguments());
 
@@ -666,9 +656,23 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        * we don't remove information if someone calls remove(key). But I'm probably failing to even
        * think of bigger problems.
        */
-      storeChanged |= refine(getCall, mapType.mapValueAsDataflowValue, thenStore);
+      storeChanged |= refine(getOrRemoveCall, mapType.mapValueAsDataflowValue, thenStore);
     }
     return storeChanged;
+  }
+
+  private List<ExecutableElement> methodAndOverrides(
+      ExecutableElement method, AnnotatedTypeMirror receiver) {
+    return getAllDeclaredSupertypes(receiver).stream()
+        .flatMap(type -> type.getUnderlyingType().asElement().getEnclosedElements().stream())
+        .filter(ExecutableElement.class::isInstance)
+        .map(ExecutableElement.class::cast)
+        /*
+         * TODO(cpovirk): It would be more correct to pass the corresponding `TypeElement type`
+         * to Elements.overrides.
+         */
+        .filter(e -> isOrOverrides(e, method))
+        .collect(toList());
   }
 
   private void refinePathGetFileNameResultIfDirectoryStreamLoop(

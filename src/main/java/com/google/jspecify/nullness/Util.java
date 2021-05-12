@@ -24,7 +24,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
+import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -90,27 +90,30 @@ final class Util {
   }
 
   static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
-    List<ExecutableElement> elements = executablesWithName(type, name).collect(toList());
-    if (elements.size() != 1) {
-      throw new IllegalArgumentException(type + "." + name);
-    }
-    return elements.get(0);
+    return onlyExecutableElement(type, name, m -> true);
   }
 
   static ExecutableElement onlyNoArgExecutableWithName(TypeElement type, String name) {
+    return onlyExecutableElement(type, name, m -> m.getParameters().isEmpty());
+  }
+
+  static ExecutableElement onlyOneArgExecutableWithName(TypeElement type, String name) {
+    return onlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
+  }
+
+  private static ExecutableElement onlyExecutableElement(
+      TypeElement type, String name, Predicate<ExecutableElement> predicate) {
     List<ExecutableElement> elements =
-        executablesWithName(type, name).filter(m -> m.getParameters().isEmpty()).collect(toList());
+        type.getEnclosedElements().stream()
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .filter(x -> nameMatches(x, name))
+            .filter(predicate)
+            .collect(toList());
     if (elements.size() != 1) {
       throw new IllegalArgumentException(type + "." + name);
     }
     return elements.get(0);
-  }
-
-  private static Stream<ExecutableElement> executablesWithName(TypeElement type, String name) {
-    return type.getEnclosedElements().stream()
-        .filter(ExecutableElement.class::isInstance)
-        .map(ExecutableElement.class::cast)
-        .filter(x -> nameMatches(x, name));
   }
 
   static final Set<TypeUseLocation> IMPLEMENTATION_VARIABLE_LOCATIONS =
