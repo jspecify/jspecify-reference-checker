@@ -138,6 +138,8 @@ final class NullSpecAnnotatedTypeFactory
   private final ExecutableElement collectionToArrayNoArgElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
   private final TypeMirror uncheckedExecutionException;
+  private final ExecutableElement classGetEnumConstantsElement;
+  private final TypeMirror javaLangClassOfExtendsEnum;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
@@ -231,6 +233,14 @@ final class NullSpecAnnotatedTypeFactory
         uncheckedExecutionExceptionElement == null
             ? null
             : uncheckedExecutionExceptionElement.asType();
+    TypeElement javaLangClassElement = e.getTypeElement("java.lang.Class");
+    classGetEnumConstantsElement =
+        onlyNoArgExecutableWithName(javaLangClassElement, "getEnumConstants");
+    TypeElement javaLangEnumElement = e.getTypeElement("java.lang.Enum");
+    javaLangClassOfExtendsEnum =
+        types.getDeclaredType(
+            javaLangClassElement,
+            types.getWildcardType(types.erasure(javaLangEnumElement.asType()), null));
 
     postInit();
 
@@ -1092,7 +1102,35 @@ final class NullSpecAnnotatedTypeFactory
         type.replaceAnnotation(minusNull);
       }
 
+      if (isGetEnumConstantsOnEnumClass(tree)) {
+        /*
+         * This is not *completely* sound: getEnumConstants() on a Class<? extends Enum> can return
+         * null in at least two cases:
+         *
+         * - java.lang.Enum.class.getEnumConstants()
+         *
+         * - getClass().getEnumConstants() from within the body of an enum-value "subclass"
+         */
+        type.replaceAnnotation(minusNull);
+      }
+
       return super.visitMethodInvocation(tree, type);
+    }
+
+    private boolean isGetEnumConstantsOnEnumClass(MethodInvocationTree tree) {
+      if (elementFromUse(tree) != classGetEnumConstantsElement) {
+        return false;
+      }
+      if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
+        /*
+         * We don't care much about handling IDENTIFIER, since we're not likely to be analyzing
+         * Class itself. But see the TODO in upperBoundOnToArrayElementType.
+         */
+        return false;
+      }
+      MemberSelectTree methodSelect = (MemberSelectTree) tree.getMethodSelect();
+      TypeMirror receiverType = typeOf(methodSelect.getExpression());
+      return types.isSubtype(receiverType, javaLangClassOfExtendsEnum);
     }
 
     private boolean isGetCauseOnExecutionException(MethodInvocationTree tree) {
@@ -1174,8 +1212,8 @@ final class NullSpecAnnotatedTypeFactory
       }
 
       /*
-       * TODO(cpovirk): Consider using this code in isGetCauseOnExecutionException (which currently
-       * handles only MEMBER_SELECT). And consider changing *this* code to use
+       * TODO(cpovirk): Consider using this code in other methods above (which currently handle only
+       * MEMBER_SELECT). And consider changing *this* code to use
        * AnnotatedTypeFactory.getReceiverType, since we need a full-on AnnotatedTypeMirror here. No,
        * getReceiverType doesn't eliminate the getAnnotatedType call that I worry about below. But
        * it could save us some code and probably handle more cases than we do. Arguably that extra
