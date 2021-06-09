@@ -17,9 +17,10 @@ package com.google.jspecify.nullness;
 import static java.lang.annotation.ElementType.TYPE_USE;
 
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.InvisibleQualifier;
 
-/** Internal implementation detail; not usable in user code. */
+/**
+ * <b>Internal implementation detail.</b> You are probably looking for {@link
+ * org.jspecify.nullness.Nullable}.
+ */
 @Target(TYPE_USE)
-@InvisibleQualifier
-@interface MinusNull {}
+@interface Nullable {}

@@ -77,20 +77,14 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.javacutil.AnnotationBuilder;
-import org.jspecify.nullness.Nullable;
-import org.jspecify.nullness.NullnessUnspecified;
 
 final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
-  private final AnnotationMirror nullable;
-  private final AnnotationMirror nullnessUnspecified;
   private final boolean checkImpl;
   private final AnnotatedDeclaredType javaLangThreadLocal;
   private final ExecutableElement threadLocalInitialValueElement;
 
   NullSpecVisitor(BaseTypeChecker checker) {
     super(checker);
-    nullable = AnnotationBuilder.fromClass(elements, Nullable.class);
-    nullnessUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
     checkImpl = checker.hasOption("checkImpl");
 
     TypeElement javaLangThreadLocalElement =
@@ -538,8 +532,16 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   private void checkNoNullnessAnnotations(
       Tree treeToReportOn, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
-      // TODO(cpovirk): Check for aliases here (and perhaps elsewhere).
-      if (areSameByName(annotation, nullable) || areSameByName(annotation, nullnessUnspecified)) {
+      /*
+       * TODO(cpovirk): Check for aliases here (and perhaps elsewhere).
+       *
+       * For now, we look only for our specific classes. Because we're looking at Tree instances, we
+       * must look for the classes in the JSpecify annotations jar, not the ones that we use to
+       * represent the types internally in AnnotatedTypeMirror instances. Contrast this to almost
+       * all other logic in the checker, which operates on the internal types.
+       */
+      if (areSameByName(annotation, "org.jspecify.nullness.Nullable")
+          || areSameByName(annotation, "org.jspecify.nullness.NullnessUnspecified")) {
         checker.reportError(treeToReportOn, messageKey);
       }
     }

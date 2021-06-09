@@ -119,8 +119,6 @@ import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.Pair;
 import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
-import org.jspecify.nullness.NullnessUnspecified;
 
 final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<
@@ -161,7 +159,7 @@ final class NullSpecAnnotatedTypeFactory
     /*
      * Under our proposed subtyping rules, every type has a "nullness operator." There are 4
      * nullness-operator values. In this implementation, we *mostly* represent each one with an
-     * AnnotationMirror.
+     * AnnotationMirror for an annotation that is private to this checker.
      *
      * There is one exception: We do not have an AnnotationMirror for the nullness operator
      * NO_CHANGE. When we need to represent NO_CHANGE, we take one of two approaches, depending on
@@ -173,11 +171,10 @@ final class NullSpecAnnotatedTypeFactory
      *
      * For further discussion of this, see isNullExclusiveUnderEveryParameterization.
      *
-     * Since the proposed subtyping rules use names like "CODE_NOT_NULLNESS_AWARE," we follow those
-     * names here. That way, we distinguish more clearly between "Does a type have a
-     * @NullnessUnspecified annotation written on it in source code?" and "Is the nullness operator
-     * of a type nullnessOperatorUnspecified?" (The latter can happen not only from a
-     * @NullnessUnspecified annotation but also from the default in effect.)
+     * Since the proposed subtyping rules use names like "UNION_NULL," we follow those names here.
+     * Still, we give the underlying classes names like "Nullable": If those names show up in error
+     * messages somehow (unlikely, since we provide our own formatter for types), we want them to
+     * match the names of the user-facing JSpecify annotations.
      */
     minusNull = AnnotationBuilder.fromClass(elements, MinusNull.class);
     unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
@@ -187,24 +184,26 @@ final class NullSpecAnnotatedTypeFactory
      * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
      * elements.getTypeElement.
      *
-     * For Nullable, that's perhaps tolerable, though not ideal: Any invocation of the checker will
-     * need to include the JSpecify annotations jar on the classpath, even if the annotations don't
-     * appear in any of the sources or libraries.
+     * That's unfortunate. It would be nice if we didn't need a full AnnotationMirror at all, only a
+     * class name. But AnnotationMirror is baked into CF deeply, since CF needs to support
+     * generalized annotation types, write annotations back to bytecode, and perhaps more.
      *
-     * For MinusNull, it's worse: Since MinusNull doesn't exist in the *annotations* jar (since we
-     * aren't exposing it to end users, at least currently), checker invocations must put the
-     * *checker* jar on the *classpath* (not just the processorpath). Perhaps we should include
-     * MinusNull in the annotations jar (as a package-private class that the checker refers to only
-     * by name, including looking up reflectively in createSupportedTypeQualifiers?)? It would be
-     * nice if we didn't need a full AnnotationMirror at all, only a class name, but
-     * AnnotationMirror is baked into CF deeply, since CF needs to support generalized annotation
-     * types, write annotations back to bytecode, and perhaps more.
+     * We do at least avoid requiring the _user-facing_ JSpecify annotations to be present on the
+     * classpath. To accomplish that, we represent types internally by using our own package-private
+     * annotations instead: We consider the user-facing annotations to be mere "aliases" for those.
+     * While it's still unfortunate to have to add *anything* to the classpath in order to run the
+     * checker, we at least avoid adding user-facing nullness annotations. (Those annotations might
+     * conflict with the "real" copies of the annotations. Plus, they might trigger conditional
+     * logic in annotation processors, logic that runs only when the JSpecify annotations are
+     * present.)
      *
-     * For NullnessUnspecified, it depends on whether we expose NullnessUnspecified to users or not:
-     * If we do, then it's like Nullable. If we don't, then it's like MinusNull.
-     *
-     * TODO(cpovirk): See if we can avoid requiring the checker on the classpath.
+     * TODO(b/187113128): See if we can keep even our internal annotations (and various other
+     * annotations required by CF) off the classpath.
      */
+
+    addAliasedTypeAnnotation("org.jspecify.nullness.Nullable", unionNull);
+    addAliasedTypeAnnotation(
+        "org.jspecify.nullness.NullnessUnspecified", nullnessOperatorUnspecified);
 
     if (checker.hasOption("aliasCFannos")) {
       addAliasedTypeAnnotation(

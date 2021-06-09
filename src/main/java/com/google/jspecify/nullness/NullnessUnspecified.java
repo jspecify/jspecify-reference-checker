@@ -17,9 +17,7 @@ package com.google.jspecify.nullness;
 import static java.lang.annotation.ElementType.TYPE_USE;
 
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.InvisibleQualifier;
 
 /** Internal implementation detail; not usable in user code. */
 @Target(TYPE_USE)
-@InvisibleQualifier
-@interface MinusNull {}
+@interface NullnessUnspecified {}
