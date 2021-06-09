@@ -17,8 +17,10 @@ package com.google.jspecify.nullness;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
+import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import java.util.HashSet;
@@ -26,14 +28,19 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.SimpleAnnotationValueVisitor8;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
+  // TODO(cpovirk): Make Util instantiable so it can hold `Elements`, `TypeMirror` objects, etc.?
+
   static boolean isOrOverrides(
       Elements elementUtils, ExecutableElement overrider, ExecutableElement overridden) {
     return overrider.equals(overridden)
@@ -131,6 +138,43 @@ final class Util {
                   ElementKind.LOCAL_VARIABLE,
                   ElementKind.RESOURCE_VARIABLE,
                   ElementKind.EXCEPTION_PARAMETER)));
+
+  static boolean hasSuppressWarningsNullness(
+      List<? extends AnnotationTree> annotations,
+      TypeMirror javaLangSuppressWarnings,
+      ExecutableElement suppressWarningsValueElement) {
+    for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
+      if (isSuppressWarningsNullness(
+          annotation, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isSuppressWarningsNullness(
+      AnnotationMirror annotation,
+      TypeMirror javaLangSuppressWarnings,
+      ExecutableElement suppressWarningsValueElement) {
+    if (!annotation.getAnnotationType().asElement().asType().equals(javaLangSuppressWarnings)) {
+      return false;
+    }
+    boolean[] isSuppression = new boolean[1];
+    new SimpleAnnotationValueVisitor8<Void, Void>() {
+      @Override
+      public Void visitString(String s, Void unused) {
+        isSuppression[0] |= s.equals("nullness");
+        return null;
+      }
+
+      @Override
+      public Void visitArray(List<? extends AnnotationValue> vals, Void unused) {
+        vals.forEach(v -> v.accept(this, null));
+        return null;
+      }
+    }.visit(annotation.getElementValues().get(suppressWarningsValueElement));
+    return isSuppression[0];
+  }
 
   private Util() {}
 }

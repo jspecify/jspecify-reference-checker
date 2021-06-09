@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_KINDS;
+import static com.google.jspecify.nullness.Util.hasSuppressWarningsNullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.ANNOTATED_TYPE;
@@ -43,6 +44,7 @@ import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssertTree;
 import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
@@ -71,6 +73,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -82,18 +85,23 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   private final boolean checkImpl;
   private final AnnotatedDeclaredType javaLangThreadLocal;
   private final ExecutableElement threadLocalInitialValueElement;
+  private final TypeMirror javaLangSuppressWarnings;
+  private final ExecutableElement suppressWarningsValueElement;
 
   NullSpecVisitor(BaseTypeChecker checker) {
     super(checker);
     checkImpl = checker.hasOption("checkImpl");
 
-    TypeElement javaLangThreadLocalElement =
-        atypeFactory.getElementUtils().getTypeElement("java.lang.ThreadLocal");
+    Elements e = atypeFactory.getElementUtils();
+    TypeElement javaLangThreadLocalElement = e.getTypeElement("java.lang.ThreadLocal");
     javaLangThreadLocal =
         (AnnotatedDeclaredType)
             createType(javaLangThreadLocalElement.asType(), atypeFactory, /*isDeclaration=*/ false);
     threadLocalInitialValueElement =
         onlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
+    TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
+    javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
+    suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
   }
 
   private void ensureNonNull(Tree tree) {
@@ -466,7 +474,13 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   public Void visitVariable(VariableTree tree, Void p) {
+    // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
+    if (hasSuppressWarningsNullness(
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+      return null;
+    }
+
     if (isPrimitiveOrArrayOfPrimitive(tree.getType())) {
       checkNoNullnessAnnotations(tree, annotations, "primitive.annotated");
     } else if (tree.getType().getKind() == MEMBER_SELECT) {
@@ -499,7 +513,13 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   public Void visitMethod(MethodTree tree, Void p) {
+    // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
+    if (hasSuppressWarningsNullness(
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+      return null;
+    }
+
     Tree returnType = tree.getReturnType();
     if (returnType != null) {
       if (isPrimitiveOrArrayOfPrimitive(returnType)) {
@@ -509,6 +529,42 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
       }
     }
     return super.visitMethod(tree, p);
+  }
+
+  @Override
+  public void processClassTree(ClassTree tree) {
+    /*
+     * We short-circuit if we see @SuppressWarnings("nullness"). This is in contrast to the default
+     * CF approach, which is to continue to process code but not report warnings.
+     *
+     * The advantage to our approach is that, if our checker crashes or takes a long time for a
+     * given piece of code (perhaps especially *generated* code), users can easily disable checking
+     * for that code.
+     *
+     * Why does CF behave the way it does? I'm hoping that it's mostly because its infrastructure
+     * doesn't want to make assumptions about what kinds of warnings a given checker can produce.
+     * We, by contrast, have implemented NullSpecChecker.getSuppressWarningsPrefixes() to make *all*
+     * our warnings suppressible with @SuppressWarnings("nullness").
+     *
+     * But I do worry a little that the checker needs to do *some* processing of a class tree so
+     * that it can use that information when it checks *other* classes. If so, then our overrides of
+     * processClassTree here and preProcessClassTree in NullSpecAnnotatedTypeFactory could be
+     * trouble. But I'm cautiously optimistic that, since we never visit *trees* at all for
+     * *classpath* dependencies, we can get away without visiting them for *source* dependencies,
+     * too.
+     *
+     * Finally: For class-level suppression specifically, we can't override visitClass, which is
+     * `final`. visitClass's docs advise us to override processClassTree. But that is not sufficient
+     * to skip all expensive work, so we must also override preProcessClassTree in
+     * NullSpecAnnotatedTypeFactory.
+     */
+    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
+    if (hasSuppressWarningsNullness(
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+      return;
+    }
+
+    super.processClassTree(tree);
   }
 
   private boolean isPrimitiveOrArrayOfPrimitive(Tree type) {

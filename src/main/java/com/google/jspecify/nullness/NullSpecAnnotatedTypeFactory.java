@@ -15,7 +15,9 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
+import static com.google.jspecify.nullness.Util.hasSuppressWarningsNullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
@@ -48,6 +50,7 @@ import static org.checkerframework.javacutil.TreeUtils.typeOf;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
@@ -138,6 +141,9 @@ final class NullSpecAnnotatedTypeFactory
   private final TypeMirror uncheckedExecutionException;
   private final ExecutableElement classGetEnumConstantsElement;
   private final TypeMirror javaLangClassOfExtendsEnum;
+
+  private final TypeMirror javaLangSuppressWarnings;
+  private final ExecutableElement suppressWarningsValueElement;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
@@ -240,6 +246,10 @@ final class NullSpecAnnotatedTypeFactory
         types.getDeclaredType(
             javaLangClassElement,
             types.getWildcardType(types.erasure(javaLangEnumElement.asType()), null));
+
+    TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
+    javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
+    suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
 
     postInit();
 
@@ -1604,6 +1614,18 @@ final class NullSpecAnnotatedTypeFactory
       }.visit(type);
       return result.toString();
     }
+  }
+
+  @Override
+  public void preProcessClassTree(ClassTree tree) {
+    // For discussion of short-circuiting, see NullSpecVisitor.processClassTree.
+    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
+    if (hasSuppressWarningsNullness(
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+      return;
+    }
+
+    super.preProcessClassTree(tree);
   }
 
   @Override
