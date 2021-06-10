@@ -18,6 +18,8 @@ import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyOneArgExecutableWithName;
+import static com.google.jspecify.nullness.Util.optionalOnlyExecutableWithName;
+import static com.google.jspecify.nullness.Util.optionalTypeElement;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -47,6 +49,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -85,8 +88,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final AnnotationMirror minusNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
-  private final TypeMirror javaNioFileDrectoryStream;
-  private final ExecutableElement pathGetFileNameElement;
+  private final Optional<TypeMirror> javaNioFileDrectoryStream;
+  private final Optional<ExecutableElement> pathGetFileNameElement;
   private final AnnotatedDeclaredType javaUtilMap;
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
@@ -95,13 +98,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement navigableMapNavigableKeySetElement;
   private final ExecutableElement navigableMapDescendingKeySetElement;
   private final AnnotatedDeclaredType javaLangClass;
-  private final ExecutableElement classIsAnonymousClassElement;
-  private final ExecutableElement classIsMemberClassElement;
-  private final ExecutableElement classGetEnclosingClassElement;
+  private final Optional<ExecutableElement> classIsAnonymousClassElement;
+  private final Optional<ExecutableElement> classIsMemberClassElement;
+  private final Optional<ExecutableElement> classGetEnclosingClassElement;
   private final ExecutableElement classIsArrayElement;
   private final ExecutableElement classGetComponentTypeElement;
-  private final ExecutableElement annotatedElementIsAnnotationPresentElement;
-  private final ExecutableElement annotatedElementGetAnnotationElement;
+  private final Optional<ExecutableElement> annotatedElementIsAnnotationPresentElement;
+  private final Optional<ExecutableElement> annotatedElementGetAnnotationElement;
   private final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
   NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
@@ -113,10 +116,11 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
     unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
 
-    javaNioFileDrectoryStream = e.getTypeElement("java.nio.file.DirectoryStream").asType();
+    javaNioFileDrectoryStream =
+        optionalTypeElement(e, "java.nio.file.DirectoryStream").map(TypeElement::asType);
 
-    TypeElement javaNioFilePathElement = e.getTypeElement("java.nio.file.Path");
-    pathGetFileNameElement = onlyExecutableWithName(javaNioFilePathElement, "getFileName");
+    pathGetFileNameElement =
+        onlyExecutableWithName(optionalTypeElement(e, "java.nio.file.Path"), "getFileName");
 
     TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
     javaUtilMap =
@@ -137,15 +141,17 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     javaLangClass =
         (AnnotatedDeclaredType)
             createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
-    classIsAnonymousClassElement = onlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
-    classIsMemberClassElement = onlyExecutableWithName(javaLangClassElement, "isMemberClass");
+    classIsAnonymousClassElement =
+        optionalOnlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
+    classIsMemberClassElement =
+        optionalOnlyExecutableWithName(javaLangClassElement, "isMemberClass");
     classGetEnclosingClassElement =
-        onlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
+        optionalOnlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
     classIsArrayElement = onlyExecutableWithName(javaLangClassElement, "isArray");
     classGetComponentTypeElement = onlyExecutableWithName(javaLangClassElement, "getComponentType");
 
-    TypeElement javaLangReflectAnnotatedElementElement =
-        e.getTypeElement("java.lang.reflect.AnnotatedElement");
+    Optional<TypeElement> javaLangReflectAnnotatedElementElement =
+        optionalTypeElement(e, "java.lang.reflect.AnnotatedElement");
     annotatedElementIsAnnotationPresentElement =
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
     annotatedElementGetAnnotationElement =
@@ -486,7 +492,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     MethodCall getEnclosingClassCall =
         new MethodCall(
             javaLangClass.getUnderlyingType(),
-            classGetEnclosingClassElement,
+            classGetEnclosingClassElement.get(), // present when isAnonymousClass/isMemberClass is
             isEnclosedClassCall.getReceiver(),
             isEnclosedClassCall.getArguments());
     return refine(
@@ -533,7 +539,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     MethodCall isAnnotationPresentCall = (MethodCall) fromNode(isAnnotationPresentNode);
 
     List<ExecutableElement> getAnnotationAndOverrides =
-        methodAndOverrides(annotatedElementGetAnnotationElement, types.annotatedElementType);
+        methodAndOverrides(
+            annotatedElementGetAnnotationElement.get(), // present with isAnnotationPresent is
+            types.annotatedElementType);
 
     boolean storeChanged = false;
     for (ExecutableElement getAnnotationAndOverride : getAnnotationAndOverrides) {
@@ -675,6 +683,11 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
   private void refinePathGetFileNameResultIfDirectoryStreamLoop(
       MethodInvocationNode pathGetFileNameNode, TransferResult<CFValue, NullSpecStore> input) {
+    if (!javaNioFileDrectoryStream.isPresent()) {
+      // Running with j2cl's limited classpath.
+      return;
+    }
+
     Tree pathGetFileNameReceiver = pathGetFileNameNode.getTarget().getReceiver().getTree();
     Element pathGetFileNameReceiverElement = elementFromTree(pathGetFileNameReceiver);
     if (pathGetFileNameReceiverElement == null) {
@@ -690,7 +703,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       EnhancedForLoopTree forLoop = (EnhancedForLoopTree) path.getLeaf();
 
       // Is the foreach over a DirectoryStream?
-      if (!isErasedSubtype(typeOf(forLoop.getExpression()), javaNioFileDrectoryStream)) {
+      if (!isErasedSubtype(typeOf(forLoop.getExpression()), javaNioFileDrectoryStream.get())) {
         continue;
       }
 
@@ -1168,6 +1181,12 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       node = ((AssignmentNode) node).getTarget();
     }
     return fromNode(node);
+  }
+
+  private boolean isOrOverrides(
+      ExecutableElement overrider, Optional<ExecutableElement> overridden) {
+    // `overridden` can be absent if we're running with j2cl's limited classpath.
+    return overridden.isPresent() && isOrOverrides(overrider, overridden.get());
   }
 
   private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {

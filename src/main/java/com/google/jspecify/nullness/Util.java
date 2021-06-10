@@ -25,6 +25,7 @@ import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
@@ -40,6 +41,10 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
   // TODO(cpovirk): Make Util instantiable so it can hold `Elements`, `TypeMirror` objects, etc.?
+
+  static Optional<TypeElement> optionalTypeElement(Elements e, String name) {
+    return Optional.ofNullable(e.getTypeElement(name));
+  }
 
   static boolean isOrOverrides(
       Elements elementUtils, ExecutableElement overrider, ExecutableElement overridden) {
@@ -96,6 +101,11 @@ final class Util {
     return nameMatches(elementFromUse(tree), clazz, method);
   }
 
+  static Optional<ExecutableElement> onlyExecutableWithName(
+      Optional<TypeElement> type, String name) {
+    return type.map(e -> onlyExecutableWithName(e, name));
+  }
+
   static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> true);
   }
@@ -108,15 +118,31 @@ final class Util {
     return onlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
   }
 
+  static Optional<ExecutableElement> optionalOnlyExecutableWithName(TypeElement type, String name) {
+    List<ExecutableElement> elements = executableElements(type, name, m -> true);
+    switch (elements.size()) {
+      case 0:
+        return Optional.empty();
+      case 1:
+        return Optional.of(elements.get(0));
+      default:
+        throw new IllegalArgumentException(type + "." + name);
+    }
+  }
+
+  private static List<ExecutableElement> executableElements(
+      TypeElement type, String name, Predicate<ExecutableElement> predicate) {
+    return type.getEnclosedElements().stream()
+        .filter(ExecutableElement.class::isInstance)
+        .map(ExecutableElement.class::cast)
+        .filter(x -> nameMatches(x, name))
+        .filter(predicate)
+        .collect(toList());
+  }
+
   private static ExecutableElement onlyExecutableElement(
       TypeElement type, String name, Predicate<ExecutableElement> predicate) {
-    List<ExecutableElement> elements =
-        type.getEnclosedElements().stream()
-            .filter(ExecutableElement.class::isInstance)
-            .map(ExecutableElement.class::cast)
-            .filter(x -> nameMatches(x, name))
-            .filter(predicate)
-            .collect(toList());
+    List<ExecutableElement> elements = executableElements(type, name, predicate);
     if (elements.size() != 1) {
       throw new IllegalArgumentException(type + "." + name);
     }

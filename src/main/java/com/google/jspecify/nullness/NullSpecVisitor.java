@@ -18,6 +18,7 @@ import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_KINDS;
 import static com.google.jspecify.nullness.Util.hasSuppressWarningsNullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
+import static com.google.jspecify.nullness.Util.optionalOnlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.ANNOTATED_TYPE;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
@@ -65,6 +66,7 @@ import com.sun.source.tree.VariableTree;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -84,7 +86,7 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
   private final boolean checkImpl;
   private final AnnotatedDeclaredType javaLangThreadLocal;
-  private final ExecutableElement threadLocalInitialValueElement;
+  private final Optional<ExecutableElement> threadLocalInitialValueElement;
   private final TypeMirror javaLangSuppressWarnings;
   private final ExecutableElement suppressWarningsValueElement;
 
@@ -98,7 +100,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
         (AnnotatedDeclaredType)
             createType(javaLangThreadLocalElement.asType(), atypeFactory, /*isDeclaration=*/ false);
     threadLocalInitialValueElement =
-        onlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
+        optionalOnlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
     TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
     javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
     suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
@@ -396,13 +398,17 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
    */
 
   private boolean overridesInitialValue(TypeElement clazz) {
-    return getAllDeclaredSupertypes(clazz.asType()).stream()
-        .flatMap(type -> type.asElement().getEnclosedElements().stream())
-        .filter(ExecutableElement.class::isInstance)
-        .map(ExecutableElement.class::cast)
-        .anyMatch(
-            e ->
-                atypeFactory.getElementUtils().overrides(e, threadLocalInitialValueElement, clazz));
+    // ThreadLocal.initialValue() can be absent if we're running with j2cl's limited classpath.
+    return threadLocalInitialValueElement.isPresent()
+        && getAllDeclaredSupertypes(clazz.asType()).stream()
+            .flatMap(type -> type.asElement().getEnclosedElements().stream())
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .anyMatch(
+                e ->
+                    atypeFactory
+                        .getElementUtils()
+                        .overrides(e, threadLocalInitialValueElement.get(), clazz));
   }
 
   /**
