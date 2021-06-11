@@ -94,6 +94,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement mapKeySetElement;
   private final ExecutableElement mapContainsKeyElement;
   private final ExecutableElement mapGetElement;
+  private final ExecutableElement mapPutElement;
   private final ExecutableElement mapRemoveElement;
   private final ExecutableElement navigableMapNavigableKeySetElement;
   private final ExecutableElement navigableMapDescendingKeySetElement;
@@ -129,6 +130,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
     mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+    mapPutElement = onlyExecutableWithName(javaUtilMapElement, "put");
     mapRemoveElement = onlyOneArgExecutableWithName(javaUtilMapElement, "remove");
 
     TypeElement javaUtilNavigableMapElement = e.getTypeElement("java.util.NavigableMap");
@@ -438,7 +440,12 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     }
 
     if (isOrOverrides(method, mapContainsKeyElement)) {
-      storeChanged |= refineFutureMapGetFromMapContainsKey(node, thenStore);
+      storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, thenStore);
+    }
+
+    if (isOrOverrides(method, mapPutElement)) {
+      storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, thenStore);
+      storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, elseStore);
     }
 
     if (isOrOverrides(method, annotatedElementIsAnnotationPresentElement)) {
@@ -579,15 +586,18 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     }
   }
 
-  private boolean refineFutureMapGetFromMapContainsKey(
-      MethodInvocationNode containsKeyNode, NullSpecStore thenStore) {
-    Tree containsKeyReceiver = containsKeyNode.getTarget().getReceiver().getTree();
-    if (containsKeyReceiver == null) {
-      // TODO(cpovirk): Handle the case of a null containsKeyReceiver (probably ImplicitThisNode).
+  private boolean refineFutureMapGetFromMapContainsKeyOrPut(
+      MethodInvocationNode containsKeyOrPutNode, NullSpecStore store) {
+    Tree containsKeyOrPutReceiver = containsKeyOrPutNode.getTarget().getReceiver().getTree();
+    if (containsKeyOrPutReceiver == null) {
+      /*
+       * TODO(cpovirk): Handle the case of a null containsKeyOrPutReceiver (probably
+       * ImplicitThisNode).
+       */
       return false;
     }
 
-    MapType mapType = new MapType(containsKeyReceiver);
+    MapType mapType = new MapType(containsKeyOrPutReceiver);
     if (mapType.mapValueAsDataflowValue == null) {
       /*
        * We failed to create the CFValue we want, so give up.
@@ -623,7 +633,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        */
       return false;
     }
-    MethodCall containsKeyCall = (MethodCall) fromNode(containsKeyNode);
+    MethodCall containsKeyOrPutCall = (MethodCall) fromNode(containsKeyOrPutNode);
 
     /*
      * We want to refine the type of any future call to `map.get(key)`. To do so, we need to create
@@ -654,15 +664,15 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
           new MethodCall(
               mapType.mapValueAsDataflowValue.getUnderlyingType(),
               mapGetOrRemoveOrOverride,
-              containsKeyCall.getReceiver(),
-              containsKeyCall.getArguments());
+              containsKeyOrPutCall.getReceiver(),
+              containsKeyOrPutCall.getArguments().subList(0, 1));
 
       /*
        * TODO(cpovirk): This "@KeyFor Lite" support is surely flawed in various ways. For example,
        * we don't remove information if someone calls remove(key). But I'm probably failing to even
        * think of bigger problems.
        */
-      storeChanged |= refine(getOrRemoveCall, mapType.mapValueAsDataflowValue, thenStore);
+      storeChanged |= refine(getOrRemoveCall, mapType.mapValueAsDataflowValue, store);
     }
     return storeChanged;
   }
