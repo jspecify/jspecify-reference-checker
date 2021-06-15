@@ -467,7 +467,8 @@ final class NullSpecAnnotatedTypeFactory
       }
       return isNullInclusiveUnderEveryParameterization(supertype)
           || isNullExclusiveUnderEveryParameterization(subtype)
-          || nullnessEstablishingPathExists(subtype, supertype);
+          || (nullnessEstablishingPathExists(subtype, supertype)
+              && !supertype.hasAnnotation(minusNull));
     }
   }
 
@@ -1595,6 +1596,20 @@ final class NullSpecAnnotatedTypeFactory
         }
 
         String operator(AnnotatedTypeMirror type) {
+          /*
+           * TODO(cpovirk): It would be nice to output "!!" for minusNull "when necessary." But I
+           * don't think we have enough information at this point to know whether it's necessary.
+           * And it's very rarely necessary (and only occasionally even *helpful*), so I wouldn't
+           * want to output it *all* the time.
+           *
+           * We could try outputting it *except* in the case that T is null-exclusive: In that case,
+           * it would be confusing for us to sometimes output `T` and sometimes output `T!!` when
+           * the two are equivalent. (See a comment about this in areEqual: "One is `T`, and the
+           * other is `@MinusNull T`....")
+           *
+           * But even that adds noise that we'd probably prefer not to add. And Kotlin gets by
+           * without it: At least in my tests, I didn't see `T!!` in Kotlin error messages.
+           */
           return type.hasAnnotation(unionNull)
               ? "?"
               : type.hasAnnotation(nullnessOperatorUnspecified) ? "*" : "";
