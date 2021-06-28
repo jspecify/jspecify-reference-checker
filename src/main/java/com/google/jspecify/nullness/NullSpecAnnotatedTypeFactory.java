@@ -137,6 +137,8 @@ final class NullSpecAnnotatedTypeFactory
 
   private final AnnotatedDeclaredType javaUtilCollection;
   private final ExecutableElement collectionToArrayNoArgElement;
+  private final AnnotatedDeclaredType javaUtilMap;
+  private final ExecutableElement mapGetOrDefaultElement;
   private final TypeMirror javaUtilConcurrentExecutionException;
   private final TypeMirror uncheckedExecutionException;
   private final ExecutableElement classGetEnumConstantsElement;
@@ -230,6 +232,11 @@ final class NullSpecAnnotatedTypeFactory
             createType(javaUtilCollectionElement.asType(), this, /*isDeclaration=*/ false);
     collectionToArrayNoArgElement =
         onlyNoArgExecutableWithName(javaUtilCollectionElement, "toArray");
+    TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
+    javaUtilMap =
+        (AnnotatedDeclaredType)
+            createType(javaUtilMapElement.asType(), this, /*isDeclaration=*/ false);
+    mapGetOrDefaultElement = onlyExecutableWithName(javaUtilMapElement, "getOrDefault");
     javaUtilConcurrentExecutionException =
         e.getTypeElement("java.util.concurrent.ExecutionException").asType();
     TypeElement uncheckedExecutionExceptionElement =
@@ -1124,7 +1131,45 @@ final class NullSpecAnnotatedTypeFactory
         type.replaceAnnotation(minusNull);
       }
 
+      if (isGetOrDefaultWithNonnullMapValuesAndDefault(tree)) {
+        type.replaceAnnotation(minusNull);
+      }
+
       return super.visitMethodInvocation(tree, type);
+    }
+
+    private boolean isGetOrDefaultWithNonnullMapValuesAndDefault(MethodInvocationTree tree) {
+      if (!isOrOverrides(elementFromUse(tree), mapGetOrDefaultElement)) {
+        return false;
+      }
+      if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
+        /*
+         * We don't care much about handling IDENTIFIER, since we're not likely to be analyzing a
+         * Map implementation with a call to getOrDefault on itself, at least not with a
+         * defaultValue that is known to be non-null. But see the TODO in
+         * upperBoundOnToArrayElementType.
+         */
+        return false;
+      }
+      MemberSelectTree methodSelect = (MemberSelectTree) tree.getMethodSelect();
+      ExpressionTree receiver = methodSelect.getExpression();
+      AnnotatedDeclaredType mapType =
+          asSuper(
+              NullSpecAnnotatedTypeFactory.this,
+              /*
+               * For hand-wringing about this call to getAnnotatedType, see
+               * upperBoundOnToArrayElementType.
+               */
+              getAnnotatedType(receiver),
+              javaUtilMap);
+      AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
+      AnnotatedTypeMirror defaultType = getAnnotatedType(tree.getArguments().get(1));
+      return withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(valueType)
+          && withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(defaultType);
+      /*
+       * TODO(cpovirk): Also handle the case in which at least one has unspecified nullness, similar
+       * to what we do in upperBoundOnToArrayElementType.
+       */
     }
 
     private boolean isGetEnumConstantsOnEnumClass(MethodInvocationTree tree) {
@@ -1167,33 +1212,36 @@ final class NullSpecAnnotatedTypeFactory
               typeOf(methodSelect.getExpression()),
               javaUtilConcurrentExecutionException,
               /*
-               * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case here,
-               * we can edit the class definition itself. That is, we edit it to override getCause() to
-               * declare the return type we want. And, to make that actually safe, we would likely also
-               * want to annotate its constructor to require a non-null exception parameter.
+               * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case
+               * here, we can edit the class definition itself. That is, we edit it to override
+               * getCause() to declare the return type we want. And, to make that actually safe, we
+               * would likely also want to annotate its constructor to require a non-null exception
+               * parameter.
                *
                * However, there are at least two complications:
                *
-               * 1. If we annotate the constructor parameter, that would also affect existing users of
-               * stock CF. In particular, it would make `new
-               * UncheckedExecutionException(executionException.getCause())` an error, since stock CF
-               * does not share our unsound assumption that executionException.getCause() returns
+               * 1. If we annotate the constructor parameter, that would also affect existing users
+               * of stock CF. In particular, it would make `new
+               * UncheckedExecutionException(executionException.getCause())` an error, since stock
+               * CF does not share our unsound assumption that executionException.getCause() returns
                * non-null. We could reduce the fallout from this by introducing an internal stub for
                * UncheckedExecutionException (which we would enable only for users of stock CF). For
                * that matter, we could introduce an internal (unsound) stub for ExecutionException
                * itself (though that may not be a complete solution, since users may be passing a
                * nullable cause that they got from any number of places). Or we could always just
-               * suppress the new errors we create. *Or* we can change getCause) but unsoundly leave the
-               * constructor parameter as @Nullable.
+               * suppress the new errors we create. *Or* we can change getCause) but unsoundly leave
+               * the constructor parameter as @Nullable.
                *
                * 2. UncheckedExecutionException has constructors that do not even accept a cause.
-               * Therefore, if we want to guarantee that its getCause() method never returns null, then
-               * we need to ban all use of those constructors (or at least use that isn't followed by a
-               * call to initCause()). Such a ban would likely be implemented as a checker-specific
-               * behavior. That argues for leaving UncheckedExecutionException annotated with nullable
-               * types and adding in the non-null behavior in our specific checker.
+               * Therefore, if we want to guarantee that its getCause() method never returns null,
+               * then we need to ban all use of those constructors (or at least use that isn't
+               * followed by a call to initCause()). Such a ban would likely be implemented as a
+               * checker-specific behavior. That argues for leaving UncheckedExecutionException
+               * annotated with nullable types and adding in the non-null behavior in our specific
+               * checker.
                *
-               * This deserves more thought, especially given the potential impact on external users.
+               * This deserves more thought, especially given the potential impact on external
+               * users.
                */
               uncheckedExecutionException)
           && methodSelect.getIdentifier().contentEquals("getCause");
@@ -1234,6 +1282,10 @@ final class NullSpecAnnotatedTypeFactory
       if (tree.getMethodSelect().getKind() == MEMBER_SELECT) {
         receiver = ((MemberSelectTree) tree.getMethodSelect()).getExpression();
       } else if (tree.getMethodSelect().getKind() == IDENTIFIER) {
+        /*
+         * TODO(cpovirk): We need to figure out whether the call is being made on the instance of
+         * the enclosing class or on another class that encloses that.
+         */
         receiver = enclosingClass(getPath(tree));
       } else {
         // TODO(cpovirk): Can this happen? Maybe throw an exception?
@@ -1283,9 +1335,9 @@ final class NullSpecAnnotatedTypeFactory
        * its element type to non-null values, and thus we'd return minusNull here.
        *
        * OK, fine: Suppose that `MyList.toArray()` declares a return type of `Object[]` but leaves
-       * *unspecified* whether its element type includes null. (This would be an incorrect (or rather
-       * "incomplete") declaration but one that we would let through in "lenient mode.") Then, when
-       * someone calls that method, we would overwrite its declared return type with
+       * *unspecified* whether its element type includes null. (This would be an incorrect (or
+       * rather "incomplete") declaration but one that we would let through in "lenient mode.")
+       * Then, when someone calls that method, we would overwrite its declared return type with
        * `@NullnessUnspecified Object[]`. That's technically wrong, and what we technically *should*
        * do is probably:
        *
