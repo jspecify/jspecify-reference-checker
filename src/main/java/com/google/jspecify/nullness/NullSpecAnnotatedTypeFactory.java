@@ -383,7 +383,7 @@ final class NullSpecAnnotatedTypeFactory
     }
 
     @Override
-    protected boolean visitTypevarSubtype(
+    protected boolean visitTypevar_Type(
         AnnotatedTypeVariable subtype, AnnotatedTypeMirror supertype) {
       /*
        * The superclass "projects" type-variable usages rather than unioning them. Consequently, if
@@ -396,35 +396,35 @@ final class NullSpecAnnotatedTypeFactory
        * TODO(cpovirk): There are probably many more cases that we could short-circuit. We might
        * consider doing that in isSubtype rather than with overrides.
        */
-      return super.visitTypevarSubtype(subtype, withUnionNull(supertype));
+      return super.visitTypevar_Type(subtype, withUnionNull(supertype));
     }
 
     @Override
-    protected boolean visitWildcardSubtype(
+    protected boolean visitWildcard_Type(
         AnnotatedWildcardType subtype, AnnotatedTypeMirror supertype) {
-      // See discussion in visitTypevarSubtype above.
-      return super.visitWildcardSubtype(subtype, withUnionNull(supertype));
+      // See discussion in visitTypevar_Type above.
+      return super.visitWildcard_Type(subtype, withUnionNull(supertype));
     }
 
     @Override
-    protected boolean visitTypevarSupertype(
+    protected boolean visitType_Typevar(
         AnnotatedTypeMirror subtype, AnnotatedTypeVariable supertype) {
       /*
        * TODO(cpovirk): Why are the supertype cases so different from the subtype cases above? In
        * particular: Why is it important to replace the subtype instead of the supertype?
        */
-      return super.visitTypevarSupertype(withMinusNull(subtype), supertype);
+      return super.visitType_Typevar(withMinusNull(subtype), supertype);
     }
 
     @Override
-    protected boolean visitWildcardSupertype(
+    protected boolean visitType_Wildcard(
         AnnotatedTypeMirror subtype, AnnotatedWildcardType supertype) {
       /*
-       * See discussion in visitTypevarSupertype above.
+       * See discussion in visitType_Typevar above.
        *
        * Plus: TODO(cpovirk): Why is it important to replace an argument only conditionally?
        */
-      return super.visitWildcardSupertype(
+      return super.visitType_Wildcard(
           isNullInclusiveUnderEveryParameterization(supertype) ? withMinusNull(subtype) : subtype,
           supertype);
     }

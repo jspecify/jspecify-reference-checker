@@ -35,7 +35,7 @@ public class NullSpecTest {
           "-AassumePure",
           "-Anomsgtext",
           "-AcheckImpl",
-          "-AsuppressWarnings=conditional.type.incompatible");
+          "-AsuppressWarnings=conditional");
     }
 
     @Parameters
@@ -53,7 +53,7 @@ public class NullSpecTest {
           "-AassumePure",
           "-Anomsgtext",
           "-AcheckImpl",
-          "-AsuppressWarnings=conditional.type.incompatible");
+          "-AsuppressWarnings=conditional");
     }
 
     @Parameters
@@ -76,7 +76,7 @@ public class NullSpecTest {
           "-AassumePure",
           "-Anomsgtext",
           "-AcheckImpl",
-          "-AsuppressWarnings=conditional.type.incompatible",
+          "-AsuppressWarnings=conditional",
           "-Astrict");
     }
 
@@ -137,20 +137,20 @@ public class NullSpecTest {
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
         || missing.getMessage().contains("jspecify_nullness_mismatch")) {
       switch (unexpected.getMessage()) {
-        case "argument.type.incompatible":
-        case "assignment.type.incompatible":
+        case "argument":
+        case "assignment":
         case "atomicreference.must.include.null":
         case "cast.unsafe":
         case "dereference":
-        case "lambda.param.type.incompatible":
-        case "methodref.receiver.bound.invalid":
-        case "methodref.receiver.invalid":
-        case "methodref.return.invalid":
-        case "override.param.invalid":
-        case "override.return.invalid":
-        case "return.type.incompatible":
+        case "lambda.param":
+        case "methodref.receiver.bound":
+        case "methodref.receiver":
+        case "methodref.return":
+        case "override.param":
+        case "override.return":
+        case "return":
         case "threadlocal.must.include.null":
-        case "type.argument.type.incompatible":
+        case "type.argument":
           return true;
         default:
           return false;
@@ -178,7 +178,7 @@ public class NullSpecTest {
         }
       case "jspecify_conflicting_annotations":
         switch (unexpected.getMessage()) {
-          case "type.invalid.conflicting.annos":
+          case "conflicting.annos":
             return true;
           default:
             return false;
