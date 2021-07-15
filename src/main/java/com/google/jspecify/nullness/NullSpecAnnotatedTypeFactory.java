@@ -1688,7 +1688,7 @@ final class NullSpecAnnotatedTypeFactory
     // For discussion of short-circuiting, see NullSpecVisitor.processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
     if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
       return;
     }
 

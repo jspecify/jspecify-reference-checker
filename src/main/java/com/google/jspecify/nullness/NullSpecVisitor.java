@@ -483,7 +483,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
     if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
       return null;
     }
 
@@ -522,7 +522,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
     if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
       return null;
     }
 
@@ -566,7 +566,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
      */
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
     if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
       return;
     }
 

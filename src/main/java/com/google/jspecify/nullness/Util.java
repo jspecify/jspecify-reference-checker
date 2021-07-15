@@ -37,6 +37,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleAnnotationValueVisitor8;
+import javax.lang.model.util.Types;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 final class Util {
@@ -168,10 +169,11 @@ final class Util {
   static boolean hasSuppressWarningsNullness(
       List<? extends AnnotationTree> annotations,
       TypeMirror javaLangSuppressWarnings,
-      ExecutableElement suppressWarningsValueElement) {
+      ExecutableElement suppressWarningsValueElement,
+      Types types) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
       if (isSuppressWarningsNullness(
-          annotation, javaLangSuppressWarnings, suppressWarningsValueElement)) {
+          annotation, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
         return true;
       }
     }
@@ -181,8 +183,10 @@ final class Util {
   private static boolean isSuppressWarningsNullness(
       AnnotationMirror annotation,
       TypeMirror javaLangSuppressWarnings,
-      ExecutableElement suppressWarningsValueElement) {
-    if (!annotation.getAnnotationType().asElement().asType().equals(javaLangSuppressWarnings)) {
+      ExecutableElement suppressWarningsValueElement,
+      Types types) {
+    if (!types.isSameType(
+        annotation.getAnnotationType().asElement().asType(), javaLangSuppressWarnings)) {
       return false;
     }
     boolean[] isSuppression = new boolean[1];
