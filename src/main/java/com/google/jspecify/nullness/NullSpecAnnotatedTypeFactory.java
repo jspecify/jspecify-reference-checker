@@ -214,14 +214,42 @@ final class NullSpecAnnotatedTypeFactory
         "org.jspecify.nullness.NullnessUnspecified", nullnessOperatorUnspecified);
 
     if (checker.hasOption("aliasCFannos")) {
+      /*
+       * TODO(cpovirk): Replace this flag with a more general flag that covers all aliases? Or
+       * eliminate the flag entirely? (Maybe we'll later want to introduce other specific flags,
+       * like for recognizing *declaration* annotations named "Nullable" or recognizing @NonNull
+       * annotations?)
+       */
+      addAliasedTypeAnnotation("org.checkerframework.checker.nullness.qual.Nullable", unionNull);
       addAliasedTypeAnnotation(
-          org.checkerframework.checker.nullness.qual.Nullable.class, unionNull);
+          "org.checkerframework.checker.nullness.compatqual.NullableDecl", unionNull);
     }
+
     // Yes, it's valid to pass declaration annotations to addAliased*Type*Annotation.
-    addAliasedTypeAnnotation("javax.annotation.CheckForNull", unionNull);
     addAliasedTypeAnnotation(
         "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter", unionNull);
     addAliasedTypeAnnotation("com.google.protobuf.Internal.ProtoMethodMayReturnNull", unionNull);
+
+    /*
+     * TODO(cpovirk): If we rework how we read annotations on a deep enough level, consider
+     * recognizing annotations by simple class name instead of by fully qualified name.
+     */
+    addAliasedTypeAnnotation("android.annotation.Nullable", unionNull);
+    addAliasedTypeAnnotation("android.support.annotation.Nullable", unionNull);
+    addAliasedTypeAnnotation("android.support.annotation.RecentlyNullable", unionNull);
+    addAliasedTypeAnnotation("androidx.annotation.Nullable", unionNull);
+    addAliasedTypeAnnotation("androidx.annotation.RecentlyNullable", unionNull);
+    addAliasedTypeAnnotation("com.android.annotations.Nullable", unionNull);
+    addAliasedTypeAnnotation("javax.annotation.CheckForNull", unionNull);
+    addAliasedTypeAnnotation("javax.annotation.Nullable", unionNull);
+    addAliasedTypeAnnotation("org.jetbrains.annotations.Nullable", unionNull);
+
+    /*
+     * TODO(cpovirk): Consider recognizing various @NonNull/@NotNull annotations as aliases of
+     * @MinusNull. But this lets users write `@NonNull T` for a type-variable usage `T`. That means
+     * that we'd better have a way to *print* such types, which don't typically arise today. (We'd
+     * probably use "T!!")
+     */
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
