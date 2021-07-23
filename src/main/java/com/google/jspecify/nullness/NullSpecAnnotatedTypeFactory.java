@@ -300,6 +300,31 @@ final class NullSpecAnnotatedTypeFactory
 
     @Override
     public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+      if (subAnno == null || superAnno == null) {
+        /*
+         * The stock CF never passes null to this method: It always expose *some* annotation
+         * (perhaps an upper bound?) associated with a given type. However, *we*, in the case of
+         * unannotated type-variable usages, do not expose an annotation where we should. The lack
+         * of annotation manifests as a null argument to this method.
+         *
+         * Surprisingly, this doesn't seem to cause a ton of issues in practice. Maybe the typical
+         * case is that we're comparing 2 types that *both* lack an annotation, and maybe that's
+         * enough for CF to short-circuit before calling this method? The case in which we *have*
+         * seen problems is when we mix code with unspecified nullness and code with specified
+         * nullness -- but even then only in certain situations, including some usages of the
+         * ternary operator.
+         *
+         * Eventually, we should figure out how this method should behave in the null case. Or
+         * really, what we "should" do is change our checker to fundamentally mesh with CF's design.
+         * (Some of this is discussed in https://github.com/jspecify/checker-framework/issues/4)
+         *
+         * For now, we just want to avoid having the checker crash with a NullPointerException, so
+         * we just return true (hopefully a good guess in lenient mode, less so in strict mode).
+         *
+         * TODO(cpovirk): Handle or avoid the case of null arguments.
+         */
+        return true;
+      }
       /*
        * Since we perform all necessary checking in the isSubtype method in NullSpecTypeHierarchy, I
        * tried replacing this body with `return true` to avoid duplicating logic. However, that's a
