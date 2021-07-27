@@ -1576,7 +1576,7 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     public String format(AnnotatedTypeMirror type, boolean printVerbose) {
       StringBuilder result = new StringBuilder();
-      Map<AnnotatedWildcardType, Present> visiting = new IdentityHashMap<>();
+      IdentityHashMap<AnnotatedWildcardType, Present> visiting = new IdentityHashMap<>();
       new AnnotatedTypeVisitor<Void, Void>() {
         @Override
         public Void visit(AnnotatedTypeMirror type) {
