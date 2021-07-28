@@ -252,7 +252,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     boolean storeChanged = false;
 
     if (nameMatches(method, "Objects", "requireNonNull")
-        || nameMatches(method, "Preconditions", "checkNotNull")) {
+        || nameMatches(method, "Preconditions", "checkNotNull")
+        || nameMatches(method, "Verify", "verifyNotNull")) {
       // See the discussion of checkState and checkArgument below.
       storeChanged |= refineNonNull(node.getArgument(0), thenStore);
       storeChanged |= refineNonNull(node.getArgument(0), elseStore);
