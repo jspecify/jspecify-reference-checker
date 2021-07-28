@@ -18,6 +18,7 @@ import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
 import static com.google.jspecify.nullness.Util.onlyOneArgExecutableWithName;
+import static com.google.jspecify.nullness.Util.onlyTwoArgExecutableWithName;
 import static com.google.jspecify.nullness.Util.optionalOnlyExecutableWithName;
 import static com.google.jspecify.nullness.Util.optionalTypeElement;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
@@ -98,6 +99,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private final ExecutableElement mapRemoveElement;
   private final ExecutableElement navigableMapNavigableKeySetElement;
   private final ExecutableElement navigableMapDescendingKeySetElement;
+  private final ExecutableElement objectsToStringTwoArgElement;
   private final AnnotatedDeclaredType javaLangClass;
   private final Optional<ExecutableElement> classIsAnonymousClassElement;
   private final Optional<ExecutableElement> classIsMemberClassElement;
@@ -138,6 +140,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
         onlyExecutableWithName(javaUtilNavigableMapElement, "navigableKeySet");
     navigableMapDescendingKeySetElement =
         onlyExecutableWithName(javaUtilNavigableMapElement, "descendingKeySet");
+
+    TypeElement javaUtilObjectsElement = e.getTypeElement("java.util.Objects");
+    objectsToStringTwoArgElement = onlyTwoArgExecutableWithName(javaUtilObjectsElement, "toString");
 
     TypeElement javaLangClassElement = e.getTypeElement("java.lang.Class");
     javaLangClass =
@@ -387,6 +392,16 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
          * nullness operator that "projects" to unspecified nullness, just as @NonNull "projects" to
          * non-null, regardless of what the type variable it's applied to otherwise permits.
          */
+        setResultValueOperatorToUnspecified(result);
+      }
+    } else if (method.equals(objectsToStringTwoArgElement)) {
+      // Just like the case above but for arg 1 instead of arg 0.
+      AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(1));
+      if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
+        setResultValueToNonNull(result);
+      } else if (atypeFactory
+          .withMostConvenientWorld()
+          .isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueOperatorToUnspecified(result);
       }
     } else if (nameMatches(method, "System", "getProperty")) {

@@ -119,6 +119,10 @@ final class Util {
     return onlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
   }
 
+  static ExecutableElement onlyTwoArgExecutableWithName(TypeElement type, String name) {
+    return onlyExecutableElement(type, name, m -> m.getParameters().size() == 2);
+  }
+
   static Optional<ExecutableElement> optionalOnlyExecutableWithName(TypeElement type, String name) {
     List<ExecutableElement> elements = executableElements(type, name, m -> true);
     switch (elements.size()) {
