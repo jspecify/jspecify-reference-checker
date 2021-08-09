@@ -15,10 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_KINDS;
-import static com.google.jspecify.nullness.Util.hasSuppressWarningsNullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
-import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
-import static com.google.jspecify.nullness.Util.optionalOnlyExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.ANNOTATED_TYPE;
 import static com.sun.source.tree.Tree.Kind.ARRAY_TYPE;
 import static com.sun.source.tree.Tree.Kind.EXTENDS_WILDCARD;
@@ -30,7 +27,6 @@ import static com.sun.source.tree.Tree.Kind.UNBOUNDED_WILDCARD;
 import static java.util.Arrays.asList;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
-import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
@@ -66,7 +62,6 @@ import com.sun.source.tree.VariableTree;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -75,8 +70,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
-import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -85,25 +78,12 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
   private final boolean checkImpl;
-  private final AnnotatedDeclaredType javaLangThreadLocal;
-  private final Optional<ExecutableElement> threadLocalInitialValueElement;
-  private final TypeMirror javaLangSuppressWarnings;
-  private final ExecutableElement suppressWarningsValueElement;
+  private final Util util;
 
-  NullSpecVisitor(BaseTypeChecker checker) {
+  NullSpecVisitor(NullSpecChecker checker, Util util) {
     super(checker);
+    this.util = util;
     checkImpl = checker.hasOption("checkImpl");
-
-    Elements e = atypeFactory.getElementUtils();
-    TypeElement javaLangThreadLocalElement = e.getTypeElement("java.lang.ThreadLocal");
-    javaLangThreadLocal =
-        (AnnotatedDeclaredType)
-            createType(javaLangThreadLocalElement.asType(), atypeFactory, /*isDeclaration=*/ false);
-    threadLocalInitialValueElement =
-        optionalOnlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
-    TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
-    javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
-    suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
   }
 
   private void ensureNonNull(Tree tree) {
@@ -366,11 +346,11 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
      */
     TypeElement clazz = (TypeElement) constructor.getEnclosingElement();
     if (types.isSubtype(
-            types.erasure(clazz.asType()), types.erasure(javaLangThreadLocal.getUnderlyingType()))
+            types.erasure(clazz.asType()), types.erasure(util.javaLangThreadLocalElement.asType()))
         && !overridesInitialValue(clazz)) {
       AnnotatedDeclaredType annotatedType = atypeFactory.getAnnotatedType(tree);
       AnnotatedDeclaredType annotatedTypeAsThreadLocal =
-          asSuper(atypeFactory, annotatedType, javaLangThreadLocal);
+          asSuper(atypeFactory, annotatedType, atypeFactory.javaLangThreadLocal);
       AnnotatedTypeMirror typeArg = annotatedTypeAsThreadLocal.getTypeArguments().get(0);
       if (!atypeFactory.isNullInclusiveUnderEveryParameterization(typeArg)) {
         checker.reportError(tree, "threadlocal.must.include.null", typeArg);
@@ -399,7 +379,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   private boolean overridesInitialValue(TypeElement clazz) {
     // ThreadLocal.initialValue() can be absent if we're running with j2cl's limited classpath.
-    return threadLocalInitialValueElement.isPresent()
+    return util.threadLocalInitialValueElement.isPresent()
         && getAllDeclaredSupertypes(clazz.asType()).stream()
             .flatMap(type -> type.asElement().getEnclosedElements().stream())
             .filter(ExecutableElement.class::isInstance)
@@ -408,7 +388,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
                 e ->
                     atypeFactory
                         .getElementUtils()
-                        .overrides(e, threadLocalInitialValueElement.get(), clazz));
+                        .overrides(e, util.threadLocalInitialValueElement.get(), clazz));
   }
 
   /**
@@ -482,8 +462,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   public Void visitVariable(VariableTree tree, Void p) {
     // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
-    if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
+    if (util.hasSuppressWarningsNullness(annotations)) {
       return null;
     }
 
@@ -521,8 +500,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   public Void visitMethod(MethodTree tree, Void p) {
     // For discussion of short-circuiting, see processClassTree.
     List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
-    if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
+    if (util.hasSuppressWarningsNullness(annotations)) {
       return null;
     }
 
@@ -564,9 +542,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
      * to skip all expensive work, so we must also override preProcessClassTree in
      * NullSpecAnnotatedTypeFactory.
      */
-    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
-    if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
+    if (util.hasSuppressWarningsNullness(tree.getModifiers().getAnnotations())) {
       return;
     }
 
@@ -648,6 +624,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
 
   @Override
   protected NullSpecAnnotatedTypeFactory createTypeFactory() {
-    return new NullSpecAnnotatedTypeFactory(checker);
+    // Reading util this way is ugly but necessary. See discussion in NullSpecChecker.
+    return new NullSpecAnnotatedTypeFactory(checker, ((NullSpecChecker) checker).util);
   }
 }

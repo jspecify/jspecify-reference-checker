@@ -15,10 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
-import static com.google.jspecify.nullness.Util.hasSuppressWarningsNullness;
 import static com.google.jspecify.nullness.Util.nameMatches;
-import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
-import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
@@ -38,7 +35,6 @@ import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARA
 import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
 import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
 import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
-import static org.checkerframework.framework.type.AnnotatedTypeMirror.createType;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.framework.util.defaults.QualifierDefaults.AdditionalTypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
@@ -50,7 +46,6 @@ import static org.checkerframework.javacutil.TreeUtils.typeOf;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
-import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
@@ -119,14 +114,14 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
-import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.Pair;
 import org.jspecify.nullness.NullMarked;
 
 final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<
         CFValue, NullSpecStore, NullSpecTransfer, NullSpecAnalysis> {
-  // TODO(cpovirk): Consider creating these once and passing them to all other classes.
+  private final Util util;
+
   private final AnnotationMirror minusNull;
   private final AnnotationMirror unionNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
@@ -136,20 +131,14 @@ final class NullSpecAnnotatedTypeFactory
   private final NullSpecAnnotatedTypeFactory withMostConvenientWorld;
 
   private final AnnotatedDeclaredType javaUtilCollection;
-  private final ExecutableElement collectionToArrayNoArgElement;
-  private final AnnotatedDeclaredType javaUtilMap;
-  private final ExecutableElement mapGetOrDefaultElement;
-  private final TypeMirror javaUtilConcurrentExecutionException;
-  private final TypeMirror uncheckedExecutionException;
-  private final ExecutableElement classGetEnumConstantsElement;
-  private final TypeMirror javaLangClassOfExtendsEnum;
 
-  private final TypeMirror javaLangSuppressWarnings;
-  private final ExecutableElement suppressWarningsValueElement;
+  final AnnotatedDeclaredType javaLangClass;
+  final AnnotatedDeclaredType javaLangThreadLocal;
+  final AnnotatedDeclaredType javaUtilMap;
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
-  NullSpecAnnotatedTypeFactory(BaseTypeChecker checker) {
-    this(checker, checker.hasOption("strict"), /*withOtherWorld=*/ null);
+  NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, Util util) {
+    this(checker, util, checker.hasOption("strict"), /*withOtherWorld=*/ null);
   }
 
   /**
@@ -159,55 +148,17 @@ final class NullSpecAnnotatedTypeFactory
    */
   private NullSpecAnnotatedTypeFactory(
       BaseTypeChecker checker,
+      Util util,
       boolean isLeastConvenientWorld,
       NullSpecAnnotatedTypeFactory withOtherWorld) {
     // Only use flow-sensitive type refinement if implementation code should be checked
     super(checker, checker.hasOption("checkImpl"));
 
-    /*
-     * Under our proposed subtyping rules, every type has a "nullness operator." There are 4
-     * nullness-operator values. In this implementation, we *mostly* represent each one with an
-     * AnnotationMirror for an annotation that is private to this checker.
-     *
-     * There is one exception: We do not have an AnnotationMirror for the nullness operator
-     * NO_CHANGE. When we need to represent NO_CHANGE, we take one of two approaches, depending on
-     * the base type:
-     *
-     * - On type-variable usage, we use *no* annotation.
-     *
-     * - On other types, we use minusNull.
-     *
-     * For further discussion of this, see isNullExclusiveUnderEveryParameterization.
-     *
-     * Since the proposed subtyping rules use names like "UNION_NULL," we follow those names here.
-     * Still, we give the underlying classes names like "Nullable": If those names show up in error
-     * messages somehow (unlikely, since we provide our own formatter for types), we want them to
-     * match the names of the user-facing JSpecify annotations.
-     */
-    minusNull = AnnotationBuilder.fromClass(elements, MinusNull.class);
-    unionNull = AnnotationBuilder.fromClass(elements, Nullable.class);
-    nullnessOperatorUnspecified = AnnotationBuilder.fromClass(elements, NullnessUnspecified.class);
-    /*
-     * Note that all the above annotations must be on the *classpath*, not just the *processorpath*.
-     * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
-     * elements.getTypeElement.
-     *
-     * That's unfortunate. It would be nice if we didn't need a full AnnotationMirror at all, only a
-     * class name. But AnnotationMirror is baked into CF deeply, since CF needs to support
-     * generalized annotation types, write annotations back to bytecode, and perhaps more.
-     *
-     * We do at least avoid requiring the _user-facing_ JSpecify annotations to be present on the
-     * classpath. To accomplish that, we represent types internally by using our own package-private
-     * annotations instead: We consider the user-facing annotations to be mere "aliases" for those.
-     * While it's still unfortunate to have to add *anything* to the classpath in order to run the
-     * checker, we at least avoid adding user-facing nullness annotations. (Those annotations might
-     * conflict with the "real" copies of the annotations. Plus, they might trigger conditional
-     * logic in annotation processors, logic that runs only when the JSpecify annotations are
-     * present.)
-     *
-     * TODO(b/187113128): See if we can keep even our internal annotations (and various other
-     * annotations required by CF) off the classpath.
-     */
+    this.util = util;
+
+    minusNull = util.minusNull;
+    unionNull = util.unionNull;
+    nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
 
     addAliasedTypeAnnotation("org.jspecify.nullness.Nullable", unionNull);
     addAliasedTypeAnnotation(
@@ -253,38 +204,10 @@ final class NullSpecAnnotatedTypeFactory
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
-    Elements e = getElementUtils();
-    TypeElement javaUtilCollectionElement = e.getTypeElement("java.util.Collection");
-    javaUtilCollection =
-        (AnnotatedDeclaredType)
-            createType(javaUtilCollectionElement.asType(), this, /*isDeclaration=*/ false);
-    collectionToArrayNoArgElement =
-        onlyNoArgExecutableWithName(javaUtilCollectionElement, "toArray");
-    TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
-    javaUtilMap =
-        (AnnotatedDeclaredType)
-            createType(javaUtilMapElement.asType(), this, /*isDeclaration=*/ false);
-    mapGetOrDefaultElement = onlyExecutableWithName(javaUtilMapElement, "getOrDefault");
-    javaUtilConcurrentExecutionException =
-        e.getTypeElement("java.util.concurrent.ExecutionException").asType();
-    TypeElement uncheckedExecutionExceptionElement =
-        e.getTypeElement("com.google.common.util.concurrent.UncheckedExecutionException");
-    uncheckedExecutionException =
-        uncheckedExecutionExceptionElement == null
-            ? null
-            : uncheckedExecutionExceptionElement.asType();
-    TypeElement javaLangClassElement = e.getTypeElement("java.lang.Class");
-    classGetEnumConstantsElement =
-        onlyNoArgExecutableWithName(javaLangClassElement, "getEnumConstants");
-    TypeElement javaLangEnumElement = e.getTypeElement("java.lang.Enum");
-    javaLangClassOfExtendsEnum =
-        types.getDeclaredType(
-            javaLangClassElement,
-            types.getWildcardType(types.erasure(javaLangEnumElement.asType()), null));
-
-    TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
-    javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
-    suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
+    javaUtilCollection = createType(util.javaUtilCollectionElement);
+    javaLangClass = createType(util.javaLangClassElement);
+    javaLangThreadLocal = createType(util.javaLangThreadLocalElement);
+    javaUtilMap = createType(util.javaUtilMapElement);
 
     postInit();
 
@@ -299,7 +222,7 @@ final class NullSpecAnnotatedTypeFactory
     if (withOtherWorld == null) {
       withOtherWorld =
           new NullSpecAnnotatedTypeFactory(
-              checker, !isLeastConvenientWorld, /*withOtherWorld=*/ this);
+              checker, util, !isLeastConvenientWorld, /*withOtherWorld=*/ this);
     }
     if (isLeastConvenientWorld) {
       withLeastConvenientWorld = this;
@@ -812,7 +735,7 @@ final class NullSpecAnnotatedTypeFactory
   @Override
   public NullSpecTransfer createFlowTransferFunction(
       CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
-    return new NullSpecTransfer(analysis);
+    return new NullSpecTransfer(analysis, util);
   }
 
   @Override
@@ -1211,7 +1134,7 @@ final class NullSpecAnnotatedTypeFactory
     }
 
     private boolean isGetOrDefaultWithNonnullMapValuesAndDefault(MethodInvocationTree tree) {
-      if (!isOrOverrides(elementFromUse(tree), mapGetOrDefaultElement)) {
+      if (!util.isOrOverrides(elementFromUse(tree), util.mapGetOrDefaultElement)) {
         return false;
       }
       if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
@@ -1245,7 +1168,7 @@ final class NullSpecAnnotatedTypeFactory
     }
 
     private boolean isGetEnumConstantsOnEnumClass(MethodInvocationTree tree) {
-      if (elementFromUse(tree) != classGetEnumConstantsElement) {
+      if (elementFromUse(tree) != util.classGetEnumConstantsElement) {
         return false;
       }
       if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
@@ -1257,7 +1180,7 @@ final class NullSpecAnnotatedTypeFactory
       }
       MemberSelectTree methodSelect = (MemberSelectTree) tree.getMethodSelect();
       TypeMirror receiverType = typeOf(methodSelect.getExpression());
-      return types.isSubtype(receiverType, javaLangClassOfExtendsEnum);
+      return types.isSubtype(receiverType, util.javaLangClassOfExtendsEnum);
     }
 
     private boolean isGetCauseOnExecutionException(MethodInvocationTree tree) {
@@ -1282,7 +1205,7 @@ final class NullSpecAnnotatedTypeFactory
        */
       return isAnyOf(
               typeOf(methodSelect.getExpression()),
-              javaUtilConcurrentExecutionException,
+              util.javaUtilConcurrentExecutionException,
               /*
                * TODO(cpovirk): For UncheckedExecutionException, rather than have a special case
                * here, we can edit the class definition itself. That is, we edit it to override
@@ -1315,7 +1238,7 @@ final class NullSpecAnnotatedTypeFactory
                * This deserves more thought, especially given the potential impact on external
                * users.
                */
-              uncheckedExecutionException)
+              util.uncheckedExecutionException)
           && methodSelect.getIdentifier().contentEquals("getCause");
     }
 
@@ -1337,7 +1260,7 @@ final class NullSpecAnnotatedTypeFactory
 
     private AnnotationMirror upperBoundOnToArrayElementType(MethodInvocationTree tree) {
       ExecutableElement method = elementFromUse(tree);
-      if (!isOrOverrides(method, collectionToArrayNoArgElement)) {
+      if (!util.isOrOverrides(method, util.collectionToArrayNoArgElement)) {
         return null;
       }
 
@@ -1758,9 +1681,7 @@ final class NullSpecAnnotatedTypeFactory
   @Override
   public void preProcessClassTree(ClassTree tree) {
     // For discussion of short-circuiting, see NullSpecVisitor.processClassTree.
-    List<? extends AnnotationTree> annotations = tree.getModifiers().getAnnotations();
-    if (hasSuppressWarningsNullness(
-        annotations, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
+    if (util.hasSuppressWarningsNullness(tree.getModifiers().getAnnotations())) {
       return;
     }
 
@@ -1905,8 +1826,9 @@ final class NullSpecAnnotatedTypeFactory
     return (TypeParameterElement) typeVariable.asElement();
   }
 
-  private boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
-    return Util.isOrOverrides(getElementUtils(), overrider, overridden);
+  private AnnotatedDeclaredType createType(TypeElement element) {
+    return (AnnotatedDeclaredType)
+        AnnotatedTypeMirror.createType(element.asType(), this, /*isDeclaration=*/ false);
   }
 
   NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {

@@ -15,17 +15,10 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.Util.nameMatches;
-import static com.google.jspecify.nullness.Util.onlyExecutableWithName;
-import static com.google.jspecify.nullness.Util.onlyNoArgExecutableWithName;
-import static com.google.jspecify.nullness.Util.onlyOneArgExecutableWithName;
-import static com.google.jspecify.nullness.Util.onlyTwoArgExecutableWithName;
-import static com.google.jspecify.nullness.Util.optionalOnlyExecutableWithName;
-import static com.google.jspecify.nullness.Util.optionalTypeElement;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singleton;
-import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
@@ -45,10 +38,8 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -58,7 +49,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
@@ -82,107 +72,23 @@ import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
-import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, NullSpecTransfer> {
+  private final Util util;
   private final NullSpecAnnotatedTypeFactory atypeFactory;
   private final AnnotationMirror minusNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
   private final AnnotationMirror unionNull;
-  private final Optional<TypeMirror> javaNioFileDrectoryStream;
-  private final Optional<ExecutableElement> pathGetFileNameElement;
-  private final AnnotatedDeclaredType javaUtilMap;
-  private final ExecutableElement mapKeySetElement;
-  private final ExecutableElement mapContainsKeyElement;
-  private final ExecutableElement mapGetElement;
-  private final ExecutableElement mapPutElement;
-  private final ExecutableElement mapRemoveElement;
-  private final ExecutableElement navigableMapNavigableKeySetElement;
-  private final ExecutableElement navigableMapDescendingKeySetElement;
-  private final ExecutableElement objectsToStringTwoArgElement;
-  private final AnnotatedDeclaredType javaLangClass;
-  private final Optional<ExecutableElement> classIsAnonymousClassElement;
-  private final Optional<ExecutableElement> classIsMemberClassElement;
-  private final Optional<ExecutableElement> classGetEnclosingClassElement;
-  private final ExecutableElement classIsArrayElement;
-  private final ExecutableElement classGetComponentTypeElement;
-  private final Optional<ExecutableElement> annotatedElementIsAnnotationPresentElement;
-  private final Optional<ExecutableElement> annotatedElementGetAnnotationElement;
-  private final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
-  NullSpecTransfer(CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis) {
+  NullSpecTransfer(
+      CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> analysis, Util util) {
     super(analysis);
+    this.util = util;
     atypeFactory = (NullSpecAnnotatedTypeFactory) analysis.getTypeFactory();
-    Elements e = atypeFactory.getElementUtils();
 
-    minusNull = AnnotationBuilder.fromClass(e, MinusNull.class);
-    nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
-    unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
-
-    javaNioFileDrectoryStream =
-        optionalTypeElement(e, "java.nio.file.DirectoryStream").map(TypeElement::asType);
-
-    pathGetFileNameElement =
-        onlyExecutableWithName(optionalTypeElement(e, "java.nio.file.Path"), "getFileName");
-
-    TypeElement javaUtilMapElement = e.getTypeElement("java.util.Map");
-    javaUtilMap =
-        (AnnotatedDeclaredType)
-            createType(javaUtilMapElement.asType(), atypeFactory, /*isDeclaration=*/ false);
-    mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
-    mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
-    mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
-    mapPutElement = onlyExecutableWithName(javaUtilMapElement, "put");
-    mapRemoveElement = onlyOneArgExecutableWithName(javaUtilMapElement, "remove");
-
-    TypeElement javaUtilNavigableMapElement = e.getTypeElement("java.util.NavigableMap");
-    navigableMapNavigableKeySetElement =
-        onlyExecutableWithName(javaUtilNavigableMapElement, "navigableKeySet");
-    navigableMapDescendingKeySetElement =
-        onlyExecutableWithName(javaUtilNavigableMapElement, "descendingKeySet");
-
-    TypeElement javaUtilObjectsElement = e.getTypeElement("java.util.Objects");
-    objectsToStringTwoArgElement = onlyTwoArgExecutableWithName(javaUtilObjectsElement, "toString");
-
-    TypeElement javaLangClassElement = e.getTypeElement("java.lang.Class");
-    javaLangClass =
-        (AnnotatedDeclaredType)
-            createType(javaLangClassElement.asType(), atypeFactory, /*isDeclaration=*/ false);
-    classIsAnonymousClassElement =
-        optionalOnlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
-    classIsMemberClassElement =
-        optionalOnlyExecutableWithName(javaLangClassElement, "isMemberClass");
-    classGetEnclosingClassElement =
-        optionalOnlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
-    classIsArrayElement = onlyExecutableWithName(javaLangClassElement, "isArray");
-    classGetComponentTypeElement = onlyExecutableWithName(javaLangClassElement, "getComponentType");
-
-    Optional<TypeElement> javaLangReflectAnnotatedElementElement =
-        optionalTypeElement(e, "java.lang.reflect.AnnotatedElement");
-    annotatedElementIsAnnotationPresentElement =
-        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
-    annotatedElementGetAnnotationElement =
-        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
-
-    Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
-    TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
-    if (uriBuilderElement != null) {
-      put(getterForSetter, uriBuilderElement, "setScheme", "getScheme");
-      put(getterForSetter, uriBuilderElement, "setAuthority", "getAuthority");
-      put(getterForSetter, uriBuilderElement, "setPath", "getPath");
-      // NOT query: After setQuery(""), getQuery() returns null :(
-      put(getterForSetter, uriBuilderElement, "setFragment", "getFragment");
-    }
-    this.getterForSetter = unmodifiableMap(getterForSetter);
-  }
-
-  private static void put(
-      Map<ExecutableElement, ExecutableElement> getterForSetter,
-      TypeElement type,
-      String setter,
-      String getter) {
-    getterForSetter.put(
-        onlyExecutableWithName(type, setter), onlyNoArgExecutableWithName(type, getter));
+    minusNull = util.minusNull;
+    nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
+    unionNull = util.unionNull;
   }
 
   @Override
@@ -395,7 +301,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
          */
         setResultValueOperatorToUnspecified(result);
       }
-    } else if (method.equals(objectsToStringTwoArgElement)) {
+    } else if (method.equals(util.objectsToStringTwoArgElement)) {
       // Just like the case above but for arg 1 instead of arg 0.
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(1));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
@@ -436,7 +342,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       setResultValueToNonNull(result);
     }
 
-    for (Entry<ExecutableElement, ExecutableElement> entry : getterForSetter.entrySet()) {
+    for (Entry<ExecutableElement, ExecutableElement> entry : util.getterForSetter.entrySet()) {
       if (method.equals(entry.getKey())) {
         storeChanged |=
             overwriteGetterFromSetter(
@@ -448,33 +354,33 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       }
     }
 
-    if (isOrOverrides(method, pathGetFileNameElement)) {
+    if (isOrOverrides(method, util.pathGetFileNameElement)) {
       refinePathGetFileNameResultIfDirectoryStreamLoop(node, result);
     }
 
-    if (isOrOverrides(method, mapGetElement)) {
+    if (isOrOverrides(method, util.mapGetElement)) {
       refineMapGetResultIfKeySetLoop(node, result);
     }
 
-    if (isOrOverrides(method, mapContainsKeyElement)) {
+    if (isOrOverrides(method, util.mapContainsKeyElement)) {
       storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, thenStore);
     }
 
-    if (isOrOverrides(method, mapPutElement)) {
+    if (isOrOverrides(method, util.mapPutElement)) {
       storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, thenStore);
       storeChanged |= refineFutureMapGetFromMapContainsKeyOrPut(node, elseStore);
     }
 
-    if (isOrOverrides(method, annotatedElementIsAnnotationPresentElement)) {
+    if (isOrOverrides(method, util.annotatedElementIsAnnotationPresentElement)) {
       storeChanged |= refineFutureGetAnnotationFromIsAnnotationPresent(node, thenStore);
     }
 
-    if (isOrOverrides(method, classIsAnonymousClassElement)
-        || isOrOverrides(method, classIsMemberClassElement)) {
+    if (isOrOverrides(method, util.classIsAnonymousClassElement)
+        || isOrOverrides(method, util.classIsMemberClassElement)) {
       storeChanged |= refineFutureGetEnclosingClassFromIsEnclosedClass(node, thenStore);
     }
 
-    if (isOrOverrides(method, classIsArrayElement)) {
+    if (isOrOverrides(method, util.classIsArrayElement)) {
       storeChanged |= refineFutureGetComponentTypeFromIsArray(node, thenStore);
     }
 
@@ -515,13 +421,14 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     MethodCall isEnclosedClassCall = (MethodCall) fromNode(isEnclosedClassNode);
     MethodCall getEnclosingClassCall =
         new MethodCall(
-            javaLangClass.getUnderlyingType(),
-            classGetEnclosingClassElement.get(), // present when isAnonymousClass/isMemberClass is
+            util.javaLangClassElement.asType(),
+            // getEnclosingClass is present when isAnonymousClass/isMemberClass is.
+            util.classGetEnclosingClassElement.get(),
             isEnclosedClassCall.getReceiver(),
             isEnclosedClassCall.getArguments());
     return refine(
         getEnclosingClassCall,
-        analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
+        analysis.createSingleAnnotationValue(minusNull, util.javaLangClassElement.asType()),
         thenStore);
   }
 
@@ -531,13 +438,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     MethodCall isArrayCall = (MethodCall) fromNode(isArrayNode);
     MethodCall getComponentTypeCall =
         new MethodCall(
-            javaLangClass.getUnderlyingType(),
-            classGetComponentTypeElement,
+            util.javaLangClassElement.asType(),
+            util.classGetComponentTypeElement,
             isArrayCall.getReceiver(),
             isArrayCall.getArguments());
     return refine(
         getComponentTypeCall,
-        analysis.createSingleAnnotationValue(minusNull, javaLangClass.getUnderlyingType()),
+        analysis.createSingleAnnotationValue(minusNull, util.javaLangClassElement.asType()),
         thenStore);
   }
 
@@ -564,7 +471,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     List<ExecutableElement> getAnnotationAndOverrides =
         methodAndOverrides(
-            annotatedElementGetAnnotationElement.get(), // present with isAnnotationPresent is
+            util.annotatedElementGetAnnotationElement.get(), // present when isAnnotationPresent is
             types.annotatedElementType);
 
     boolean storeChanged = false;
@@ -595,7 +502,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
        * that we can extract the T.
        */
       AnnotatedDeclaredType argumentTypeAsClass =
-          asSuper(atypeFactory, argumentType, javaLangClass);
+          asSuper(atypeFactory, argumentType, atypeFactory.javaLangClass);
       AnnotatedTypeMirror annotationType = argumentTypeAsClass.getTypeArguments().get(0);
       annotationAsDataflowValue =
           analysis.createAbstractValue(
@@ -672,8 +579,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
      * one, but given that the existing code works, I'm not going to take any risk right now.
      */
     List<ExecutableElement> mapGetAndRemoveAndOverrides = new ArrayList<>();
-    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(mapGetElement, mapType.type));
-    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(mapRemoveElement, mapType.type));
+    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(util.mapGetElement, mapType.type));
+    mapGetAndRemoveAndOverrides.addAll(methodAndOverrides(util.mapRemoveElement, mapType.type));
 
     boolean storeChanged = false;
     for (ExecutableElement mapGetOrRemoveOrOverride : mapGetAndRemoveAndOverrides) {
@@ -710,7 +617,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
   private void refinePathGetFileNameResultIfDirectoryStreamLoop(
       MethodInvocationNode pathGetFileNameNode, TransferResult<CFValue, NullSpecStore> input) {
-    if (!javaNioFileDrectoryStream.isPresent()) {
+    if (!util.javaNioFileDrectoryStream.isPresent()) {
       // Running with j2cl's limited classpath.
       return;
     }
@@ -730,7 +637,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       EnhancedForLoopTree forLoop = (EnhancedForLoopTree) path.getLeaf();
 
       // Is the foreach over a DirectoryStream?
-      if (!isErasedSubtype(typeOf(forLoop.getExpression()), javaNioFileDrectoryStream.get())) {
+      if (!isErasedSubtype(typeOf(forLoop.getExpression()), util.javaNioFileDrectoryStream.get())) {
         continue;
       }
 
@@ -800,9 +707,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       ExecutableElement forExpressionElement = elementFromUse(forExpressionAsInvocation);
       if (!isOrOverridesAnyOf(
           forExpressionElement,
-          mapKeySetElement,
-          navigableMapNavigableKeySetElement,
-          navigableMapDescendingKeySetElement)) {
+          util.mapKeySetElement,
+          util.navigableMapNavigableKeySetElement,
+          util.navigableMapDescendingKeySetElement)) {
         continue;
       }
 
@@ -828,7 +735,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     MapType(Tree receiverTree) {
       type = atypeFactory.getAnnotatedType(receiverTree);
-      AnnotatedDeclaredType typeAsMap = asSuper(atypeFactory, type, javaUtilMap);
+      AnnotatedDeclaredType typeAsMap = asSuper(atypeFactory, type, atypeFactory.javaUtilMap);
       AnnotatedTypeMirror mapValueType = typeAsMap.getTypeArguments().get(1);
       mapValueAsDataflowValue =
           analysis.createAbstractValue(

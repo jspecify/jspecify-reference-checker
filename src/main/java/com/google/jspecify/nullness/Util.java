@@ -15,6 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
@@ -23,8 +24,10 @@ import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -39,30 +42,197 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleAnnotationValueVisitor8;
 import javax.lang.model.util.Types;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class Util {
-  // TODO(cpovirk): Make Util instantiable so it can hold `Elements`, `TypeMirror` objects, etc.?
+  private final Elements elementUtils;
+  private final Types types;
+
+  final AnnotationMirror minusNull;
+  final AnnotationMirror unionNull;
+  final AnnotationMirror nullnessOperatorUnspecified;
+
+  final TypeElement javaUtilCollectionElement;
+  final ExecutableElement collectionToArrayNoArgElement;
+  final TypeElement javaUtilMapElement;
+  final ExecutableElement mapGetOrDefaultElement;
+  final TypeMirror javaUtilConcurrentExecutionException;
+  final TypeMirror uncheckedExecutionException;
+  final TypeElement javaLangClassElement;
+  final ExecutableElement classGetEnumConstantsElement;
+  final TypeMirror javaLangClassOfExtendsEnum;
+  final Optional<ExecutableElement> classIsAnonymousClassElement;
+  final Optional<ExecutableElement> classIsMemberClassElement;
+  final Optional<ExecutableElement> classGetEnclosingClassElement;
+  final ExecutableElement classIsArrayElement;
+  final ExecutableElement classGetComponentTypeElement;
+  final Optional<ExecutableElement> annotatedElementIsAnnotationPresentElement;
+  final Optional<ExecutableElement> annotatedElementGetAnnotationElement;
+  final TypeElement javaLangThreadLocalElement;
+  final Optional<ExecutableElement> threadLocalInitialValueElement;
+  final Optional<TypeMirror> javaNioFileDrectoryStream;
+  final Optional<ExecutableElement> pathGetFileNameElement;
+  final ExecutableElement mapKeySetElement;
+  final ExecutableElement mapContainsKeyElement;
+  final ExecutableElement mapGetElement;
+  final ExecutableElement mapPutElement;
+  final ExecutableElement mapRemoveElement;
+  final ExecutableElement navigableMapNavigableKeySetElement;
+  final ExecutableElement navigableMapDescendingKeySetElement;
+  final ExecutableElement objectsToStringTwoArgElement;
+  final Map<ExecutableElement, ExecutableElement> getterForSetter;
+
+  private final TypeMirror javaLangSuppressWarnings;
+  private final ExecutableElement suppressWarningsValueElement;
+
+  Util(Elements elementUtils, Types types) {
+    this.elementUtils = elementUtils;
+    this.types = types;
+
+    Elements e = elementUtils;
+    /*
+     * Under our proposed subtyping rules, every type has a "nullness operator." There are 4
+     * nullness-operator values. In this implementation, we *mostly* represent each one with an
+     * AnnotationMirror for an annotation that is private to this checker.
+     *
+     * There is one exception: We do not have an AnnotationMirror for the nullness operator
+     * NO_CHANGE. When we need to represent NO_CHANGE, we take one of two approaches, depending on
+     * the base type:
+     *
+     * - On type-variable usage, we use *no* annotation.
+     *
+     * - On other types, we use minusNull.
+     *
+     * For further discussion of this, see isNullExclusiveUnderEveryParameterization.
+     *
+     * Since the proposed subtyping rules use names like "UNION_NULL," we follow those names here.
+     * Still, we give the underlying classes names like "Nullable": If those names show up in error
+     * messages somehow (unlikely, since we provide our own formatter for types), we want them to
+     * match the names of the user-facing JSpecify annotations.
+     */
+    minusNull = AnnotationBuilder.fromClass(e, MinusNull.class);
+    unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
+    nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
+    /*
+     * Note that all the above annotations must be on the *classpath*, not just the *processorpath*.
+     * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
+     * elements.getTypeElement.
+     *
+     * That's unfortunate. It would be nice if we didn't need a full AnnotationMirror at all, only a
+     * class name. But AnnotationMirror is baked into CF deeply, since CF needs to support
+     * generalized annotation types, write annotations back to bytecode, and perhaps more.
+     *
+     * We do at least avoid requiring the _user-facing_ JSpecify annotations to be present on the
+     * classpath. To accomplish that, we represent types internally by using our own package-private
+     * annotations instead: We consider the user-facing annotations to be mere "aliases" for those.
+     * While it's still unfortunate to have to add *anything* to the classpath in order to run the
+     * checker, we at least avoid adding user-facing nullness annotations. (Those annotations might
+     * conflict with the "real" copies of the annotations. Plus, they might trigger conditional
+     * logic in annotation processors, logic that runs only when the JSpecify annotations are
+     * present.)
+     *
+     * TODO(b/187113128): See if we can keep even our internal annotations (and various other
+     * annotations required by CF) off the classpath.
+     */
+
+    javaUtilCollectionElement = e.getTypeElement("java.util.Collection");
+    collectionToArrayNoArgElement =
+        onlyNoArgExecutableWithName(javaUtilCollectionElement, "toArray");
+    javaUtilMapElement = e.getTypeElement("java.util.Map");
+    mapGetOrDefaultElement = onlyExecutableWithName(javaUtilMapElement, "getOrDefault");
+    javaUtilConcurrentExecutionException =
+        e.getTypeElement("java.util.concurrent.ExecutionException").asType();
+    TypeElement uncheckedExecutionExceptionElement =
+        e.getTypeElement("com.google.common.util.concurrent.UncheckedExecutionException");
+    uncheckedExecutionException =
+        uncheckedExecutionExceptionElement == null
+            ? null
+            : uncheckedExecutionExceptionElement.asType();
+    javaLangClassElement = e.getTypeElement("java.lang.Class");
+    classGetEnumConstantsElement =
+        onlyNoArgExecutableWithName(javaLangClassElement, "getEnumConstants");
+    classIsAnonymousClassElement =
+        optionalOnlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
+    classIsMemberClassElement =
+        optionalOnlyExecutableWithName(javaLangClassElement, "isMemberClass");
+    classGetEnclosingClassElement =
+        optionalOnlyExecutableWithName(javaLangClassElement, "getEnclosingClass");
+    classIsArrayElement = onlyExecutableWithName(javaLangClassElement, "isArray");
+    classGetComponentTypeElement = onlyExecutableWithName(javaLangClassElement, "getComponentType");
+    TypeElement javaLangEnumElement = e.getTypeElement("java.lang.Enum");
+    javaLangClassOfExtendsEnum =
+        types.getDeclaredType(
+            javaLangClassElement,
+            types.getWildcardType(types.erasure(javaLangEnumElement.asType()), null));
+    javaLangThreadLocalElement = e.getTypeElement("java.lang.ThreadLocal");
+    threadLocalInitialValueElement =
+        optionalOnlyExecutableWithName(javaLangThreadLocalElement, "initialValue");
+    javaNioFileDrectoryStream =
+        optionalTypeElement(e, "java.nio.file.DirectoryStream").map(TypeElement::asType);
+
+    pathGetFileNameElement =
+        onlyExecutableWithName(optionalTypeElement(e, "java.nio.file.Path"), "getFileName");
+
+    mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
+    mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
+    mapGetElement = onlyExecutableWithName(javaUtilMapElement, "get");
+    mapPutElement = onlyExecutableWithName(javaUtilMapElement, "put");
+    mapRemoveElement = onlyOneArgExecutableWithName(javaUtilMapElement, "remove");
+
+    TypeElement javaUtilNavigableMapElement = e.getTypeElement("java.util.NavigableMap");
+    navigableMapNavigableKeySetElement =
+        onlyExecutableWithName(javaUtilNavigableMapElement, "navigableKeySet");
+    navigableMapDescendingKeySetElement =
+        onlyExecutableWithName(javaUtilNavigableMapElement, "descendingKeySet");
+
+    TypeElement javaUtilObjectsElement = e.getTypeElement("java.util.Objects");
+    objectsToStringTwoArgElement = onlyTwoArgExecutableWithName(javaUtilObjectsElement, "toString");
+
+    Optional<TypeElement> javaLangReflectAnnotatedElementElement =
+        optionalTypeElement(e, "java.lang.reflect.AnnotatedElement");
+    annotatedElementIsAnnotationPresentElement =
+        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
+    annotatedElementGetAnnotationElement =
+        onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
+
+    Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
+    TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
+    if (uriBuilderElement != null) {
+      put(getterForSetter, uriBuilderElement, "setScheme", "getScheme");
+      put(getterForSetter, uriBuilderElement, "setAuthority", "getAuthority");
+      put(getterForSetter, uriBuilderElement, "setPath", "getPath");
+      // NOT query: After setQuery(""), getQuery() returns null :(
+      put(getterForSetter, uriBuilderElement, "setFragment", "getFragment");
+    }
+    this.getterForSetter = unmodifiableMap(getterForSetter);
+
+    TypeElement javaLangSuppressWarningsElement = e.getTypeElement("java.lang.SuppressWarnings");
+    javaLangSuppressWarnings = javaLangSuppressWarningsElement.asType();
+    suppressWarningsValueElement = onlyExecutableWithName(javaLangSuppressWarningsElement, "value");
+
+    /*
+     * TODO(cpovirk): Initialize some of these lazily if they cause performance problems.
+     *
+     * Lazy initialization could conceivably also help with environments that are missing some APIs,
+     * like j2cl (b/189946810).
+     */
+  }
 
   static Optional<TypeElement> optionalTypeElement(Elements e, String name) {
     return Optional.ofNullable(e.getTypeElement(name));
   }
 
-  static boolean isOrOverrides(
-      Elements elementUtils, ExecutableElement overrider, ExecutableElement overridden) {
+  boolean isOrOverrides(ExecutableElement overrider, ExecutableElement overridden) {
     return overrider.equals(overridden)
         || elementUtils.overrides(
             overrider, overridden, (TypeElement) overrider.getEnclosingElement());
   }
 
-  static boolean isOrOverridesAnyOf(
-      Elements elementUtils,
-      ExecutableElement overrider,
-      ExecutableElement a,
-      ExecutableElement b,
-      ExecutableElement c) {
-    return isOrOverrides(elementUtils, overrider, a)
-        || isOrOverrides(elementUtils, overrider, b)
-        || isOrOverrides(elementUtils, overrider, c);
+  boolean isOrOverridesAnyOf(
+      ExecutableElement overrider, ExecutableElement a, ExecutableElement b, ExecutableElement c) {
+    return isOrOverrides(overrider, a)
+        || isOrOverrides(overrider, b)
+        || isOrOverrides(overrider, c);
   }
 
   static boolean nameMatches(Element element, String name) {
@@ -170,25 +340,16 @@ final class Util {
                   ElementKind.RESOURCE_VARIABLE,
                   ElementKind.EXCEPTION_PARAMETER)));
 
-  static boolean hasSuppressWarningsNullness(
-      List<? extends AnnotationTree> annotations,
-      TypeMirror javaLangSuppressWarnings,
-      ExecutableElement suppressWarningsValueElement,
-      Types types) {
+  boolean hasSuppressWarningsNullness(List<? extends AnnotationTree> annotations) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
-      if (isSuppressWarningsNullness(
-          annotation, javaLangSuppressWarnings, suppressWarningsValueElement, types)) {
+      if (isSuppressWarningsNullness(annotation)) {
         return true;
       }
     }
     return false;
   }
 
-  private static boolean isSuppressWarningsNullness(
-      AnnotationMirror annotation,
-      TypeMirror javaLangSuppressWarnings,
-      ExecutableElement suppressWarningsValueElement,
-      Types types) {
+  private boolean isSuppressWarningsNullness(AnnotationMirror annotation) {
     if (!types.isSameType(
         annotation.getAnnotationType().asElement().asType(), javaLangSuppressWarnings)) {
       return false;
@@ -210,5 +371,12 @@ final class Util {
     return isSuppression[0];
   }
 
-  private Util() {}
+  private static void put(
+      Map<ExecutableElement, ExecutableElement> getterForSetter,
+      TypeElement type,
+      String setter,
+      String getter) {
+    getterForSetter.put(
+        onlyExecutableWithName(type, setter), onlyNoArgExecutableWithName(type, getter));
+  }
 }
