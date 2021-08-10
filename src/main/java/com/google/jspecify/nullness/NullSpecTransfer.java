@@ -278,7 +278,9 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     if (nameMatches(method, "Class", "cast")
         || nameMatches(method, "Optional", "orElse")
-        || isValueOf(method, util.converterConvertElement)) {
+        || isValueOf(method, util.converterConvertElement)
+        || isValueOf(method, util.optionalToJavaUtilElement)
+        || isValueOf(method, util.optionalFromJavaUtilElement)) {
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToNonNull(result);

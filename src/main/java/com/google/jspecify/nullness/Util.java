@@ -81,6 +81,8 @@ final class Util {
   final ExecutableElement navigableMapDescendingKeySetElement;
   final ExecutableElement objectsToStringTwoArgElement;
   final Optional<ExecutableElement> converterConvertElement;
+  final Optional<ExecutableElement> optionalToJavaUtilElement;
+  final Optional<ExecutableElement> optionalFromJavaUtilElement;
   final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
   private final TypeMirror javaLangSuppressWarnings;
@@ -198,6 +200,12 @@ final class Util {
     converterConvertElement =
         onlyExecutableWithName(
             optionalTypeElement(e, "com.google.common.base.Converter"), "convert");
+    Optional<TypeElement> comGoogleCommonBaseOptionalElement =
+        optionalTypeElement(e, "com.google.common.base.Optional");
+    optionalToJavaUtilElement =
+        onlyOneArgExecutableWithName(comGoogleCommonBaseOptionalElement, "toJavaUtil");
+    optionalFromJavaUtilElement =
+        onlyExecutableWithName(comGoogleCommonBaseOptionalElement, "fromJavaUtil");
 
     Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
     TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
@@ -291,6 +299,11 @@ final class Util {
 
   static ExecutableElement onlyOneArgExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
+  }
+
+  static Optional<ExecutableElement> onlyOneArgExecutableWithName(
+      Optional<TypeElement> type, String name) {
+    return type.map(e -> onlyOneArgExecutableWithName(e, name));
   }
 
   static ExecutableElement onlyTwoArgExecutableWithName(TypeElement type, String name) {
