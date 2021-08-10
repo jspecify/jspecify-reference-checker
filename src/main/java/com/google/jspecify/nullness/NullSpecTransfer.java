@@ -278,7 +278,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     if (nameMatches(method, "Class", "cast")
         || nameMatches(method, "Optional", "orElse")
-        || nameMatches(method, "Converter", "convert")) {
+        || isValueOf(method, util.converterConvertElement)) {
       AnnotatedTypeMirror type = typeWithTopLevelAnnotationsOnly(input, node.getArgument(0));
       if (atypeFactory.withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(type)) {
         setResultValueToNonNull(result);
@@ -1160,6 +1160,10 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     for (AnnotatedTypeMirror supertype : type.directSupertypes()) {
       collectAllDeclaredSupertypes(supertype, result);
     }
+  }
+
+  private static <T> boolean isValueOf(T value, Optional<T> optional) {
+    return optional.isPresent() && optional.get().equals(value);
   }
 
   private static final Set<String> ALWAYS_PRESENT_PROPERTY_VALUES =

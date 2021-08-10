@@ -80,6 +80,7 @@ final class Util {
   final ExecutableElement navigableMapNavigableKeySetElement;
   final ExecutableElement navigableMapDescendingKeySetElement;
   final ExecutableElement objectsToStringTwoArgElement;
+  final Optional<ExecutableElement> converterConvertElement;
   final Map<ExecutableElement, ExecutableElement> getterForSetter;
 
   private final TypeMirror javaLangSuppressWarnings;
@@ -194,6 +195,9 @@ final class Util {
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "isAnnotationPresent");
     annotatedElementGetAnnotationElement =
         onlyExecutableWithName(javaLangReflectAnnotatedElementElement, "getAnnotation");
+    converterConvertElement =
+        onlyExecutableWithName(
+            optionalTypeElement(e, "com.google.common.base.Converter"), "convert");
 
     Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
     TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
