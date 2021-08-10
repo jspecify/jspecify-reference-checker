@@ -202,10 +202,11 @@ final class Util {
             optionalTypeElement(e, "com.google.common.base.Converter"), "convert");
     Optional<TypeElement> comGoogleCommonBaseOptionalElement =
         optionalTypeElement(e, "com.google.common.base.Optional");
+    // The conversion methods aren't available if we're compiling against guava-android.
     optionalToJavaUtilElement =
-        onlyOneArgExecutableWithName(comGoogleCommonBaseOptionalElement, "toJavaUtil");
+        optionalOnlyOneArgExecutableWithName(comGoogleCommonBaseOptionalElement, "toJavaUtil");
     optionalFromJavaUtilElement =
-        onlyExecutableWithName(comGoogleCommonBaseOptionalElement, "fromJavaUtil");
+        optionalOnlyExecutableWithName(comGoogleCommonBaseOptionalElement, "fromJavaUtil");
 
     Map<ExecutableElement, ExecutableElement> getterForSetter = new HashMap<>();
     TypeElement uriBuilderElement = e.getTypeElement("com.google.common.net.UriBuilder");
@@ -284,42 +285,45 @@ final class Util {
     return nameMatches(elementFromUse(tree), clazz, method);
   }
 
-  static Optional<ExecutableElement> onlyExecutableWithName(
+  private static Optional<ExecutableElement> onlyExecutableWithName(
       Optional<TypeElement> type, String name) {
     return type.map(e -> onlyExecutableWithName(e, name));
   }
 
-  static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
+  private static ExecutableElement onlyExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> true);
   }
 
-  static ExecutableElement onlyNoArgExecutableWithName(TypeElement type, String name) {
+  private static ExecutableElement onlyNoArgExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> m.getParameters().isEmpty());
   }
 
-  static ExecutableElement onlyOneArgExecutableWithName(TypeElement type, String name) {
+  private static ExecutableElement onlyOneArgExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
   }
 
-  static Optional<ExecutableElement> onlyOneArgExecutableWithName(
-      Optional<TypeElement> type, String name) {
-    return type.map(e -> onlyOneArgExecutableWithName(e, name));
-  }
-
-  static ExecutableElement onlyTwoArgExecutableWithName(TypeElement type, String name) {
+  private static ExecutableElement onlyTwoArgExecutableWithName(TypeElement type, String name) {
     return onlyExecutableElement(type, name, m -> m.getParameters().size() == 2);
   }
 
-  static Optional<ExecutableElement> optionalOnlyExecutableWithName(TypeElement type, String name) {
-    List<ExecutableElement> elements = executableElements(type, name, m -> true);
-    switch (elements.size()) {
-      case 0:
-        return Optional.empty();
-      case 1:
-        return Optional.of(elements.get(0));
-      default:
-        throw new IllegalArgumentException(type + "." + name);
-    }
+  private static Optional<ExecutableElement> optionalOnlyExecutableWithName(
+      TypeElement type, String name) {
+    return optionalOnlyExecutableElement(type, name, m -> true);
+  }
+
+  private static Optional<ExecutableElement> optionalOnlyExecutableWithName(
+      Optional<TypeElement> type, String name) {
+    return type.flatMap(e -> optionalOnlyExecutableWithName(e, name));
+  }
+
+  private static Optional<ExecutableElement> optionalOnlyOneArgExecutableWithName(
+      TypeElement type, String name) {
+    return optionalOnlyExecutableElement(type, name, m -> m.getParameters().size() == 1);
+  }
+
+  private static Optional<ExecutableElement> optionalOnlyOneArgExecutableWithName(
+      Optional<TypeElement> type, String name) {
+    return type.flatMap(e -> optionalOnlyOneArgExecutableWithName(e, name));
   }
 
   private static List<ExecutableElement> executableElements(
@@ -334,11 +338,20 @@ final class Util {
 
   private static ExecutableElement onlyExecutableElement(
       TypeElement type, String name, Predicate<ExecutableElement> predicate) {
+    return optionalOnlyExecutableElement(type, name, predicate).get();
+  }
+
+  private static Optional<ExecutableElement> optionalOnlyExecutableElement(
+      TypeElement type, String name, Predicate<ExecutableElement> predicate) {
     List<ExecutableElement> elements = executableElements(type, name, predicate);
-    if (elements.size() != 1) {
-      throw new IllegalArgumentException(type + "." + name);
+    switch (elements.size()) {
+      case 0:
+        return Optional.empty();
+      case 1:
+        return Optional.of(elements.get(0));
+      default:
+        throw new IllegalArgumentException(type + "." + name);
     }
-    return elements.get(0);
   }
 
   static final Set<TypeUseLocation> IMPLEMENTATION_VARIABLE_LOCATIONS =
