@@ -160,46 +160,15 @@ final class NullSpecAnnotatedTypeFactory
     unionNull = util.unionNull;
     nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
 
-    addAliasedTypeAnnotation("org.jspecify.nullness.Nullable", unionNull);
     addAliasedTypeAnnotation(
         "org.jspecify.nullness.NullnessUnspecified", nullnessOperatorUnspecified);
 
-    if (checker.hasOption("aliasCFannos")) {
-      /*
-       * TODO(cpovirk): Replace this flag with a more general flag that covers all aliases? Or
-       * eliminate the flag entirely? (Maybe we'll later want to introduce other specific flags,
-       * like for recognizing *declaration* annotations named "Nullable" or recognizing @NonNull
-       * annotations?)
-       */
-      addAliasedTypeAnnotation("org.checkerframework.checker.nullness.qual.Nullable", unionNull);
-      addAliasedTypeAnnotation(
-          "org.checkerframework.checker.nullness.compatqual.NullableDecl", unionNull);
-    }
-
     // Yes, it's valid to pass declaration annotations to addAliased*Type*Annotation.
-    addAliasedTypeAnnotation(
-        "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter", unionNull);
-    addAliasedTypeAnnotation("com.google.protobuf.Internal.ProtoMethodMayReturnNull", unionNull);
-
+    NULLABLE_ANNOTATIONS.forEach(a -> addAliasedTypeAnnotation(a, unionNull));
+    NOT_NULL_ANNOTATIONS.forEach(a -> addAliasedTypeAnnotation(a, minusNull));
     /*
      * TODO(cpovirk): If we rework how we read annotations on a deep enough level, consider
      * recognizing annotations by simple class name instead of by fully qualified name.
-     */
-    addAliasedTypeAnnotation("android.annotation.Nullable", unionNull);
-    addAliasedTypeAnnotation("android.support.annotation.Nullable", unionNull);
-    addAliasedTypeAnnotation("android.support.annotation.RecentlyNullable", unionNull);
-    addAliasedTypeAnnotation("androidx.annotation.Nullable", unionNull);
-    addAliasedTypeAnnotation("androidx.annotation.RecentlyNullable", unionNull);
-    addAliasedTypeAnnotation("com.android.annotations.Nullable", unionNull);
-    addAliasedTypeAnnotation("javax.annotation.CheckForNull", unionNull);
-    addAliasedTypeAnnotation("javax.annotation.Nullable", unionNull);
-    addAliasedTypeAnnotation("org.jetbrains.annotations.Nullable", unionNull);
-
-    /*
-     * TODO(cpovirk): Consider recognizing various @NonNull/@NotNull annotations as aliases of
-     * @MinusNull. But this lets users write `@NonNull T` for a type-variable usage `T`. That means
-     * that we'd better have a way to *print* such types, which don't typically arise today. (We'd
-     * probably use "T!!")
      */
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
@@ -1842,4 +1811,82 @@ final class NullSpecAnnotatedTypeFactory
   private enum Present {
     INSTANCE;
   }
+
+  private static final List<String> NULLABLE_ANNOTATIONS =
+      unmodifiableList(
+          asList(
+              new String[] {
+                "android.annotation.Nullable",
+                "android.support.annotation.Nullable",
+                "android.support.annotation.RecentlyNullable",
+                "androidx.annotation.Nullable",
+                "androidx.annotation.RecentlyNullable",
+                "com.android.annotations.Nullable",
+                "com.beust.jcommander.internal.Nullable",
+                "com.google.api.server.spi.config.Nullable",
+                "com.google.firebase.database.annotations.Nullable",
+                "com.google.firebase.internal.Nullable",
+                "com.google.gerrit.common.Nullable",
+                "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter",
+                "com.google.protobuf.Internal.ProtoMethodMayReturnNull",
+                "com.mongodb.lang.Nullable",
+                "com.ryanharter.auto.value.gson.Nullable",
+                "com.sun.istack.Nullable",
+                "com.sun.istack.internal.Nullable",
+                "com.unboundid.util.Nullable",
+                "edu.umd.cs.findbugs.annotations.Nullable",
+                "io.micrometer.core.lang.Nullable",
+                "io.reactivex.annotations.Nullable",
+                "io.reactivex.rxjava3.annotations.Nullable",
+                "javax.annotation.CheckForNull",
+                "javax.annotation.Nullable",
+                "junitparams.converters.Nullable",
+                "libcore.util.Nullable",
+                "org.apache.avro.reflect.Nullable",
+                "org.apache.cxf.jaxrs.ext.Nullable",
+                "org.apache.shindig.common.Nullable",
+                "org.checkerframework.checker.nullness.compatqual.NullableDecl",
+                "org.checkerframework.checker.nullness.compatqual.NullableType",
+                "org.checkerframework.checker.nullness.qual.Nullable",
+                "org.eclipse.jgit.annotations.Nullable",
+                "org.jetbrains.annotations.Nullable",
+                "org.jspecify.nullness.Nullable",
+                "org.springframework.lang.Nullable",
+                "reactor.util.annotation.Nullable",
+              }));
+
+  /*
+   * We haven't settled how much we support/encourage/discourage @NonNull annotations. But it
+   * would be shame to throw information away, so we recognize them.
+   */
+  private static final List<String> NOT_NULL_ANNOTATIONS =
+      unmodifiableList(
+          asList(
+              new String[] {
+                "android.annotation.NonNull",
+                "android.support.annotation.NonNull",
+                "androidx.annotation.NonNull",
+                "com.android.annotations.NonNull",
+                "com.google.firebase.database.annotations.NotNull",
+                "com.google.firebase.internal.NonNull",
+                "com.sun.istack.NotNull",
+                "com.sun.istack.internal.NotNull",
+                "com.unboundid.util.NotNull",
+                "edu.umd.cs.findbugs.annotations.NonNull",
+                "io.micrometer.core.lang.NonNull",
+                "io.reactivex.annotations.NonNull",
+                "io.reactivex.rxjava3.annotations.NonNull",
+                "javax.annotation.Nonnull",
+                "javax.validation.constraints.NotNull",
+                "libcore.util.NonNull",
+                "org.antlr.v4.runtime.misc.NotNull",
+                "org.checkerframework.checker.nullness.compatqual.NonNullDecl",
+                "org.checkerframework.checker.nullness.compatqual.NonNullType",
+                "org.checkerframework.checker.nullness.qual.NonNull",
+                "org.easymock.internal.matchers.NotNull",
+                "org.eclipse.jgit.annotations.NonNull",
+                "org.eclipse.lsp4j.jsonrpc.validation.NonNull",
+                "org.jetbrains.annotations.NotNull",
+                "reactor.util.annotation.NonNull",
+              }));
 }
