@@ -42,7 +42,7 @@ $ ./gradlew assemble
 
 # Use it:
 
-$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar:... ...
+$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar:... ...
 
 
 # For example:
@@ -58,7 +58,7 @@ class SomeTest {
   }
 }
 
-$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.1.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar SomeTest.java
+$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar SomeTest.java
 SomeTest.java:7: error: [nullness] incompatible types in return.
     return o;
            ^
