@@ -202,36 +202,53 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     return true;
   }
 
+  /**
+   * Returns true if the given member select tree's expression is a "true expression." This is in
+   * contrast to when it is class or package name: Those can appear as an "expresion" in a member
+   * select, but they do not represent true expressions.
+   */
+  private static boolean memberSelectExpressionIsATrueExpression(MemberSelectTree memberSelect) {
+    if (memberSelect.getIdentifier().contentEquals("class")) {
+      // This case is largely covered by the checks below, but it's still necessary for void.class.
+      return false;
+    }
+    Element element = elementFromTree(memberSelect.getExpression());
+    if (element == null) {
+      // Some expressions do not have an associated symbol -- for example, ternaries.
+      return true;
+    }
+    return !element.getKind().isClass()
+        && !element.getKind().isInterface()
+        && element.getKind() != PACKAGE;
+    /*
+     * If a class/interface/package appears as the "expression" of a member select, then we're
+     * looking at a case like `Foo.Baz`, `Foo<Bar>.Baz`, or `java.util.List`. Our checks want to
+     * distinguish this from the case in which the member select represents an actual dereference.
+     *
+     * As it happens, it's not only *unnecessary* to check that an "expression" like "Foo" is
+     * non-null, but it's also currently *unsafe*: The "expression" tree's nullness can default to
+     * NullnessUnspecified (based on some combination of whether *Foo* is not @NullMarked and the
+     * *usage* is not @NullMarked). Thus, anything that looks like dereference of the "expression"
+     * could produce a warning or error.
+     *
+     * Note that our defaulting of enclosing types in
+     * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help even when
+     * I retrieve the type of the entire MemberSelectTree (and then pull out the outer type from
+     * that).
+     *
+     * The code path that we end up in appears to be looking specifically at the class referenced by
+     * the MemberSelectTree, without regard to any annotations on, e.g., the VariableTree that it is
+     * the type for. We end up in AnnotatedTypeFactory.fromElement. Possibly that's bogus: Not every
+     * MemberSelectTree is an "expression" in the usual sense. Perhaps it's our job not to call
+     * getAnnotatedType on such trees? So let's not.
+     */
+  }
+
   @Override
   public Void visitMemberSelect(MemberSelectTree tree, Void p) {
-    Element element = elementFromTree(tree);
     ExpressionTree expression = tree.getExpression();
-    if (element != null
-        && !element.getKind().isClass()
-        && !element.getKind().isInterface()
-        && element.getKind() != PACKAGE
-        && !tree.getIdentifier().contentEquals("class")) {
+    if (memberSelectExpressionIsATrueExpression(tree)) {
       ensureNonNull(expression);
-      /*
-       * By contrast, if it's a class/interface, the select must be on a type, like `Foo.Baz` or
-       * `Foo<Bar>.Baz`, or it must be a fully qualified type name, like `java.util.List`. In either
-       * case, we don't need to check that the "expression" is non-null because the code is not
-       * actually dereferencing anything.
-       *
-       * In fact, a check that the type is non-null is currently not *safe*: The "expression" tree
-       * appears to default to NullnessUnspecified in non-null-aware code.
-       *
-       * Note that our defaulting of enclosing types in
-       * writeDefaultsForIntrinsicallyNonNullableComponents does not help. It does not help even
-       * when I retrieve the type of the entire MemberSelectTree (and then pull out the outer type
-       * from that).
-       *
-       * The code path that we end up in appears to be looking specifically at the class referenced
-       * by the MemberSelectTree, without regard to any annotations on, e.g., the VariableTree that
-       * it is the type for. We end up in AnnotatedTypeFactory.fromElement. Possibly that's bogus:
-       * Not every MemberSelectTree is an "expression" in the usual sense. Perhaps it's our job not
-       * to call getAnnotatedType on such trees? So let's not.
-       */
     }
     /*
      * visitMemberSelect has to look for annotations differently than visitVariable and visitMethod.
