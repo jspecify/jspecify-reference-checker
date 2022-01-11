@@ -87,4 +87,15 @@ $ for F in ../*; do ( cd $F && git fetch --unshallow ); done
 
 # (Some repos are already non-shallow, so the command will fail in those
 # directories but still succeed in the others.)
+
+
+# And finally... there is often some version skew between the versions of
+# dependencies that our checker currently depends on and the newest versions
+# that our build process pulls from upstream. As a result, the build may fail,
+# typically because it can't find the stubparser jar. *As of this writing*
+# (January 11, 2022), you can use the following command to set up appropriate
+# versions *after the build has failed and after you have unshallowed the other
+# repositories*.
+
+$ ( cd ../annotation-tools && git checkout dc56ce2a7d8cb85e4af72c78d3bf26d25c2fa7ec ) && ( cd ../stubparser/ && git checkout f41e795f71198e47925247b2d40061be670252d4 )
 ```
