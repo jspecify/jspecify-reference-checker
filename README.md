@@ -72,6 +72,13 @@ SomeTest.java:7: error: [nullness] incompatible types in return.
 $ ./gradlew jspecifySamplesTest
 
 
+# The tests will fail because our checker has some known issues. To get them to
+# pass, you can check out a different branch of our sample repo, one that has
+# the expected incorrect results encoded into the samples:
+
+$ ( cd ../jspecify && git checkout samples-google-prototype )
+
+
 # During development, you may wish to pass `-x ensureCheckerFrameworkBuilt` to
 # `gradlew` for every build after your first. This will prevent the build
 # process from also rebuilding some of our *dependencies* (which is slow).
@@ -97,5 +104,5 @@ $ for F in ../*; do ( cd $F && git fetch --unshallow ); done
 # versions *after the build has failed and after you have unshallowed the other
 # repositories*.
 
-$ ( cd ../annotation-tools && git checkout dc56ce2a7d8cb85e4af72c78d3bf26d25c2fa7ec ) && ( cd ../stubparser/ && git checkout f41e795f71198e47925247b2d40061be670252d4 )
+$ ( cd ../annotation-tools && git checkout dc56ce2a7d8cb85e4af72c78d3bf26d25c2fa7ec ) && ( cd ../stubparser && git checkout f41e795f71198e47925247b2d40061be670252d4 )
 ```
