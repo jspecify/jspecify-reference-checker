@@ -76,9 +76,15 @@ $ ./gradlew jspecifySamplesTest
 # `gradlew` for every build after your first. This will prevent the build
 # process from also rebuilding some of our *dependencies* (which is slow).
 
+
 # Also note: For some of the repos that the build process clones, it creates
 # single-branch clones that use an https URL instead of a git URL. You may want
 # to convert them into more "normal" GitHub clones:
 
 $ perl -pi -e 's#https://github.com/#git\@github.com:#; s#fetch = \+refs/heads/(main|master):refs/remotes/origin/(main|master)#fetch = +refs/heads/*:refs/remotes/origin/*#;' ../*/.git/config
+
+$ for F in ../*; do ( cd $F && git fetch --unshallow ); done
+
+# (Some repos are already non-shallow, so the command will fail in those
+# directories but still succeed in the others.)
 ```
