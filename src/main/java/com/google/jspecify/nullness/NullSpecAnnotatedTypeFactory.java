@@ -1829,6 +1829,8 @@ final class NullSpecAnnotatedTypeFactory
                 "com.google.gerrit.common.Nullable",
                 "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter",
                 "com.google.protobuf.Internal.ProtoMethodMayReturnNull",
+                // TODO(cpovirk): Treat this like a @PolyNull instead:
+                "com.google.protobuf.Internal.ProtoPassThroughNullness",
                 "com.mongodb.lang.Nullable",
                 "com.sun.istack.Nullable",
                 "com.sun.istack.internal.Nullable",
