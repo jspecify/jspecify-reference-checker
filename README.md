@@ -9,7 +9,7 @@ working properly, we will need to do more work, including proposing new
 configuration hooks in the Checker Framework itself. Running it against the
 regular version of the Checker Framework will behave incorrectly, as we have
 [made related changes in a temporary fork of the Checker Framework](https://github.com/jspecify/checker-framework).
-In fact, even _building_ it against the regular version of the Checker Framework
+In fact, even *building* it against the regular version of the Checker Framework
 does not work after
 [8fcc87f5e4e28c2e4511eb8cf26092d935425fea](https://github.com/jspecify/nullness-checker-for-checker-framework/commit/8fcc87f5e4e28c2e4511eb8cf26092d935425fea).
 
@@ -72,11 +72,16 @@ SomeTest.java:7: error: [nullness] incompatible types in return.
 $ ./gradlew jspecifySamplesTest
 
 
-# The tests will fail because our checker has some known issues. To get them to
-# pass, you can check out a different branch of our sample repo, one that has
-# the expected incorrect results encoded into the samples:
+# The tests will fail for two reasons:
+#
+# 1. Our checker has some known issues.
+# 2. The samples use @NullnessUnspecified, an annotation that currently doesn't exist in the mainline of jspecify/jspecify.
+#
+# To get the tests to pass, you can check and build out a different branch of
+# our sample repo, one that has the expected incorrect results encoded into the
+# samples *and* has @NullnessUnspecified present:
 
-$ ( cd ../jspecify && git checkout samples-google-prototype )
+$ ( cd ../jspecify && git checkout samples-google-prototype && ./gradlew )
 
 
 # During development, you may wish to pass `-x ensureCheckerFrameworkBuilt` to
