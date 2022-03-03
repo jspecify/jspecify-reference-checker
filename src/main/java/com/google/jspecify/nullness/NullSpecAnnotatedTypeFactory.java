@@ -14,6 +14,7 @@
 
 package com.google.jspecify.nullness;
 
+import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArray.IS_DECLARED_OR_ARRAY;
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
@@ -446,8 +447,7 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
-    return nullnessEstablishingPathExists(
-        type, t -> t.getKind() == DECLARED || t.getKind() == ARRAY);
+    return nullnessEstablishingPathExists(type, IS_DECLARED_OR_ARRAY);
   }
 
   private boolean nullnessEstablishingPathExists(
@@ -458,8 +458,7 @@ final class NullSpecAnnotatedTypeFactory
      * checked by isNullInclusiveUnderEveryParameterization and
      * isNullExclusiveUnderEveryParameterization.
      */
-    return nullnessEstablishingPathExists(
-        subtype, t -> checker.getTypeUtils().isSameType(t, supertype.getUnderlyingType()));
+    return nullnessEstablishingPathExists(subtype, isSameTypeAs(supertype.getUnderlyingType()));
   }
 
   private boolean nullnessEstablishingPathExists(
@@ -1798,6 +1797,31 @@ final class NullSpecAnnotatedTypeFactory
   private AnnotatedDeclaredType createType(TypeElement element) {
     return (AnnotatedDeclaredType)
         AnnotatedTypeMirror.createType(element.asType(), this, /*isDeclaration=*/ false);
+  }
+
+  // Avoid lambdas so that our Predicates can have a useful toString() for logging purposes.
+
+  enum IsDeclaredOrArray implements Predicate<TypeMirror> {
+    IS_DECLARED_OR_ARRAY;
+
+    @Override
+    public boolean test(TypeMirror t) {
+      return t.getKind() == DECLARED || t.getKind() == ARRAY;
+    }
+  }
+
+  private Predicate<TypeMirror> isSameTypeAs(TypeMirror target) {
+    return new Predicate<>() {
+      @Override
+      public boolean test(TypeMirror t) {
+        return checker.getTypeUtils().isSameType(t, target);
+      }
+
+      @Override
+      public String toString() {
+        return "isSameTypeAs(" + target + ")";
+      }
+    };
   }
 
   NullSpecAnnotatedTypeFactory withLeastConvenientWorld() {
