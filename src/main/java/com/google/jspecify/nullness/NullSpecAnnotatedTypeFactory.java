@@ -44,6 +44,7 @@ import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TreeUtils.isNullExpression;
 import static org.checkerframework.javacutil.TreeUtils.typeOf;
+import static org.checkerframework.javacutil.TypesUtils.isCaptured;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
@@ -1467,7 +1468,7 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     public String format(AnnotatedTypeMirror type, boolean printVerbose) {
       StringBuilder result = new StringBuilder();
-      IdentityHashMap<AnnotatedWildcardType, Present> visiting = new IdentityHashMap<>();
+      IdentityHashMap<AnnotatedTypeMirror, Present> visiting = new IdentityHashMap<>();
       new AnnotatedTypeVisitor<Void, Void>() {
         @Override
         public Void visit(AnnotatedTypeMirror type) {
@@ -1522,8 +1523,37 @@ final class NullSpecAnnotatedTypeFactory
 
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, Void aVoid) {
-          append(simpleName(type));
-          append(operator(type));
+          if (isCaptured(type.getUnderlyingType())) {
+            Present currentlyVisiting = visiting.put(type, Present.INSTANCE);
+            if (currentlyVisiting == Present.INSTANCE) {
+              append("...");
+              return null;
+            }
+
+            String operator = operator(type);
+            if (!operator.isEmpty()) {
+              append("{");
+            }
+            // TODO(cpovirk): Do we ever need to put braces around just the `? extends Foo` part?
+            append(type.getUnderlyingType().toString().replaceFirst(" of [?].*", " of ?"));
+            if (hasUpperBound(type)) {
+              append(" extends ");
+              visit(type.getUpperBound());
+            }
+            if (hasLowerBound(type)) {
+              append(" super ");
+              visit(type.getLowerBound());
+            }
+            if (!operator.isEmpty()) {
+              append("}");
+            }
+            append(operator);
+
+            visiting.remove(type);
+          } else {
+            append(simpleName(type));
+            append(operator(type));
+          }
           return null;
         }
 
@@ -1575,27 +1605,37 @@ final class NullSpecAnnotatedTypeFactory
           return null;
         }
 
+        boolean hasUpperBound(AnnotatedTypeVariable type) {
+          return !isUnboundedForExtendsOrUpper(type.getUpperBound());
+        }
+
         boolean hasExtendsBound(AnnotatedWildcardType type) {
-          AnnotatedTypeMirror bound = type.getExtendsBound();
-          boolean isUnbounded =
-              bound instanceof AnnotatedDeclaredType
-                  && ((AnnotatedDeclaredType) bound)
-                      .getUnderlyingType()
-                      .asElement()
-                      .getSimpleName()
-                      .contentEquals("Object")
-                  // TODO(cpovirk): Look specifically for java.lang.Object.
-                  && bound.hasAnnotation(unionNull);
-          return !isUnbounded;
+          return !isUnboundedForExtendsOrUpper(type.getExtendsBound());
+        }
+
+        boolean isUnboundedForExtendsOrUpper(AnnotatedTypeMirror bound) {
+          return bound instanceof AnnotatedDeclaredType
+              && ((AnnotatedDeclaredType) bound)
+                  .getUnderlyingType()
+                  .asElement()
+                  .getSimpleName()
+                  .contentEquals("Object")
+              // TODO(cpovirk): Look specifically for java.lang.Object.
+              && bound.hasAnnotation(unionNull);
+        }
+
+        boolean hasLowerBound(AnnotatedTypeVariable type) {
+          return !isUnboundedForSuperOrLower(type.getLowerBound());
         }
 
         boolean hasSuperBound(AnnotatedWildcardType type) {
-          AnnotatedTypeMirror bound = type.getSuperBound();
-          boolean isUnbounded =
-              bound instanceof AnnotatedNullType
-                  && !bound.hasAnnotation(unionNull)
-                  && !bound.hasAnnotation(nullnessOperatorUnspecified);
-          return !isUnbounded;
+          return !isUnboundedForSuperOrLower(type.getSuperBound());
+        }
+
+        boolean isUnboundedForSuperOrLower(AnnotatedTypeMirror bound) {
+          return bound instanceof AnnotatedNullType
+              && !bound.hasAnnotation(unionNull)
+              && !bound.hasAnnotation(nullnessOperatorUnspecified);
         }
 
         Void visitJoining(List<? extends AnnotatedTypeMirror> types, String separator) {
