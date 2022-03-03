@@ -180,8 +180,6 @@ final class NullSpecAnnotatedTypeFactory
     javaLangThreadLocal = createType(util.javaLangThreadLocalElement);
     javaUtilMap = createType(util.javaUtilMapElement);
 
-    postInit();
-
     /*
      * Creating a new AnnotatedTypeFactory is expensive -- especially parseStubFiles. So we make
      * sure to create only a single instance for each "world."
@@ -190,7 +188,8 @@ final class NullSpecAnnotatedTypeFactory
      * AnnotatedTypeFactory instances. But I worry about accidentally depending on state that is
      * specific to the world that the current instance was created with.
      */
-    if (withOtherWorld == null) {
+    boolean givenOtherWorld = withOtherWorld != null;
+    if (!givenOtherWorld) {
       withOtherWorld =
           new NullSpecAnnotatedTypeFactory(
               checker, util, !isLeastConvenientWorld, /*withOtherWorld=*/ this);
@@ -201,6 +200,32 @@ final class NullSpecAnnotatedTypeFactory
     } else {
       withLeastConvenientWorld = withOtherWorld;
       withMostConvenientWorld = this;
+    }
+
+    if (!givenOtherWorld) {
+      /*
+       * Now the withLeastConvenientWorld and withMostConvenientWorld fields of both `this` and
+       * `withOtherWorld` have been populated. It's safe to call postInit() for each.
+       *
+       * In contrast, if we *were* given another world, that would mean that we are being called
+       * from within the other world's constructor. In that case, the other world hasn't yet
+       * populated its fields, so it's not safe for us to call postInit() on it, nor on `this`
+       * (since `this` might call into the other world).
+       *
+       * (It's possible that this is slightly over-conservative: We *typically* don't call from the
+       * least convenient world into the most convenient world. But we do during dataflow (though
+       * that *might* not run during init?) and perhaps elsewhere. It seems safest to populate as
+       * many fields as we can before calling postInit().)
+       *
+       * (It's also possible that this is not conservative enough: Maybe we need to *fully*
+       * initialize each object before we initialize the other. If so, we have circular
+       * dependencies. If we're lucky, that won't come up. If we're unlucky, maybe it will at least
+       * come up only "in one direction," meaning that it would be safe to fully initialize the
+       * least convenient world and then subsequently fully initialize the most convenient world (or
+       * the other order if that's the one that works).)
+       */
+      withOtherWorld.postInit();
+      postInit();
     }
   }
 
