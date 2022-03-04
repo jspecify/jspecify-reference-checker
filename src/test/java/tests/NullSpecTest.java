@@ -42,6 +42,13 @@ public class NullSpecTest {
     public static String[] getTestDirs() {
       return new String[] {"minimal"};
     }
+
+    @Override
+    public TypecheckResult adjustTypecheckResult(TypecheckResult testResult) {
+      // Remove the "Note"-level diagnostic that directs users to our User Guide.
+      testResult.getUnexpectedDiagnostics().removeIf(u -> u.getKind() != DiagnosticKind.Error);
+      return testResult;
+    }
   }
 
   public static class Lenient extends CheckerFrameworkPerDirectoryTest {

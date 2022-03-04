@@ -14,8 +14,18 @@
 
 package com.google.jspecify.nullness;
 
+import static com.sun.source.util.TaskEvent.Kind.COMPILATION;
+import static javax.tools.Diagnostic.Kind.NOTE;
+
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import com.sun.source.util.TreePath;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.util.Log;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import javax.lang.model.element.TypeElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.source.SupportedOptions;
@@ -49,6 +59,8 @@ public final class NullSpecChecker extends BaseTypeChecker {
    */
   Util util;
 
+  boolean reportedNullnessError;
+
   public NullSpecChecker() {}
 
   @Override
@@ -59,8 +71,41 @@ public final class NullSpecChecker extends BaseTypeChecker {
   }
 
   @Override
+  public void initChecker() {
+    super.initChecker();
+
+    JavacTask.instance(processingEnv)
+        .addTaskListener(
+            new TaskListener() {
+              @Override
+              public void finished(TaskEvent event) {
+                if (reportedNullnessError && event.getKind() == COMPILATION) {
+                  processingEnv
+                      .getMessager()
+                      .printMessage(
+                          NOTE,
+                          "\n"
+                              + "=====\n"
+                              + "The nullness checker is still early in development.\n"
+                              + "It has many rough edges.\n"
+                              + "For an introduction, see https://jspecify.dev/user-guide\n"
+                              + "=====");
+                }
+              }
+            });
+  }
+
+  @Override
   protected BaseTypeVisitor<?> createSourceVisitor() {
     this.util = new Util(getElementUtils(), getTypeUtils()); // see discussion on the field
     return new NullSpecVisitor(this, util);
+  }
+
+  @Override
+  public void typeProcess(TypeElement element, TreePath path) {
+    Log log = Log.instance(((JavacProcessingEnvironment) processingEnv).getContext());
+    int errorsBefore = log.nerrors;
+    super.typeProcess(element, path);
+    reportedNullnessError |= (log.nerrors > errorsBefore);
   }
 }
