@@ -20,7 +20,7 @@ ext {
     jspecifyHome = "${parentDir}/jspecify"
 }
 
-sourceCompatibility = 1.8
+sourceCompatibility = 1.9
 
 dependencies {
     implementation files("${cfHome}/checker/dist/checker-qual.jar")
@@ -44,6 +44,21 @@ tasks.withType(JavaCompile).all {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
     options.compilerArgs.add("-Xlint:-fallthrough")
+
+    options.compilerArgs.addAll(
+        [
+            "api",
+            "code",
+            "comp",
+            "file",
+            "main",
+            "model",
+            "parser",
+            "processing",
+            "resources",
+            "tree",
+            "util",
+        ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
 }
 
 tasks.withType(Test) {
