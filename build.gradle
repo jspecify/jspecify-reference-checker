@@ -45,6 +45,8 @@ tasks.withType(JavaCompile).all {
     // ErrorProne makes suppressing these easier
     options.compilerArgs.add("-Xlint:-fallthrough")
 
+    options.errorprone.disable("BadImport")
+
     options.compilerArgs.addAll(
         [
             "api",
