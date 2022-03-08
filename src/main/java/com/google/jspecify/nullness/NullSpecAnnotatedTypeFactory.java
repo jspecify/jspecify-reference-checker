@@ -30,6 +30,7 @@ import static java.util.Collections.unmodifiableList;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
+import static javax.lang.model.type.TypeKind.TYPEVAR;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
 import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
@@ -444,6 +445,11 @@ final class NullSpecAnnotatedTypeFactory
          */
         return true;
       }
+      if (supertype.getKind() == TYPEVAR
+          && !supertype.hasAnnotation(minusNull)
+          && isNullnessSubtype(subtype, ((AnnotatedTypeVariable) supertype).getLowerBound())) {
+        return true;
+      }
       return isNullInclusiveUnderEveryParameterization(supertype)
           || isNullExclusiveUnderEveryParameterization(subtype)
           || (nullnessEstablishingPathExists(subtype, supertype)
@@ -452,6 +458,14 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   boolean isNullInclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
+    // We put the third case from the spec first because it's a mouthful.
+    // (As discussed in the spec, we probably don't strictly need this case at all....)
+    if (type.getKind() == TYPEVAR
+        && !type.hasAnnotation(minusNull)
+        && isNullInclusiveUnderEveryParameterization(
+            ((AnnotatedTypeVariable) type).getLowerBound())) {
+      return true;
+    }
     /*
      * Our draft subtyping rules specify a special case for intersection types. However, those rules
      * make sense only because the rules also specify that an intersection type never has an
@@ -562,11 +576,6 @@ final class NullSpecAnnotatedTypeFactory
         return true;
       }
     }
-    /*
-     * We don't need to handle the "lower-bound rule" here: The Checker Framework doesn't perform
-     * wildcard capture conversion. (Hmm, but it might see post-capture-conversion types in some
-     * cases....) It compares "? super Foo" against "Bar" by more directly comparing Foo and Bar.
-     */
     return false;
   }
 
