@@ -544,30 +544,6 @@ final class NullSpecAnnotatedTypeFactory
       return false;
     }
 
-    /*
-     * The following special case for type variables works around a problem with CF defaulting: When
-     * CF computes the default for the bound of a type-variable usage, it uses the defaulting rules
-     * that are in effect at the site of the usage. It probably should instead use the defaulting
-     * rules that are in effect at the site of the type-parameter declaration. To get the rules we
-     * want, we look up the type of the declaration element. (But first we do look at the use site a
-     * little, just to make sure that it's not `@Nullable E` (or `@NullnessUnspecified E`, if in the
-     * least convenient world).)
-     *
-     * See https://github.com/typetools/checker-framework/issues/3845
-     *
-     * TODO(cpovirk): I fear that this workaround may have problems of its own: We really want the
-     * parameter declaration _as a member of the declaration we're working with_. The stock CF
-     * behavior would give us much of this for free by carrying the bounds along with the
-     * type-variable usage, substituting as it goes. Perhaps we need for AnnotatedTypeVariable to
-     * carry a list of substitution operations along with it, which this code would apply when it
-     * looks up the bounds? But ideally the CF issue will have a more principled solution, at which
-     * point we could fall back to using stock CF behavior.
-     */
-    if (subtype instanceof AnnotatedTypeVariable) {
-      AnnotatedTypeVariable variable = (AnnotatedTypeVariable) subtype;
-      subtype = getAnnotatedType(variable.getUnderlyingType().asElement());
-    }
-
     if (supertypeMatcher.test(subtype.getUnderlyingType())) {
       return true;
     }
