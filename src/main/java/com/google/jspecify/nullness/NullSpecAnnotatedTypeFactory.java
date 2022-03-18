@@ -17,6 +17,7 @@ package com.google.jspecify.nullness;
 import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArray.IS_DECLARED_OR_ARRAY;
 import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
 import static com.google.jspecify.nullness.Util.nameMatches;
+import static com.sun.source.tree.Tree.Kind.CONDITIONAL_EXPRESSION;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
@@ -907,16 +908,47 @@ final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-    /*
-     * TODO(cpovirk): Eliminate this workaround. But currently, it helps in some of our samples and
-     * in Guava, though I am unsure why. The problem it works around may well be caused by our
-     * failure to keep wildcards' annotations in sync with their bounds' annotations (whereas stock
-     * CF does).
-     *
-     * Note that this workaround also hurts: See the comment that mentions it in
-     * NullSpecTransfer.refineFutureMapGetFromMapContainsKey.
-     */
-    super.addComputedTypeAnnotations(tree, type, iUseFlow && type.getKind() != WILDCARD);
+    super.addComputedTypeAnnotations(
+        tree,
+        type,
+        iUseFlow
+            /*
+             * TODO(cpovirk): Eliminate this workaround (which may cause problems of its own). But
+             * currently, it helps in some of our samples and in Guava, though I am unsure why. The
+             * problem it works around may well be caused by our failure to keep wildcards'
+             * annotations in sync with their bounds' annotations (whereas stock CF does).
+             *
+             * Note that the `type.getKind() != WILDCARD` check appears to be necessary before the
+             * CF implementation of capture conversion and unnecessary afterward, while the reverse
+             * is true of the `isCaptured` check.
+             */
+            && type.getKind() != WILDCARD
+            && !isCaptured(type.getUnderlyingType())
+            /*
+             * TODO(cpovirk): See if we can remove this workaround after merging the fix for
+             * https://github.com/typetools/checker-framework/issues/5042.
+             *
+             * The workaround becomes necessary after the CF implementation of capture conversion.
+             * Without it, we see dataflow decide that `b ? null : nullable` has a type of
+             * _non-null_, as in code like the following:
+             *
+             * https://github.com/google/guava/blob/156694066b5198740a820c6eef723fb86c054343/guava/src/com/google/common/base/Throwables.java#L470
+             *
+             * (But I haven't been able to reproduce this in a smaller test.)
+             *
+             * Fortunately, I think the workaround is harmless:
+             * TypeFromExpressionVisitor.visitConditionalExpression calls getAnnotatedType on both
+             * candidate expressions, and getAnnotatedType applies dataflow. So the ternary should
+             * end up with the dataflow-correct result by virtue of applying lub to those types.
+             *
+             * (I think the only exception would be if someone performed a null check _on an entire
+             * ternary_ and then expected _another appearance of that same ternary_ to be recognized
+             * as non-null. That seems implausible.)
+             *
+             * (Still, it would be good to look into what's going on here in case it's a sign of a
+             * deeper problem.)
+             */
+            && tree.getKind() != CONDITIONAL_EXPRESSION);
   }
 
   @Override
