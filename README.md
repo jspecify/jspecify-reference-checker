@@ -28,7 +28,8 @@ organizations.
 ## Usage
 
 Again, this is not ready for general use. But for those in our group who are
-looking to try it out:
+looking to try it out, here are some instructions, *which will probably fail*
+and need to be worked around as described later in this section:
 
 ```
 # Build the checker:
@@ -72,26 +73,17 @@ SomeTest.java:7: error: [nullness] incompatible types in return.
 $ ./gradlew jspecifySamplesTest
 
 
-# The tests will fail for two reasons:
-#
-# 1. Our checker has some known issues.
-# 2. The samples use @NullnessUnspecified, an annotation that currently doesn't exist in the mainline of jspecify/jspecify.
-#
-# To get the tests to pass, you can check and build out a different branch of
-# our sample repo, one that has the expected incorrect results encoded into the
-# samples *and* has @NullnessUnspecified present:
-
-$ ( cd ../jspecify && git checkout samples-google-prototype && ./gradlew )
-
-
 # During development, you may wish to pass `-x ensureCheckerFrameworkBuilt` to
 # `gradlew` for every build after your first. This will prevent the build
 # process from also rebuilding some of our *dependencies* (which is slow).
 
 
-# Also note: For some of the repos that the build process clones, it creates
-# single-branch clones that use an https URL instead of a git URL. You may want
-# to convert them into more "normal" GitHub clones:
+# As noted above, this process will likely fail for multiple reasons.
+#
+# Step 1 of the process of fixing them is to improve some of the repos cloned
+# by the build process: Some of those repos are created as single-branch clones
+# that use an https URL instead of a git URL. You can convert them into more
+# "normal" GitHub clones:
 
 $ perl -pi -e 's#https://github.com/#git\@github.com:#; s#fetch = \+refs/heads/(main|master):refs/remotes/origin/(main|master)#fetch = +refs/heads/*:refs/remotes/origin/*#;' ../*/.git/config
 
@@ -101,13 +93,27 @@ $ for F in ../*; do ( cd $F && git fetch --unshallow ); done
 # directories but still succeed in the others.)
 
 
-# And finally... there is often some version skew between the versions of
-# dependencies that our checker currently depends on and the newest versions
-# that our build process pulls from upstream. As a result, the build may fail,
-# typically because it can't find the stubparser jar. *As of this writing*
-# (January 11, 2022), you can use the following command to set up appropriate
-# versions *after the build has failed and after you have unshallowed the other
+# Next: There is often some version skew between the versions of dependencies
+# that our checker currently depends on and the newest versions that our build
+# process pulls from upstream. As a result, the build may fail, typically
+# because it can't find the stubparser jar. *As of this writing* (January 11,
+# 2022), you can use the following command to set up appropriate versions
+# *after the build has failed and after you have unshallowed the other
 # repositories*.
 
 $ ( cd ../annotation-tools && git checkout dc56ce2a7d8cb85e4af72c78d3bf26d25c2fa7ec ) && ( cd ../stubparser && git checkout f41e795f71198e47925247b2d40061be670252d4 )
+
+
+# After that, the tests are likely to *build* but not *pass*. There are two
+# more reasons for this:
+#
+# 1. Our checker has some known issues.
+# 2. The samples use @NullnessUnspecified, an annotation that currently doesn't
+#    exist in the mainline of jspecify/jspecify.
+#
+# To get the tests to pass, you can check and build out a different branch of
+# our sample repo, one that has the expected incorrect results encoded into the
+# samples *and* has @NullnessUnspecified present:
+
+$ ( cd ../jspecify && git checkout samples-google-prototype && ./gradlew )
 ```
