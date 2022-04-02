@@ -176,14 +176,14 @@ public class NullSpecTest {
         }
       case "jspecify_unrecognized_location":
         switch (unexpected.getMessage()) {
-          /*
-           * We'd rather avoid this `bound` error (in part because it suggests that the annotation
-           * is having some effect, which we don't want!), but the most important thing is that the
-           * checker is issuing one or more errors when someone annotates a type-parameter
-           * declaration. The second most important thing is that the errors issued include our
-           * custom `*.annotated` error. This test probably doesn't confirm that second thing
-           * anymore, but I did manually confirm that it is true as of this writing.
-           */
+            /*
+             * We'd rather avoid this `bound` error (in part because it suggests that the annotation
+             * is having some effect, which we don't want!), but the most important thing is that the
+             * checker is issuing one or more errors when someone annotates a type-parameter
+             * declaration. The second most important thing is that the errors issued include our
+             * custom `*.annotated` error. This test probably doesn't confirm that second thing
+             * anymore, but I did manually confirm that it is true as of this writing.
+             */
           case "bound":
           case "local.variable.annotated":
           case "type.parameter.annotated":
