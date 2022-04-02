@@ -46,9 +46,8 @@ import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
 import static org.checkerframework.javacutil.TreeUtils.isNullExpression;
 import static org.checkerframework.javacutil.TreeUtils.typeOf;
-import static org.checkerframework.javacutil.TypesUtils.isCaptured;
+import static org.checkerframework.javacutil.TypesUtils.isCapturedTypeVariable;
 import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
-import static org.checkerframework.javacutil.TypesUtils.wildcardToTypeParam;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
@@ -61,7 +60,6 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.tools.javac.code.Type.WildcardType;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.HashMap;
@@ -78,10 +76,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -118,7 +113,6 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
-import org.checkerframework.javacutil.Pair;
 import org.jspecify.nullness.NullMarked;
 
 final class NullSpecAnnotatedTypeFactory
@@ -431,6 +425,15 @@ final class NullSpecAnnotatedTypeFactory
          * isNullnessSubtype) for the bound. That's fortunate, as we don't define subtyping rules
          * for wildcards (since the JLS says that they should be capture converted by this point, or
          * we should be checking their *bounds* for a containment check).
+         *
+         * Even now that CF has implemented capture conversion, we're still seeing calls to this
+         * method with wildcard supertypes, and we still want this special case.
+         *
+         * Specifically, we see those calls in the case of uninferred type arguments (I think).
+         *
+         * TODO(cpovirk): So maybe this special case and the isUninferredTypeArgument case below
+         * should look more similar now that *all* wildcards seen by this method might be
+         * uninferred?
          */
         return true;
       }
@@ -559,8 +562,7 @@ final class NullSpecAnnotatedTypeFactory
   private List<? extends AnnotatedTypeMirror> getUpperBounds(AnnotatedTypeMirror type) {
     /*
      * In the case of a type-variable usage, we ignore the bounds attached to it in favor of the
-     * bounds on the type-parameter declaration. This will become necessary (in certain cases) after
-     * we merge the upstream implementation of capture conversion.
+     * bounds on the type-parameter declaration. This is necessary in certain cases.
      *
      * I won't claim to understand *why* it will be necessary. Maybe the bounds aren't getting
      * copied from the declaration to the usage correctly. Or maybe they're getting copied but then
@@ -573,7 +575,8 @@ final class NullSpecAnnotatedTypeFactory
      * My only worry is that I always worry about making calls to getAnnotatedType, as discussed in
      * various comments in this file (e.g., in NullSpecTreeAnnotator.visitMethodInvocation).
      */
-    if (type instanceof AnnotatedTypeVariable && !isCaptured(type.getUnderlyingType())) {
+    if (type instanceof AnnotatedTypeVariable
+        && !isCapturedTypeVariable(type.getUnderlyingType())) {
       AnnotatedTypeVariable variable = (AnnotatedTypeVariable) type;
       type = getAnnotatedType(variable.getUnderlyingType().asElement());
     }
@@ -585,24 +588,26 @@ final class NullSpecAnnotatedTypeFactory
       case TYPEVAR:
         return singletonList(((AnnotatedTypeVariable) type).getUpperBound());
 
-      case WILDCARD:
-        AnnotatedWildcardType asWildcard = (AnnotatedWildcardType) type;
-        return unmodifiableList(
-            asList(
-                asWildcard.getExtendsBound(),
-                /*
-                 * TODO(cpovirk): This is similar to the special case for AnnotatedTypeVariable in
-                 * nullnessEstablishingPathExists: It lets us apply proper defaulting but at the
-                 * cost of losing substitution.
-                 */
-                ((AnnotatedTypeVariable) getAnnotatedType(correspondingTypeParameter(asWildcard)))
-                    .getUpperBound()));
+        /*
+         * We used to have a case here for WILDCARD. It shouldn't be necessary now that we've merged
+         * the CF implementation capture conversion. That said, we shouldn't need wildcard handling
+         * in isNullnessSubtype, either, and yet we do.
+         *
+         * So we could consider restoring wildcard handling here, too. But for now, we've left it
+         * out, since its implementation required some digging into javac internal types and calling
+         * getAnnotatedType (always a little scary, as discussed in
+         * NullSpecTreeAnnotator.visitMethodInvocation and elsewhere).
+         */
 
       default:
         return emptyList();
     }
   }
 
+  /*
+   * TODO(cpovirk): Consider inlining this; it differs subtly from the similar-sounding check in
+   * isNullInclusiveUnderEveryParameterization.
+   */
   private boolean isUnionNullOrEquivalent(AnnotatedTypeMirror type) {
     return type.hasAnnotation(unionNull)
         || (isLeastConvenientWorld && type.hasAnnotation(nullnessOperatorUnspecified));
@@ -920,10 +925,10 @@ final class NullSpecAnnotatedTypeFactory
              *
              * Note that the `type.getKind() != WILDCARD` check appears to be necessary before the
              * CF implementation of capture conversion and unnecessary afterward, while the reverse
-             * is true of the `isCaptured` check.
+             * is true of the `isCapturedTypeVariable` check.
              */
             && type.getKind() != WILDCARD
-            && !isCaptured(type.getUnderlyingType())
+            && !isCapturedTypeVariable(type.getUnderlyingType())
             /*
              * TODO(cpovirk): See if we can remove this workaround after merging the fix for
              * https://github.com/typetools/checker-framework/issues/5042.
@@ -1009,8 +1014,8 @@ final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected void adaptGetClassReturnTypeToReceiver(
-      AnnotatedExecutableType getClassType, AnnotatedTypeMirror receiverType) {
-    super.adaptGetClassReturnTypeToReceiver(getClassType, receiverType);
+      AnnotatedExecutableType getClassType, AnnotatedTypeMirror receiverType, ExpressionTree tree) {
+    super.adaptGetClassReturnTypeToReceiver(getClassType, receiverType, tree);
 
     /*
      * Change `Class<? super Foo?>` to `Class<? super Foo>`.
@@ -1022,8 +1027,8 @@ final class NullSpecAnnotatedTypeFactory
      * methodFromUse so that it, too, can cover method references?
      */
     AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) getClassType.getReturnType();
-    AnnotatedWildcardType typeArg = (AnnotatedWildcardType) returnType.getTypeArguments().get(0);
-    typeArg.getExtendsBound().replaceAnnotation(minusNull);
+    AnnotatedTypeVariable typeArg = (AnnotatedTypeVariable) returnType.getTypeArguments().get(0);
+    typeArg.getUpperBound().replaceAnnotation(minusNull);
   }
 
   @Override
@@ -1189,7 +1194,8 @@ final class NullSpecAnnotatedTypeFactory
                */
               getAnnotatedType(receiver),
               javaUtilMap);
-      AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
+      AnnotatedTypeMirror valueType =
+          ((AnnotatedDeclaredType) applyCaptureConversion(mapType)).getTypeArguments().get(1);
       AnnotatedTypeMirror defaultType = getAnnotatedType(tree.getArguments().get(1));
       return withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(valueType)
           && withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(defaultType);
@@ -1338,7 +1344,7 @@ final class NullSpecAnnotatedTypeFactory
                * `delegate` variable :) But I don't even know if it would take dataflow into account
                * there. And if does, I could live with not handling that edge case :))
                */
-              getAnnotatedType(receiver),
+              applyCaptureConversion(getAnnotatedType(receiver)),
               javaUtilCollection);
       AnnotatedTypeMirror elementType = collectionType.getTypeArguments().get(0);
       if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(elementType)) {
@@ -1445,8 +1451,8 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  protected NullSpecAnalysis createFlowAnalysis(List<Pair<VariableElement, CFValue>> fieldValues) {
-    return new NullSpecAnalysis(checker, this, fieldValues);
+  protected NullSpecAnalysis createFlowAnalysis() {
+    return new NullSpecAnalysis(checker, this);
   }
 
   @Override
@@ -1586,7 +1592,7 @@ final class NullSpecAnnotatedTypeFactory
 
         @Override
         public Void visitTypeVariable(AnnotatedTypeVariable type, Void aVoid) {
-          if (isCaptured(type.getUnderlyingType())) {
+          if (isCapturedTypeVariable(type.getUnderlyingType())) {
             Present currentlyVisiting = visiting.put(type, Present.INSTANCE);
             if (currentlyVisiting == Present.INSTANCE) {
               append("...");
@@ -1803,42 +1809,6 @@ final class NullSpecAnnotatedTypeFactory
      */
   }
 
-  private static TypeParameterElement correspondingTypeParameter(AnnotatedWildcardType type) {
-    /*
-     * type.getTypeVariable() is not available in all cases that we need.
-     *
-     * And wildcardToTypeParam, for its part, appears to work for types in source but not in
-     * bytecode?
-     *
-     * TODO(cpovirk): Still, is wildcardToTypeParam sufficient for our purposes in getUpperBounds? I
-     * added the type.getTypeVariable() fallback only in support of a feature that I've since
-     * removed. Maybe we should remove the fallback until we need it.
-     */
-    WildcardType wildcard = (WildcardType) type.getUnderlyingType(); // javac internal type
-    TypeParameterElement fromInternal = wildcardToTypeParam(wildcard);
-    if (fromInternal != null) {
-      return fromInternal;
-    }
-    TypeVariable typeVariable = type.getTypeVariable();
-    /*
-     * I don't know that I've seen getTypeVariable return null in the case that wildcardToTypeParam
-     * _also_ returned null -- at least not when we call this method only from getUpperBounds. (If
-     * we ever start to return null to getUpperBounds, then we'll need a null check in
-     * getUpperBounds!) However, I did see this method return null _to the call from getUpperBounds_
-     * -- but only when I had changed our code to include _another_ call to this class in
-     * NullSpecTypeAnnotator.visitWildcard. But now I have removed that other call. (It was causing
-     * trouble, even when I added a null check, probably because it let me change the extends bound
-     * of the wildcard in Class<?> _sometimes_ but not 100% consistently, thanks to exactly this
-     * null return.)
-     *
-     * Anyway, I'm leaving this code in a state in which it clearly expects to sometimes return null
-     * but getUpperBounds in a state in which it does not check for null. If we start seeing a null
-     * return here, getUpperBounds will NPE. But that's probably better than silently failing to do
-     * something and then producing a more mysterious bug later.
-     */
-    return type.getTypeVariable() != null ? asElement(typeVariable) : null;
-  }
-
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
     if (!type.isAnnotatedInHierarchy(unionNull)) {
       type.addAnnotation(annotation);
@@ -1891,10 +1861,6 @@ final class NullSpecAnnotatedTypeFactory
     type = (T) type.deepCopy(/*copyAnnotations=*/ true);
     type.replaceAnnotation(unionNull);
     return type;
-  }
-
-  private static TypeParameterElement asElement(TypeVariable typeVariable) {
-    return (TypeParameterElement) typeVariable.asElement();
   }
 
   private AnnotatedDeclaredType createType(TypeElement element) {

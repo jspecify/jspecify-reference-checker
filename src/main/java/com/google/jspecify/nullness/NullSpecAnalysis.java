@@ -14,22 +14,16 @@
 
 package com.google.jspecify.nullness;
 
-import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
-import org.checkerframework.javacutil.Pair;
 
 final class NullSpecAnalysis extends CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> {
-  NullSpecAnalysis(
-      BaseTypeChecker checker,
-      NullSpecAnnotatedTypeFactory factory,
-      List<Pair<VariableElement, CFValue>> fieldValues) {
-    super(checker, factory, fieldValues);
+  NullSpecAnalysis(BaseTypeChecker checker, NullSpecAnnotatedTypeFactory factory) {
+    super(checker, factory);
   }
 
   @Override

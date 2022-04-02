@@ -499,12 +499,13 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
       annotatedElementType = atypeFactory.getAnnotatedType(isAnnotationPresentReceiver);
       AnnotatedTypeMirror argumentType = atypeFactory.getAnnotatedType(isAnnotationPresentArgument);
       /*
-       * The argument's static type could be a type-variable type (or a wildcard, probably, since CF
-       * doesn't implement capture conversation as of this writing). We need it as a Class<T> so
-       * that we can extract the T.
+       * The argument's static type could be a type-variable type. We need it as a Class<T> so that
+       * we can extract the T.
        */
       AnnotatedDeclaredType argumentTypeAsClass =
-          asSuper(atypeFactory, argumentType, atypeFactory.javaLangClass);
+          (AnnotatedDeclaredType)
+              atypeFactory.applyCaptureConversion(
+                  asSuper(atypeFactory, argumentType, atypeFactory.javaLangClass));
       AnnotatedTypeMirror annotationType = argumentTypeAsClass.getTypeArguments().get(0);
       annotationAsDataflowValue =
           analysis.createAbstractValue(
@@ -524,41 +525,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     }
 
     MapType mapType = new MapType(containsKeyOrPutReceiver);
-    if (mapType.mapValueAsDataflowValue == null) {
-      /*
-       * We failed to create the CFValue we want, so give up.
-       *
-       * This comes up with unannotated wildcard types, like the return type of a call to get(...)
-       * on a Map<Foo, ?>. CF requires a wildcard CFValue to have annotations (unless the wildcard's
-       * bounds are type-variable usages). This works out for stock CF because stock CF keeps
-       * wildcards' annotations in sync with their bounds' annotations). We, however, typically
-       * don't consider wildcards *themselves* to have annotations.
-       *
-       * I attempted a partial workaround: If the wildcard is known to be null-exclusive, then we
-       * can annotated it with NonNull or NullnessUnspecified as appropriate. Because the resulting
-       * wildcard then has an annotation, we can create a CFValue for it. And because we checked
-       * that it was null-exclusive, our new wildcard is mostly equivalent. However, I ran into a
-       * problem: No dataflow refinement has any effect on wildcards, thanks to our override of
-       * addComputedTypeAnnotations in NullSpecAnnotatedTypeFactory. Someday we should remove that
-       * override, but currently, doing so causes other problems.
-       *
-       * (If we someday do remove the override, we can try the workaround again. Then again, if we
-       * were able to remove the override, that may mean that we've solved the problem at a deeper
-       * level, in which case we might not need the workaround anymore. (Maybe the problem will be
-       * solved for us when CF implements capture conversion?) Note, though, that if we end up
-       * trying the workaround again, we could try doing even better: We could unwrap wildcards into
-       * their bound types -- at least in the case of `extends` and unbounded wildcards. (But we'd
-       * need to be careful to preserve any annotation "on the wildcard itself.") I'm not entirely
-       * sure if CF will permit this, since it would change the expression type. But if it does, it
-       * may let us create a CFValue for any wildcard type, since we can create one for (as far as I
-       * know) any non-wildcard type, and we can get such a type by unwrapping wildcards.)
-       *
-       * TODO(cpovirk): As a real solution, remove stock CF's requirement, or change how we use
-       * wildcards so that we are compatible with it. This would be a larger project, and it may
-       * solve other problems we currently have, enabling us to remove other hacks.
-       */
-      return false;
-    }
     MethodCall containsKeyOrPutCall = (MethodCall) fromNode(containsKeyOrPutNode);
 
     /*
@@ -668,15 +634,6 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     ExpressionTree mapGetReceiverExpression = (ExpressionTree) mapGetReceiver;
     Element mapGetArgElement = elementFromTree(mapGetNode.getArgument(0).getTree());
     MapType mapType = new MapType(mapGetReceiver);
-    if (mapType.mapValueAsDataflowValue == null) {
-      /*
-       * Give up. See the comment in refineFutureMapGetFromMapContainsKey. Note that this current
-       * method, unlike refineFutureMapGetFromMapContainsKey, does not *crash* if we use the null
-       * value. Still, setting the TransferResult value to null seems like a bad idea, so let's not
-       * do that.
-       */
-      return;
-    }
 
     /*
      * TODO(cpovirk): Benchmark the cost of looking the entire way up the tree path. Maybe we should
@@ -737,7 +694,10 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
 
     MapType(Tree receiverTree) {
       type = atypeFactory.getAnnotatedType(receiverTree);
-      AnnotatedDeclaredType typeAsMap = asSuper(atypeFactory, type, atypeFactory.javaUtilMap);
+      AnnotatedDeclaredType typeAsMap =
+          (AnnotatedDeclaredType)
+              atypeFactory.applyCaptureConversion(
+                  asSuper(atypeFactory, type, atypeFactory.javaUtilMap));
       AnnotatedTypeMirror mapValueType = typeAsMap.getTypeArguments().get(1);
       mapValueAsDataflowValue =
           analysis.createAbstractValue(
