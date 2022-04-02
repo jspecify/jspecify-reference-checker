@@ -18,6 +18,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
       - run: |
-          ./gradlew spotlessCheck build --no-daemon
+          ./gradlew spotlessCheck build
       - run: |
-          ./gradlew jspecifySamplesTest -x ensureCheckerFrameworkBuilt --no-daemon
+          ./gradlew jspecifySamplesTest -x ensureCheckerFrameworkBuilt
