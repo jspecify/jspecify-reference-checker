@@ -39,11 +39,9 @@ import org.checkerframework.framework.source.SupportedOptions;
  *   <li>"strict": Whether the checker should be a sound, strict type system. Does not imply that
  *       implementation code is checked.
  *   <li>"checkImpl": Whether implementation code should be checked.
- *   <li>"aliasCFannos": Whether Checker Framework Nullness annotations should be aliases - required
- *       to use the Checker Framework JDK specifications.
  * </ol>
  */
-@SupportedOptions({"strict", "checkImpl", "aliasCFannos"}) // TODO(cpovirk): Remove aliasCFannos.
+@SupportedOptions({"strict", "checkImpl"})
 public final class NullSpecChecker extends BaseTypeChecker {
   /*
    * A non-final field is ugly, but we can't create our Util instance in the constructor because the
