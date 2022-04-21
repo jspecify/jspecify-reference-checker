@@ -96,12 +96,12 @@ $ for F in ../*; do ( cd $F && git fetch --unshallow ); done
 # Next: There is often some version skew between the versions of dependencies
 # that our checker currently depends on and the newest versions that our build
 # process pulls from upstream. As a result, the build may fail, typically
-# because it can't find the stubparser jar. *As of this writing* (January 11,
+# because it can't find the stubparser jar. *As of this writing* (April 21,
 # 2022), you can use the following command to set up appropriate versions
 # *after the build has failed and after you have unshallowed the other
 # repositories*.
 
-$ ( cd ../annotation-tools && git checkout dc56ce2a7d8cb85e4af72c78d3bf26d25c2fa7ec ) && ( cd ../stubparser && git checkout f41e795f71198e47925247b2d40061be670252d4 )
+$ ( cd ../annotation-tools && git checkout 7174291c828e88382758e0d5117f99418970f24f ) && ( cd ../stubparser && git checkout dd2c1d4a8b3c428d554d6fab6aa1b840d4031985 )
 
 
 # After that, the tests are likely to *build* but not *pass*. There are two
