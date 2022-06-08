@@ -101,22 +101,6 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
-    /*
-     * TODO(cpovirk): I probably need to completely revisit this method to understand what it does
-     * and what the Right Way is to reconcile it with our non-standard treatment of wildcards and
-     * type variables.
-     *
-     * For now, the supermethod reports errors for some problematic casts (like from Object to int)
-     * but also reports errors for some safe casts (like from ? to T when the wildcard's
-     * corresponding type parameter doesn't permit null values). As an expedient measure, we
-     * short-circuit the check in the second case.
-     */
-    return atypeFactory.isNullExclusiveUnderEveryParameterization(exprType)
-        || super.isTypeCastSafe(castType, exprType);
-  }
-
-  @Override
   protected String extraArgForReturnTypeError(Tree tree) {
     /*
      * We call originStringIfTernary, not originString:
