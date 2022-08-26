@@ -81,11 +81,10 @@ $ ./gradlew jspecifySamplesTest
 # As noted above, this process will likely fail for multiple reasons.
 #
 # Step 1 of the process of fixing them is to improve some of the repos cloned
-# by the build process: Some of those repos are created as single-branch clones
-# that use an https URL instead of a git URL. You can convert them into more
-# "normal" GitHub clones:
+# by the build process: Some of those repos are created as single-branch clones.
+# You can convert them into more "normal" GitHub clones:
 
-$ perl -pi -e 's#https://github.com/#git\@github.com:#; s#fetch = \+refs/heads/(main|master):refs/remotes/origin/(main|master)#fetch = +refs/heads/*:refs/remotes/origin/*#;' ../*/.git/config
+$ perl -pi -e 's#fetch = \+refs/heads/(main|master):refs/remotes/origin/(main|master)#fetch = +refs/heads/*:refs/remotes/origin/*#;' ../*/.git/config
 
 $ for F in ../*; do ( cd $F && git fetch --unshallow ); done
 
