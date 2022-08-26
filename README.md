@@ -9,9 +9,6 @@ working properly, we will need to do more work, including proposing new
 configuration hooks in the Checker Framework itself. Running it against the
 regular version of the Checker Framework will behave incorrectly, as we have
 [made related changes in a temporary fork of the Checker Framework](https://github.com/jspecify/checker-framework).
-In fact, even *building* it against the regular version of the Checker Framework
-does not work after
-[8fcc87f5e4e28c2e4511eb8cf26092d935425fea](https://github.com/jspecify/nullness-checker-for-checker-framework/commit/8fcc87f5e4e28c2e4511eb8cf26092d935425fea).
 
 We have made it available so that JSpecify project members can experiment with
 it, collaborate on it, and discuss the easiest way to incorporate changes into
@@ -28,7 +25,7 @@ organizations.
 ## Usage
 
 Again, this is not ready for general use. But for those in our group who are
-looking to try it out, here are some instructions, *which will probably fail*
+looking to try it out, here are some instructions, *which might fail*
 and need to be worked around as described later in this section:
 
 ```
@@ -77,21 +74,8 @@ $ ./gradlew jspecifySamplesTest
 # `gradlew` for every build after your first. This will prevent the build
 # process from also rebuilding some of our *dependencies* (which is slow).
 
-
-# As noted above, this process will likely fail for multiple reasons.
-
-# There is often some version skew between the versions of dependencies that our
-# checker currently depends on and the newest versions that our build process
-# pulls from upstream. As a result, the build may fail, typically because it
-# can't find the stubparser jar. *As of this writing* (April 21, 2022), you can
-# use the following command to set up appropriate versions *after the build has
-# failed and after you have unshallowed the other repositories*.
-
-$ ( cd ../annotation-tools && git checkout 7174291c828e88382758e0d5117f99418970f24f ) && ( cd ../stubparser && git checkout dd2c1d4a8b3c428d554d6fab6aa1b840d4031985 )
-
-
-# After that, the tests are likely to *build* but not *pass*. There are two
-# more reasons for this:
+# Note: The tests are likely to *build* but not *pass*. There are two reasons
+# for this:
 #
 # 1. Our checker has some known issues.
 # 2. The samples use @NullnessUnspecified, an annotation that currently doesn't
