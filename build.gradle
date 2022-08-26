@@ -18,6 +18,7 @@ ext {
     parentDir = file("${rootDir}/../").absolutePath
     cfHome = "${parentDir}/checker-framework"
     jspecifyHome = "${parentDir}/jspecify"
+    plumeScripts = "${rootDir}/.plume-scripts"
 }
 
 sourceCompatibility = 1.9
@@ -102,6 +103,13 @@ spotless {
 task ensureCheckerFrameworkBuilt() {
     description 'Clone or update the Checker Framework and then build it and all dependencies'
     doLast {
+        if (!file(plumeScripts).exists()) {
+            exec {
+                workingDir "${rootDir}"
+                executable 'git'
+                args = ['clone', '-q', '--depth', '1', 'https://github.com/plume-lib/plume-scripts.git', plumeScripts]
+            }
+        }
         def jspecifyExisted = file(jspecifyHome).exists()
 
         if (file(cfHome).exists()) {
@@ -119,9 +127,9 @@ task ensureCheckerFrameworkBuilt() {
             */
         } else {
             exec {
-                workingDir "${cfHome}/../"
-                executable 'git'
-                args = ['clone', '-q', 'https://github.com/jspecify/checker-framework.git']
+                workingDir rootDir
+                executable "${plumeScripts}/git-clone-related"
+                args = ['jspecify', 'checker-framework', '-q']
             }
         }
         exec {
