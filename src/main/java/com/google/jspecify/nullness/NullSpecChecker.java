@@ -86,7 +86,7 @@ public final class NullSpecChecker extends BaseTypeChecker {
                               + "=====\n"
                               + "The nullness checker is still early in development.\n"
                               + "It has many rough edges.\n"
-                              + "For an introduction, see https://jspecify.dev/user-guide\n"
+                              + "For an introduction, see https://jspecify.dev/docs/user-guide\n"
                               + "=====");
                 }
               }
