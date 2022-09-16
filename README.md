@@ -29,14 +29,15 @@ looking to try it out, here are some instructions, *which might fail*
 and need to be worked around as described later in this section:
 
 ```
-# Build the checker:
+# Download the checker, its fork of Checker Framework, and the unreleased JSpecify code and samples:
 
 $ git clone https://github.com/jspecify/nullness-checker-for-checker-framework
-
 $ cd nullness-checker-for-checker-framework
+$ ./initialize-project
+
+# Build it:
 
 $ ./gradlew assemble
-
 
 # Use it:
 

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -eu
+
+readonly PLUME_SCRIPTS=.plume-scripts
+readonly CHECKER_FRAMEWORK=../checker-framework
+readonly JSPECIFY=../jspecify
+
+if [[ ! -d "${PLUME_SCRIPTS}" ]]; then
+  git clone -q --depth 1 https://github.com/plume-lib/plume-scripts.git \
+    "${PLUME_SCRIPTS}"
+fi
+
+if [[ ! -d "${CHECKER_FRAMEWORK}" ]]; then
+  "${PLUME_SCRIPTS}"/git-clone-related jspecify checker-framework -q
+fi
+
+if [[ ! -d "${JSPECIFY}" ]]; then
+  # We test using some modified samples in a different branch of the jspecify
+  # repo, so we check out that branch.
+  "${PLUME_SCRIPTS}"/git-clone-related --upstream-branch samples-google-prototype jspecify jspecify -q
+fi

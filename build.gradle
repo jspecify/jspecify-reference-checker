@@ -18,7 +18,6 @@ ext {
     parentDir = file("${rootDir}/../").absolutePath
     cfHome = "${parentDir}/checker-framework"
     jspecifyHome = "${parentDir}/jspecify"
-    plumeScripts = "${rootDir}/.plume-scripts"
 }
 
 sourceCompatibility = 1.9
@@ -101,63 +100,25 @@ spotless {
 }
 
 task ensureCheckerFrameworkBuilt() {
-    description 'Clone or update the Checker Framework and then build it and all dependencies'
+    description 'Build the Checker Framework and all dependencies'
     doLast {
-        if (!file(plumeScripts).exists()) {
+        /* Introduce an autoUpdateCF variable if we want to support that usage.
+        if (autoUpdateCF) {
             exec {
-                workingDir "${rootDir}"
+                workingDir cfHome
                 executable 'git'
-                args = ['clone', '-q', '--depth', '1', 'https://github.com/plume-lib/plume-scripts.git', plumeScripts]
+                args = ['pull', '-q']
+                ignoreExitValue = true
             }
-        }
-        def jspecifyExisted = file(jspecifyHome).exists()
-
-        if (file(cfHome).exists()) {
-            /* Introduce an autoUpdateCF variable if we want to support that usage.
-            if (autoUpdateCF) {
-                exec {
-                    workingDir cfHome
-                    executable 'git'
-                    args = ['pull', '-q']
-                    ignoreExitValue = true
-                }
-            } else {
-                println "Found existing ${cfHome}. Use -PautoUpdateCF=true if you want to git pull automatically."
-            }
-            */
         } else {
-            exec {
-                workingDir rootDir
-                executable "${plumeScripts}/git-clone-related"
-                args = ['jspecify', 'checker-framework', '-q']
-            }
+            println "Found existing ${cfHome}. Use -PautoUpdateCF=true if you want to git pull automatically."
         }
+        */
         exec {
             workingDir cfHome
             executable './gradlew'
             // Skip Javadoc to save time. Perform a release build so that we repackage javaparser (not that that seems to matter here, but it's consistent with how the Checker Framework would be deployed).
             args = ['cloneAndBuildDependencies', '-x', 'javadoc', '-x', 'allJavadoc', '-Prelease=true']
-        }
-
-        // We test using some modified samples in a different branch of the jspecify repo, so we want to change to that branch.
-        // However, if there was a JSpecify client to begin with, don't mess with it, as the developer may be running tests in a different branch.
-        if (!jspecifyExisted) {
-            // The CF build process uses --single-branch when it clones the jspecify repo, so the resulting clone doesn't have the branch we want.
-            exec {
-                workingDir jspecifyHome
-                executable 'git'
-                args = ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*']
-            }
-            exec {
-                workingDir jspecifyHome
-                executable 'git'
-                args = ['fetch']
-            }
-            exec {
-                workingDir jspecifyHome
-                executable 'git'
-                args = ['checkout', '-q', 'samples-google-prototype']
-            }
         }
     }
 }

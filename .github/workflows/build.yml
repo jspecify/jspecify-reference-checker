@@ -17,7 +17,6 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - run: |
-          ./gradlew spotlessCheck build
-      - run: |
-          ./gradlew jspecifySamplesTest -x ensureCheckerFrameworkBuilt
+      - run: ./initialize-project
+      - run: ./gradlew spotlessCheck build
+      - run: ./gradlew jspecifySamplesTest -x ensureCheckerFrameworkBuilt
