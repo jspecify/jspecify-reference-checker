@@ -1949,10 +1949,6 @@ final class NullSpecAnnotatedTypeFactory
                 "reactor.util.annotation.Nullable",
               }));
 
-  /*
-   * We haven't settled how much we support/encourage/discourage @NonNull annotations. But it
-   * would be shame to throw information away, so we recognize them.
-   */
   private static final List<String> NOT_NULL_ANNOTATIONS =
       unmodifiableList(
           asList(
@@ -1980,6 +1976,7 @@ final class NullSpecAnnotatedTypeFactory
                 "org.eclipse.jgit.annotations.NonNull",
                 "org.eclipse.lsp4j.jsonrpc.validation.NonNull",
                 "org.jetbrains.annotations.NotNull",
+                "org.jspecify.nullness.NonNull",
                 "reactor.util.annotation.NonNull",
               }));
 }
