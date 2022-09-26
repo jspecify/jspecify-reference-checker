@@ -18,7 +18,7 @@ import org.jspecify.nullness.Nullable;
 @NullMarked
 class Demo {
   Object mismatch(@Nullable Object o) {
-    // :: error: (return)
+    // jspecify_nullness_mismatch
     return o;
   }
 }
