@@ -1,26 +1,60 @@
 #!/bin/bash
+# Initializes the JSpecify reference checker project by downloading required
+# sibling projects.
+#
+# USAGE
+#
+#   initialize-project
+#
+# ENVIRONMENT VARIABLES
+#
+# Set SHALLOW=1 to clone sibling projects at depth 1.
+#
+# Set FORK to the GitHub organization that holds your fork of
+# jspecify/checker-framework, jspecify/jspecify, or jspecify/jdk.
+#
+# For example, FORK=myorg means this script tries to clone the following before
+# falling back to the JSpecify repos:
+#
+# git@github:myorg/checker-framework.git
+# git@github:myorg/jspecify.git
+# git@github:myorg/jdk.git
+
 
 set -eu
 
-readonly PLUME_SCRIPTS=.plume-scripts
-readonly CHECKER_FRAMEWORK=../checker-framework
-readonly JSPECIFY=../jspecify
+run() {
+  printf '%q ' "$@"
+  echo
+  "$@"
+}
 
-if [[ ! -d "${PLUME_SCRIPTS}" ]]; then
-  git clone -q --depth 1 https://github.com/plume-lib/plume-scripts.git \
-    "${PLUME_SCRIPTS}"
-fi
+git_clone() {
+  local repo="$1"
+  shift
 
-if [[ ! -d "${CHECKER_FRAMEWORK}" ]]; then
-  "${PLUME_SCRIPTS}"/git-clone-related jspecify checker-framework
-fi
+  if [[ -d "../${repo}" ]]; then
+    return
+  fi
 
-if [[ ! -d "${JSPECIFY}" ]]; then
-  # We test using some modified samples in a different branch of the jspecify
-  # repo, so we check out that branch.
-  "${PLUME_SCRIPTS}"/git-clone-related --upstream-branch samples-google-prototype jspecify jspecify
-fi
+  local git=(git clone)
+  if (( "${SHALLOW:-0}" )); then
+    git+=(--depth 1 --single-branch)
+  fi
+  git+=("$@")
 
-if [[ ! -d "../jdk" ]]; then
-  "${PLUME_SCRIPTS}"/git-clone-related jspecify jdk
-fi
+  if [[ -n "${FORK:-}" ]]; then
+    if run "${git[@]}" "git@github.com:${FORK}/${repo}.git" "../${repo}"; then
+      return
+    fi
+  fi
+  run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
+}
+
+git_clone checker-framework
+
+# We test using some modified samples in a different branch of the jspecify
+# repo, so we check out that branch.
+git_clone jspecify --branch samples-google-prototype
+
+git_clone jdk --depth 1 --single-branch
