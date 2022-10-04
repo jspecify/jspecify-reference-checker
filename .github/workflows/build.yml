@@ -17,5 +17,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
       - run: SHALLOW=1 ./initialize-project
-      - run: ./gradlew spotlessCheck build
-      - run: ./gradlew jspecifySamplesTest -x ensureCheckerFrameworkBuilt
+      - run: ./gradlew build jspecifySamplesTest
