@@ -29,11 +29,10 @@ looking to try it out, here are some instructions, *which might fail*
 and need to be worked around as described later in this section:
 
 ```
-# Download the checker, its fork of Checker Framework, and the unreleased JSpecify code and samples:
+# Download the checker plugin:
 
 $ git clone https://github.com/jspecify/nullness-checker-for-checker-framework
 $ cd nullness-checker-for-checker-framework
-$ ./initialize-project
 
 # Build it:
 
@@ -70,11 +69,6 @@ SomeTest.java:7: error: [nullness] incompatible types in return.
 
 $ ./gradlew jspecifySamplesTest
 
-
-# During development, you may wish to pass `-x ensureCheckerFrameworkBuilt` to
-# `gradlew` for every build after your first. This will prevent the build
-# process from also rebuilding some of our *dependencies* (which is slow).
-
 # Note: The tests are likely to *build* but not *pass*. There are two reasons
 # for this:
 #
@@ -82,9 +76,9 @@ $ ./gradlew jspecifySamplesTest
 # 2. The samples use @NullnessUnspecified, an annotation that currently doesn't
 #    exist in the mainline of jspecify/jspecify.
 #
-# To get the tests to pass, you can check and build out a different branch of
-# our sample repo, one that has the expected incorrect results encoded into the
-# samples *and* has @NullnessUnspecified present:
+# To get the tests to pass, make sure the "samples-google-prototype" branch is
+# checked out of the jspecify repo, one that has the expected incorrect results
+# encoded into the samples *and* has @NullnessUnspecified present:
 
 $ ( cd ../jspecify && git checkout samples-google-prototype && ./gradlew )
 ```

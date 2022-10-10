@@ -16,16 +16,22 @@ configurations {
 
 ext {
     parentDir = file("${rootDir}/../").absolutePath
+
     cfHome = "${parentDir}/checker-framework"
+    cfVersion = "3.21.5-SNAPSHOT"
+
     jspecifyHome = "${parentDir}/jspecify"
 }
 
 sourceCompatibility = 1.9
 
 dependencies {
-    implementation files("${cfHome}/checker/dist/checker-qual.jar")
-    implementation files("${cfHome}/checker/dist/checker.jar")
-    implementation files("${jspecifyHome}/build/libs/jspecify-0.0.0-SNAPSHOT.jar")
+    implementation "org.checkerframework:checker:${cfVersion}"
+    implementation "org.checkerframework:checker-qual:${cfVersion}"
+    implementation "org.checkerframework:framework:${cfVersion}"
+    implementation "org.checkerframework:javacutil:${cfVersion}"
+
+    implementation "org.jspecify:jspecify:0.0.0-SNAPSHOT"
 
     // Testing
     testImplementation 'junit:junit:4.12'
@@ -34,7 +40,7 @@ dependencies {
     // The Guava dep lets us test our special handling of some Guava classes.
     testImplementation 'com.google.guava:guava:31.1-jre'
     testImplementation 'org.plumelib:plume-util:1.5.5'
-    testImplementation files("${cfHome}/framework-test/build/libs/framework-test-3.21.5-SNAPSHOT.jar")
+    testImplementation "org.checkerframework:framework-test:${cfVersion}"
 
     errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
     errorprone "com.google.errorprone:error_prone_core:2.15.0"
@@ -103,32 +109,6 @@ spotless {
         googleJavaFormat()
     }
 }
-
-task ensureCheckerFrameworkBuilt() {
-    description 'Build the Checker Framework and all dependencies'
-    doLast {
-        /* Introduce an autoUpdateCF variable if we want to support that usage.
-        if (autoUpdateCF) {
-            exec {
-                workingDir cfHome
-                executable 'git'
-                args = ['pull', '-q']
-                ignoreExitValue = true
-            }
-        } else {
-            println "Found existing ${cfHome}. Use -PautoUpdateCF=true if you want to git pull automatically."
-        }
-        */
-        exec {
-            workingDir cfHome
-            executable './gradlew'
-            // Skip Javadoc to save time. Perform a release build so that we repackage javaparser (not that that seems to matter here, but it's consistent with how the Checker Framework would be deployed).
-            args = ['cloneAndBuildDependencies', '-x', 'javadoc', '-x', 'allJavadoc', '-Prelease=true']
-        }
-    }
-}
-
-compileJava.dependsOn(ensureCheckerFrameworkBuilt)
 
 // Use `./gradlew eclipseClasspath` to create Eclipse/VSCode configurations
 eclipse.classpath {

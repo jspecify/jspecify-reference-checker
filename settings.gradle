@@ -1,0 +1,17 @@
+def initializeProject() {
+    exec {
+        executable './initialize-project'
+    }
+}
+
+includeBuild("../jspecify") {
+    initializeProject()
+}
+
+includeBuild("../jdk") {
+    initializeProject()
+}
+
+includeBuild("../checker-framework") {
+    initializeProject()
+}

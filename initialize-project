@@ -51,10 +51,10 @@ git_clone() {
   run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
 }
 
-git_clone checker-framework
-
 # We test using some modified samples in a different branch of the jspecify
 # repo, so we check out that branch.
 git_clone jspecify --branch samples-google-prototype
 
 git_clone jdk --depth 1 --single-branch
+
+git_clone checker-framework
