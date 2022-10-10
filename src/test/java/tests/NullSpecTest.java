@@ -14,6 +14,7 @@
 
 package tests;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getLast;
 import static java.lang.Integer.parseInt;
@@ -29,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
@@ -98,7 +100,6 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
   public TypecheckResult adjustTypecheckResult(TypecheckResult testResult) {
     // Aliases to lists in testResult - side-effecting the returned value.
     List<TestDiagnostic> missing = testResult.getMissingDiagnostics();
-    List<TestDiagnostic> unexpected = testResult.getUnexpectedDiagnostics();
 
     missing.removeIf(m -> m.getMessage().contains("jspecify_but_expect_nothing"));
     if (!strict) {
@@ -108,6 +109,20 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
           m ->
               m.getMessage().contains("jspecify_nullness_not_enough_information")
                   && !m.getMessage().contains("jspecify_but_expect_error"));
+    }
+
+    List<TestDiagnostic> unexpected = testResult.getUnexpectedDiagnostics();
+
+    for (ListIterator<TestDiagnostic> i = unexpected.listIterator(); i.hasNext(); ) {
+      TestDiagnostic diagnostic = i.next();
+      DetailMessage detailMessage = DetailMessage.parse(diagnostic.getMessage());
+      if (detailMessage != null) {
+        // Replace diagnostics that can be parsed with DetailMessage diagnostics.
+        i.set(detailMessage);
+      } else if (diagnostic.getKind() != DiagnosticKind.Error) {
+        // Remove warnings like explicit.annotation.ignored and deprecation.
+        i.remove();
+      }
     }
 
     // The original values to allow multiple complete iterations - multiple unexpected errors
@@ -121,8 +136,6 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     for (TestDiagnostic u : origUnexpected) {
       missing.removeIf(m -> corresponds(m, u));
     }
-    // Remove explicit.annotation.ignored and deprecation warnings:
-    unexpected.removeIf(u -> u.getKind() != DiagnosticKind.Error);
 
     return testResult;
   }
@@ -132,14 +145,18 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
    * unexpected}, a reported diagnostic.
    */
   private boolean corresponds(TestDiagnostic missing, TestDiagnostic unexpected) {
-    DetailMessage message = DetailMessage.parse(unexpected.getMessage());
-    if (message == null) {
-      return false;
-    }
+    return unexpected instanceof DetailMessage
+        && corresponds(missing, ((DetailMessage) unexpected));
+  }
 
+  /**
+   * Returns {@code true} if {@code missing} is a JSpecify directive that matches {@code
+   * unexpected}, a reported diagnostic.
+   */
+  private boolean corresponds(TestDiagnostic missing, DetailMessage unexpected) {
     // First, make sure the two diagnostics are on the same file and line.
-    if (!missing.getFilename().equals(message.getFileName())
-        || missing.getLineNumber() != message.lineNumber) {
+    if (!missing.getFilename().equals(unexpected.getFileName())
+        || missing.getLineNumber() != unexpected.lineNumber) {
       return false;
     }
 
@@ -147,7 +164,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         || missing.getMessage().contains("jspecify_but_expect_warning")
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
         || missing.getMessage().contains("jspecify_nullness_mismatch")) {
-      switch (message.messageKey) {
+      switch (unexpected.messageKey) {
         case "argument":
         case "assignment":
         case "atomicreference.must.include.null":
@@ -170,7 +187,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     switch (missing.getMessage()) {
       case "jspecify_nullness_intrinsically_not_nullable":
-        switch (message.messageKey) {
+        switch (unexpected.messageKey) {
           case "enum.constant.annotated":
           case "outer.annotated":
           case "primitive.annotated":
@@ -179,7 +196,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
             return false;
         }
       case "jspecify_unrecognized_location":
-        switch (message.messageKey) {
+        switch (unexpected.messageKey) {
             /*
              * We'd rather avoid this `bound` error (in part because it suggests that the annotation
              * is having some effect, which we don't want!), but the most important thing is that the
@@ -197,7 +214,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
             return false;
         }
       case "jspecify_conflicting_annotations":
-        switch (message.messageKey) {
+        switch (unexpected.messageKey) {
           case "conflicting.annos":
             return true;
           default:
@@ -214,7 +231,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
    * <p>Checker Framework uses a special format to put parseable information about a diagnostic into
    * the message text. This object represents that information directly.
    */
-  private static final class DetailMessage {
+  private static final class DetailMessage extends TestDiagnostic {
     /** Parser for the output for -Adetailedmsgtext. */
     // Implemented here: org.checkerframework.framework.source.SourceChecker#detailedMsgTextPrefix
     static final Pattern DETAIL_MESSAGE_PATTERN =
@@ -295,6 +312,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         Integer offsetStart,
         Integer offsetEnd,
         String message) {
+      super(file.toString(), lineNumber, DiagnosticKind.Error, message, false, true);
       this.file = file;
       this.lineNumber = lineNumber;
       this.messageKey = messageKey;
@@ -307,6 +325,24 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     /** The last part of the {@link #file}. */
     String getFileName() {
       return file.getFileName().toString();
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s:%d: (%s) %s", file, lineNumber, messageKey, message);
+    }
+
+    /** String format for debugging use. */
+    String toDetailedString() {
+      return toStringHelper(this)
+          .add("file", file)
+          .add("lineNumber", lineNumber)
+          .add("messageKey", messageKey)
+          .add("messageArguments", messageArguments)
+          .add("offsetStart", offsetStart)
+          .add("offsetEnd", offsetEnd)
+          .add("message", message)
+          .toString();
     }
   }
 }
