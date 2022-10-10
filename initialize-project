@@ -10,16 +10,18 @@
 #
 # Set SHALLOW=1 to clone sibling projects at depth 1.
 #
-# Set FORK to the GitHub organization that holds your fork of
-# jspecify/checker-framework, jspecify/jspecify, or jspecify/jdk.
+# This script automatically tries to download your fork of
+# jspecify/checker-framework, jspecify/jspecify, or jspecify/jdk, if they exist.
+# It uses the URL of the origin remote (the default remote created when cloning
+# a repo) to determine that.
 #
-# For example, FORK=myorg means this script tries to clone the following before
-# falling back to the JSpecify repos:
+# If that doesn't work, you can set the FORK environment value to the Git URL
+# that contains your forks. For example, FORK=git@github.com:myorg means this
+# script tries to clone the following before falling back to the JSpecify repos:
 #
 # git@github:myorg/checker-framework.git
 # git@github:myorg/jspecify.git
 # git@github:myorg/jdk.git
-
 
 set -eu
 
@@ -27,6 +29,14 @@ run() {
   printf '%q ' "$@"
   echo
   "$@"
+}
+
+forking_org() {
+  if [[ -n "${FORK:-}" ]]; then
+    echo "${FORK}"
+    return
+  fi
+  dirname "$(git config --default '' --get remote.origin.url)"
 }
 
 git_clone() {
@@ -43,8 +53,10 @@ git_clone() {
   fi
   git+=("$@")
 
-  if [[ -n "${FORK:-}" ]]; then
-    if run "${git[@]}" "git@github.com:${FORK}/${repo}.git" "../${repo}"; then
+  local forking_org
+  forking_org="$(forking_org)"
+  if [[ -n "${forking_org}" ]]; then
+    if run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"; then
       return
     fi
   fi
