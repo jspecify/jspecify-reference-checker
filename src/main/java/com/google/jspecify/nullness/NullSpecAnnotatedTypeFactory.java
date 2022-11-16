@@ -1822,6 +1822,7 @@ final class NullSpecAnnotatedTypeFactory
    * to work around another problem (though perhaps we could have found alternatives).
    */
   private boolean hasNullMarkedOrEquivalent(Element elt) {
+    // TODO(cpovirk): Recognize NullMarked from either the old package or the new.
     return getDeclAnnotation(elt, NullMarked.class) != null
         /*
          * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
@@ -1958,6 +1959,7 @@ final class NullSpecAnnotatedTypeFactory
                 "org.eclipse.jgit.annotations.Nullable",
                 "org.jetbrains.annotations.Nullable",
                 "org.jmlspecs.annotation.Nullable",
+                "org.jspecify.annotations.Nullable",
                 "org.jspecify.nullness.Nullable",
                 "org.netbeans.api.annotations.common.CheckForNull",
                 "org.netbeans.api.annotations.common.NullAllowed",
@@ -2003,6 +2005,7 @@ final class NullSpecAnnotatedTypeFactory
                 "org.eclipse.lsp4j.jsonrpc.validation.NonNull",
                 "org.jetbrains.annotations.NotNull",
                 "org.jmlspecs.annotation.NonNull",
+                "org.jspecify.annotations.NonNull",
                 "org.jspecify.nullness.NonNull",
                 "org.netbeans.api.annotations.common.NonNull",
                 "org.springframework.lang.NonNull",
