@@ -38,7 +38,7 @@ import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.checkerframework.framework.test.diagnostics.TestDiagnostic;
 import org.checkerframework.javacutil.BugInCF;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for the {@link NullSpecChecker} that look at expected diagnostics in source files. */

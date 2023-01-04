@@ -579,7 +579,9 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
        * represent the types internally in AnnotatedTypeMirror instances. Contrast this to almost
        * all other logic in the checker, which operates on the internal types.
        */
-      if (areSameByName(annotation, "org.jspecify.nullness.Nullable")
+      if (areSameByName(annotation, "org.jspecify.annotations.Nullable")
+          || areSameByName(annotation, "org.jspecify.annotations.NullnessUnspecified")
+          || areSameByName(annotation, "org.jspecify.nullness.Nullable")
           || areSameByName(annotation, "org.jspecify.nullness.NullnessUnspecified")) {
         checker.reportError(treeToReportOn, messageKey);
       }

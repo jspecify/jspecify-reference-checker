@@ -41,6 +41,7 @@ import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.framework.util.defaults.QualifierDefaults.AdditionalTypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
+import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreePathUtil.enclosingClass;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
@@ -113,7 +114,6 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
-import org.jspecify.nullness.NullMarked;
 
 final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<
@@ -158,6 +158,8 @@ final class NullSpecAnnotatedTypeFactory
     unionNull = util.unionNull;
     nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
 
+    addAliasedTypeAnnotation(
+        "org.jspecify.annotations.NullnessUnspecified", nullnessOperatorUnspecified);
     addAliasedTypeAnnotation(
         "org.jspecify.nullness.NullnessUnspecified", nullnessOperatorUnspecified);
 
@@ -1822,8 +1824,11 @@ final class NullSpecAnnotatedTypeFactory
    * to work around another problem (though perhaps we could have found alternatives).
    */
   private boolean hasNullMarkedOrEquivalent(Element elt) {
-    // TODO(cpovirk): Recognize NullMarked from either the old package or the new.
-    return getDeclAnnotation(elt, NullMarked.class) != null
+    return getDeclAnnotations(elt).stream()
+            .anyMatch(
+                am ->
+                    areSameByName(am, "org.jspecify.annotations.NullMarked")
+                        || areSameByName(am, "org.jspecify.nullness.NullMarked"))
         /*
          * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
          * are non-null, even those that would require type annotations to annotate (e.g.,

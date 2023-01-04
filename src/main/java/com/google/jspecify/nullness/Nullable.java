@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
 
 /**
  * <b>Internal implementation detail.</b> You are probably looking for {@link
- * org.jspecify.nullness.Nullable}.
+ * org.jspecify.annotations.Nullable}.
  */
 @Target(TYPE_USE)
 @interface Nullable {}
