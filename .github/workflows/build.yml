@@ -1,21 +1,26 @@
-name: Build
+name: Continuous Integration
 
 on: [push, pull_request]
 
 jobs:
-  build:
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v1
+      - name: Check out the code
+        uses: actions/checkout@v3
+      - name: Set up Java
+        uses: actions/setup-java@v3
         with:
+          distribution: temurin
           java-version: 17
-      - uses: actions/cache@v1
+      - name: Build
+        uses: gradle/gradle-build-action@v2
         with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - run: ./gradlew build jspecifySamplesTest
+          arguments: build
         env:
           SHALLOW: 1
+      - name: Samples Tests
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: jspecifySamplesTest
