@@ -64,8 +64,9 @@ git_clone() {
 }
 
 # We test using some modified samples in a different branch of the jspecify
-# repo, so we check out that branch.
-git_clone jspecify --branch samples-google-prototype
+# repo, so we check out that branch. However, we fetch all branches even when
+# SHALLOW is set so we can run conformance tests.
+git_clone jspecify --no-single-branch --branch samples-google-prototype
 
 git_clone jdk --depth 1 --single-branch
 

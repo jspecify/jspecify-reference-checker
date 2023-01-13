@@ -20,7 +20,13 @@ jobs:
           arguments: build
         env:
           SHALLOW: 1
-      - name: Samples Tests
+      - name: Run Samples Tests
         uses: gradle/gradle-build-action@v2
         with:
           arguments: jspecifySamplesTest
+      - name: Check out jspecify/main
+        run: git -C ../jspecify checkout main
+      - name: Run Conformance Tests
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: ConformanceTest
