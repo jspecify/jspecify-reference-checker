@@ -135,7 +135,7 @@ public final class ConformanceTestReport {
 
     private Comparison(
         Iterable<ConformanceTestResult> results, Iterable<ConformanceTestResult> previousResults) {
-      this.newVsOld = (Maps.difference(resultsMap(results), resultsMap(previousResults)));
+      this.newVsOld = Maps.difference(resultsMap(results), resultsMap(previousResults));
     }
 
     /** Returns the failing assertions that had previously passed. */

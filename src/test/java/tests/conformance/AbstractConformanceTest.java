@@ -94,12 +94,14 @@ public abstract class AbstractConformanceTest {
   }
 
   private ConformanceTestReport runTests(Path testDirectory) throws IOException {
-    return walk(testDirectory)
-        .filter(p -> p.toFile().isDirectory())
-        .map(AbstractConformanceTest::javaFilesInDirectory)
-        .filter(files -> !files.isEmpty())
-        .flatMap(this::analyzeFiles)
-        .collect(collectingAndThen(toImmutableSet(), ConformanceTestReport::new));
+    try (Stream<Path> paths = walk(testDirectory)) {
+      return paths
+          .filter(p -> p.toFile().isDirectory())
+          .map(AbstractConformanceTest::javaFilesInDirectory)
+          .filter(files -> !files.isEmpty())
+          .flatMap(this::analyzeFiles)
+          .collect(collectingAndThen(toImmutableSet(), ConformanceTestReport::new));
+    }
   }
 
   private Stream<ConformanceTestResult> analyzeFiles(ImmutableList<Path> files) {
