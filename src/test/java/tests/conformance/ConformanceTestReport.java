@@ -22,6 +22,7 @@ import static com.google.common.io.Files.asCharSink;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.lines;
 import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Stream.concat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.readExpectedFact;
@@ -55,6 +56,7 @@ public final class ConformanceTestReport {
   static ConformanceTestReport readFile(Path testReport) throws IOException {
     try (Stream<String> lines = lines(testReport)) {
       return lines
+          .filter(line -> !line.startsWith("#"))
           .map(
               line -> {
                 Matcher matcher = REPORT_LINE.matcher(line);
@@ -121,11 +123,22 @@ public final class ConformanceTestReport {
    * only whether there were any unexpected facts.
    */
   public void writeFile(Path file) throws IOException {
-    asCharSink(file.toFile(), UTF_8)
-        .writeLines(
-            results.stream()
-                .sorted(ConformanceTestResult.COMPARATOR)
-                .map(ConformanceTestReport::toReportLine));
+    asCharSink(file.toFile(), UTF_8).writeLines(concat(reportHeader(), reportBody()));
+  }
+
+  private Stream<String> reportHeader() {
+    int fails = failures().size();
+    int passes = results.size() - fails;
+    return Stream.of(
+        String.format(
+            "# %d pass; %d fail; %d total; %.1f%% score",
+            passes, fails, results.size(), 100.0 * passes / results.size()));
+  }
+
+  private Stream<String> reportBody() {
+    return results.stream()
+        .sorted(ConformanceTestResult.COMPARATOR)
+        .map(ConformanceTestReport::toReportLine);
   }
 
   /** A comparison between a current test report and a previous report loaded from a file. */
