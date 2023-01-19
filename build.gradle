@@ -1,3 +1,6 @@
+import org.gradle.plugins.ide.eclipse.model.Output
+import org.gradle.plugins.ide.eclipse.model.SourceFolder
+
 plugins {
     id 'java'
     id 'com.diffplug.gradle.spotless' version '4.0.1'
@@ -7,7 +10,7 @@ plugins {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 configurations {
@@ -23,7 +26,9 @@ ext {
     jspecifyHome = "${parentDir}/jspecify"
 }
 
-sourceCompatibility = 1.9
+java {
+    sourceCompatibility = 1.9
+}
 
 dependencies {
     implementation "org.checkerframework:checker:${cfVersion}"
@@ -126,10 +131,10 @@ eclipse.classpath {
     defaultOutputDir = file("build/default")
     file.whenMerged { cp ->
         cp.entries.forEach { cpe ->
-            if (cpe instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder) {
+            if (cpe instanceof SourceFolder) {
                 cpe.output = cpe.output.replace "bin/", "build/classes/java/"
             }
-            if (cpe instanceof org.gradle.plugins.ide.eclipse.model.Output) {
+            if (cpe instanceof Output) {
                 cpe.path = cpe.path.replace "bin/", "build/"
             }
         }
