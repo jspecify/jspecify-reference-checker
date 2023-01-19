@@ -31,7 +31,6 @@ import com.google.common.truth.Subject;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestResult;
@@ -134,6 +133,6 @@ public final class ConformanceTestSubject extends Subject {
         key,
         assertions.isEmpty()
             ? "none"
-            : assertions.stream().map(Objects::toString).collect(joining("\n")));
+            : assertions.stream().map(ConformanceTestReport::toReportText).collect(joining("\n")));
   }
 }

@@ -28,7 +28,6 @@ import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -154,7 +153,7 @@ public final class ConformanceTestReport {
 
     /** Returns the passing assertions that previously failed. */
     public ImmutableSet<ConformanceTestAssertion> fixedTests() {
-      return ImmutableSortedSet.copyOf(
+      return ImmutableSet.copyOf(
           filterValues(newVsOld.entriesDiffering(), vd -> vd.leftValue() && !vd.rightValue())
               .keySet());
     }
