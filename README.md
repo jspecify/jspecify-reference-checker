@@ -46,8 +46,8 @@ $ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/j
 # For example:
 
 $ cat > SomeTest.java
-import org.jspecify.nullness.NullMarked;
-import org.jspecify.nullness.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @NullMarked
 class SomeTest {
