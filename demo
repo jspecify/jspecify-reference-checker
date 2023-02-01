@@ -1,0 +1,13 @@
+#!/bin/sh
+
+dir=$(dirname $0)
+rc_name=nullness-checker-for-checker-framework
+export CLASSPATH="$dir/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:$dir/build/libs/$rc_name.jar:$CLASSPATH"
+echo $CLASSPATH
+
+$dir/../checker-framework/checker/bin/javac \
+  -processorpath "$CLASSPATH" \
+  -processor com.google.jspecify.nullness.NullSpecChecker \
+  -AcheckImpl \
+  "$@"
+
