@@ -553,7 +553,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   private boolean isPrimitiveOrArrayOfPrimitive(Tree type) {
     return type.getKind() == PRIMITIVE_TYPE
         || (type.getKind() == ARRAY_TYPE
-            && ((ArrayTypeTree) type).getType().getKind() == PRIMITIVE_TYPE);
+            && isPrimitiveOrArrayOfPrimitive(((ArrayTypeTree) type).getType()));
   }
 
   private void checkNoNullnessAnnotationsOnArrayItself(
