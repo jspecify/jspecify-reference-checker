@@ -60,7 +60,7 @@ import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.NoUnex
  * </ul>
  *
  * <p>The test can run in one of three modes, depending on the value of the {@code
- * JSpecifyConformanceTest:mode} environment variable:
+ * JSPECIFY_CONFORMANCE_TEST_MODE} environment variable:
  *
  * <dl>
  *   <dt>{@code compare} or empty
@@ -217,7 +217,7 @@ public abstract class AbstractConformanceTest {
     DETAILS,
     ;
 
-    private static final String ENV_VARIABLE = "JSpecifyConformanceTest:mode";
+    private static final String ENV_VARIABLE = "JSPECIFY_CONFORMANCE_TEST_MODE";
 
     static Mode fromEnvironment() {
       String mode = Strings.nullToEmpty(System.getenv(ENV_VARIABLE));

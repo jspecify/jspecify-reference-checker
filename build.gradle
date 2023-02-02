@@ -112,6 +112,7 @@ task conformanceTest(type: Test) {
     group = 'verification'
     include '**/ConformanceTest.class'
     inputs.files("${jspecifyHome}/samples")
+    inputs.files("tests/ConformanceTest-report.txt")
     systemProperty("JSpecifyConformanceTest.sourceDirectory", "${jspecifyHome}/samples")
     systemProperty("JSpecifyConformanceTest.report", "tests/ConformanceTest-report.txt")
 }
