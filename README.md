@@ -1,84 +1,94 @@
-# JSpecify Nullness Checker for the Checker Framework
+# The JSpecify Reference Checker
 
-This project is a
-[custom checker plugin](https://checkerframework.org/manual/#creating-a-checker)
-for [the Checker Framework](https://checkerframework.org/).
+This project is **under development** to become the **reference implementation** for the [JSpecify](http://jspecify.org) nullness specification (and later, its other specifications as well). The current goal we're working toward is conformance with version `0.3` of that spec, but it's not there yet.
 
-It is a prototype. It is not yet suitable for use on real code. To get it
-working properly, we will need to do more work, including proposing new
-configuration hooks in the Checker Framework itself. Running it against the
-regular version of the Checker Framework will behave incorrectly, as we have
-[made related changes in a temporary fork of the Checker Framework](https://github.com/jspecify/checker-framework).
+## A "reference" checker
 
-We have made it available so that JSpecify project members can experiment with
-it, collaborate on it, and discuss the easiest way to incorporate changes into
-the Checker Framework itself. If all goes well, it will never be released for
-general use. Instead, existing tools (including the Checker Framework) will be
-modified to support JSpecify annotations directly, perhaps based on some of the
-code here.
+Though it does *check your references* (to see if they're null), that's not the intended meaning!
 
-Our main work is happening in repo https://github.com/jspecify/jspecify.
+This tool's purpose is to report nullness-related findings **correctly** according to the JSpecify standard for nullness annotation semantics. 
 
-This is not an officially supported product of any of the participant
-organizations.
+But that's its *only* job. Notably, it is:
+
+* **not** expected to have good **performance** characteristics
+* **not** expected to have good **usability** characteristics
+
+... and there is no intention to make it competitive in these ways. Of course real tools by our partner organizations will be better.
+
+## Relationship to Checker Framework and EISOP
+
+The [EISOP project](https://eisop.github.io/) maintains a fork of [Checker Framework](https://checkerframework.org/), and JSpecify conformance is one of its primary goals.
+
+This tool happens to be built on top of another fork of these ([here](https://github.com/jspecify/checker-framework)). However, please view this relationship as **implementation detail** only. Building a reference checker from scratch would simply have been too difficult, so we needed to base it on some existing tool. The choice of which tool was made purely for expediency and is **subject to change**.
 
 ## Usage
 
-Again, this is not ready for general use. But for those in our group who are
-looking to try it out, here are some instructions, *which might fail*
-and need to be worked around as described later in this section:
+Building and running this tool requires building code from several other repositories, but these instructions will take care of that automatically.
+
+These instructions might require workarounds or fail outright. Please file an issue if you have any trouble!
+
+### Prework
+
+Ideally set `JAVA_HOME` to a JDK 11 or JDK 18 installation.
+
+Make sure you have Apache Maven installed and in your PATH, or the Gradle build will fail:
+
+```sh
+mvn
+```
+
+Choose a name for a brand new directory that doesn't already exist. It may be convenient to set `$root_dir` to that absolute path:
+
+```sh
+root_dir=/absolute/pathname/for/fresh/new/directory
+```
+
+... because then you can paste the commands below exactly as they are.
+
+### Building
+
+Now get the code for this project. 
+
+**Warning:** If you clone this project under a different name, watch out, as the later steps assume it to be named exactly `nullness-checker-for-checker-framework`.
+
+```sh
+mkdir $root_dir
+cd $root_dir
+git clone https://github.com/jspecify/nullness-checker-for-checker-framework
+cd nullness-checker-for-checker-framework
+```
+
+Now build it, which will retrieve a lot of other code too, and will take 10-15 minutes:
+
+```sh
+./gradlew assemble
+```
+
+Now try the sample file:
+
+```sh
+cd $root_dir/nullness-checker-for-checker-framework
+./demo SimpleSample.java
+```
+
+After ~10 seconds delay, you should see
 
 ```
-# Download the checker plugin:
-
-$ git clone https://github.com/jspecify/nullness-checker-for-checker-framework
-$ cd nullness-checker-for-checker-framework
-
-# Build it:
-
-$ ./gradlew assemble
-
-# Use it:
-
-$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar:... ...
-
-
-# For example:
-
-$ cat > SomeTest.java
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
-
-@NullMarked
-class SomeTest {
-  Object passThrough(@Nullable Object o) {
-    return o;
-  }
-}
-
-$ ../checker-framework/checker/bin/javac -processorpath ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar -processor com.google.jspecify.nullness.NullSpecChecker -AcheckImpl -cp ../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:build/libs/nullness-checker-for-checker-framework.jar SomeTest.java
-SomeTest.java:7: error: [nullness] incompatible types in return.
-    return o;
+SimpleSample.java:7: error: [nullness] incompatible types in return.
+    return mightBeNull;
            ^
   type of expression: Object?
   method return type: Object
 1 error
-
-
-# Run tests:
-
-$ ./gradlew jspecifySamplesTest
-
-# Note: The tests are likely to *build* but not *pass*. There are two reasons
-# for this:
-#
-# 1. Our checker has some known issues.
-# 2. The samples use @NullnessUnspecified, an annotation that currently doesn't
-#    exist in the mainline of jspecify/jspecify.
-#
-# To get the tests to pass, make sure the "samples-google-prototype" branch is
-# checked out of the jspecify repo, one that has the expected incorrect results
-# encoded into the samples *and* has @NullnessUnspecified present:
-
-$ ( cd ../jspecify && git checkout samples-google-prototype && ./gradlew )
 ```
+
+Note that the `demo` script is not complicated, and illustrates how you can enable checking for your own code as well.
+
+### Testing
+
+```sh
+cd $root_dir/nullness-checker-for-checker-framework
+./gradlew test
+```
+
+Note that this only passes because the steps above caused you to check out the `samples-google-prototype` branch of `jspecify`. This way you are running only the tests that are actually *expected* to pass.
