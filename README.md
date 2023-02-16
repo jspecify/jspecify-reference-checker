@@ -86,9 +86,26 @@ Note that the `demo` script is not complicated, and illustrates how you can enab
 
 ### Testing
 
+To perform a minimal test, run:
+
 ```sh
 cd $root_dir/nullness-checker-for-checker-framework
 ./gradlew test
 ```
 
-Note that this only passes because the steps above caused you to check out the `samples-google-prototype` branch of `jspecify`. This way you are running only the tests that are actually *expected* to pass.
+To run the (incomplete) conformance test suite, check out the `main` branch of `jspecify` and run `conformanceTest`:
+
+```sh
+git -C $root_dir/jspecify checkout main
+cd $root_dir/nullness-checker-for-checker-framework
+./gradlew conformanceTest
+```
+
+To run the (legacy) "samples" test suite, check out the `samples-google-prototype` branch of `jspecify` and run `jspecifySamplesTest`:
+
+```sh
+git -C $root_dir/jspecify checkout samples-google-prototype
+cd $root_dir/nullness-checker-for-checker-framework
+./gradlew jspecifySamplesTest
+```
+
