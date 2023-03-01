@@ -151,8 +151,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
         || missing.getMessage().contains("jspecify_nullness_mismatch")) {
       switch (unexpected.messageKey) {
-        case "argument":
-        case "assignment":
+        case "argument.type.incompatible":
+        case "assignment.type.incompatible":
         case "atomicreference.must.include.null":
         case "cast.unsafe":
         case "dereference":
@@ -160,11 +160,11 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         case "methodref.receiver.bound":
         case "methodref.receiver":
         case "methodref.return":
-        case "override.param":
-        case "override.return":
-        case "return":
+        case "override.param.type.incompatible":
+        case "override.return.type.incompatible":
+        case "return.type.incompatible":
         case "threadlocal.must.include.null":
-        case "type.argument":
+        case "type.argument.type.incompatible":
           return true;
         default:
           return false;

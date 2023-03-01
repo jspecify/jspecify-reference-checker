@@ -21,7 +21,7 @@ ext {
     parentDir = file("${rootDir}/../").absolutePath
 
     cfHome = "${parentDir}/checker-framework"
-    cfVersion = "3.21.5-SNAPSHOT"
+    cfVersion = '3.31.0'
 
     jspecifyHome = "${parentDir}/jspecify"
 }
@@ -31,10 +31,10 @@ java {
 }
 
 dependencies {
-    implementation "org.checkerframework:checker:${cfVersion}"
-    implementation "org.checkerframework:checker-qual:${cfVersion}"
-    implementation "org.checkerframework:framework:${cfVersion}"
-    implementation "org.checkerframework:javacutil:${cfVersion}"
+    implementation "io.github.eisop:checker:${cfVersion}"
+    implementation "io.github.eisop:checker-qual:${cfVersion}"
+    implementation "io.github.eisop:framework:${cfVersion}"
+    implementation "io.github.eisop:javacutil:${cfVersion}"
 
     implementation "org.jspecify:jspecify:0.0.0-SNAPSHOT"
 
@@ -45,7 +45,7 @@ dependencies {
     // The Guava dep lets us test our special handling of some Guava classes.
     testImplementation 'com.google.guava:guava:31.1-jre'
     testImplementation 'org.plumelib:plume-util:1.5.5'
-    testImplementation "org.checkerframework:framework-test:${cfVersion}"
+    testImplementation "io.github.eisop:framework-test:${cfVersion}"
     testImplementation "com.google.truth:truth:1.1.3"
 
     errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
