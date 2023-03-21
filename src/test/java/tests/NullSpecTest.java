@@ -101,7 +101,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     for (ListIterator<TestDiagnostic> i = unexpected.listIterator(); i.hasNext(); ) {
       TestDiagnostic diagnostic = i.next();
-      DetailMessage detailMessage = DetailMessage.parse(diagnostic.getMessage());
+      // TODO: should this use .getMessage() or .toString()?
+      DetailMessage detailMessage = DetailMessage.parse(diagnostic.toString());
       if (detailMessage != null) {
         // Replace diagnostics that can be parsed with DetailMessage diagnostics.
         i.set(detailMessage);
