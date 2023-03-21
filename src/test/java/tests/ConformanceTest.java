@@ -75,8 +75,8 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
         ImmutableSet.of(
-            "argument",
-            "assignment",
+            "argument.type.incompatible",
+            "assignment.type.incompatible",
             "atomicreference.must.include.null",
             "cast.unsafe",
             "dereference",
@@ -86,9 +86,9 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "methodref.return",
             "override.param",
             "override.return",
-            "return",
+            "return.type.incompatible",
             "threadlocal.must.include.null",
-            "type.argument");
+            "type.argument.type.incompatible");
 
     private final DetailMessage detailMessage;
 
