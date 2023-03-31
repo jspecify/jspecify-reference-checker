@@ -1,4 +1,4 @@
-# 28 pass; 539 fail; 567 total; 4.9% score
+# 28 pass; 543 fail; 571 total; 4.9% score
 FAIL: AnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: AnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: AnnotatedReceiver.java: no unexpected facts
@@ -219,6 +219,10 @@ FAIL: MultiplePathsToTypeVariable.java:72 jspecify_nullness_mismatch
 FAIL: MultiplePathsToTypeVariable.java: no unexpected facts
 FAIL: NoPathToTypeVariableMinusNull.java: no unexpected facts
 FAIL: NonConstantPrimitives.java: no unexpected facts
+FAIL: NonNullProjection.java:25 jspecify_nullness_mismatch
+FAIL: NonNullProjection.java: no unexpected facts
+FAIL: NonNullSimple.java:24 jspecify_nullness_mismatch
+FAIL: NonNullSimple.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedTypeParameter.java: no unexpected facts
