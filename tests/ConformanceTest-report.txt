@@ -1,4 +1,4 @@
-# 28 pass; 543 fail; 571 total; 4.9% score
+# 28 pass; 547 fail; 575 total; 4.9% score
 FAIL: AnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: AnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: AnnotatedReceiver.java: no unexpected facts
@@ -302,6 +302,8 @@ FAIL: NullLiteralToTypeVariable.java: no unexpected facts
 FAIL: NullLiteralToTypeVariableUnionNull.java: no unexpected facts
 FAIL: NullLiteralToTypeVariableUnspec.java: no unexpected facts
 FAIL: NullMarkedDirectUseOfNotNullMarkedBoundedTypeVariable.java: no unexpected facts
+FAIL: NullUnmarkedUndoesNullMarked.java: no unexpected facts
+FAIL: NullUnmarkedUndoesNullMarkedForWildcards.java: no unexpected facts
 FAIL: NullnessDoesNotAffectOverloadSelection.java:24 jspecify_nullness_mismatch
 FAIL: NullnessDoesNotAffectOverloadSelection.java: no unexpected facts
 FAIL: ObjectAsSuperOfTypeVariable.java:36 jspecify_nullness_mismatch
