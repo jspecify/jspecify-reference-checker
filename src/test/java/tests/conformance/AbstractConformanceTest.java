@@ -244,7 +244,8 @@ public abstract class AbstractConformanceTest {
    * An assertion about a test source file. There are two kinds of assertions: {@link
    * ExpectedFactAssertion}s and {@link NoUnexpectedFactsAssertion}s.
    */
-  public abstract static class ConformanceTestAssertion {
+  public abstract static class ConformanceTestAssertion
+      implements Comparable<ConformanceTestAssertion> {
 
     private final Path file;
 
@@ -257,7 +258,12 @@ public abstract class AbstractConformanceTest {
       return file;
     }
 
-    public static final Comparator<ConformanceTestAssertion> COMPARATOR =
+    @Override
+    public final int compareTo(ConformanceTestAssertion that) {
+      return COMPARATOR.compare(this, that);
+    }
+
+    private static final Comparator<ConformanceTestAssertion> COMPARATOR =
         comparing(ConformanceTestAssertion::getFile)
             .thenComparing(
                 cta ->
@@ -460,7 +466,7 @@ public abstract class AbstractConformanceTest {
     }
 
     public static final Comparator<ConformanceTestResult> COMPARATOR =
-        comparing(ConformanceTestResult::getAssertion, ConformanceTestAssertion.COMPARATOR);
+        comparing(ConformanceTestResult::getAssertion, ConformanceTestAssertion::compareTo);
   }
 
   /** A fact reported by the analysis under test. */

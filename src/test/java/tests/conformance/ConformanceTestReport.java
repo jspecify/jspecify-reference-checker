@@ -14,8 +14,8 @@
 
 package tests.conformance;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.ImmutableSortedMap.toImmutableSortedMap;
 import static com.google.common.collect.Maps.filterValues;
 import static com.google.common.collect.Streams.stream;
 import static com.google.common.io.Files.asCharSink;
@@ -27,8 +27,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.readExpectedFact;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -152,33 +153,34 @@ public final class ConformanceTestReport {
     }
 
     /** Returns the failing assertions that had previously passed. */
-    public ImmutableSet<ConformanceTestAssertion> brokenTests() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> brokenTests() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesDiffering(), vd -> !vd.leftValue() && vd.rightValue())
               .keySet());
     }
 
     /** Returns the failing assertions that previously didn't exist. */
-    public ImmutableSet<ConformanceTestAssertion> newTestsThatFail() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatFail() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesOnlyOnLeft(), pass -> !pass).keySet());
     }
 
     /** Returns the passing assertions that previously failed. */
-    public ImmutableSet<ConformanceTestAssertion> fixedTests() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> fixedTests() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesDiffering(), vd -> vd.leftValue() && !vd.rightValue())
               .keySet());
     }
 
     /** Returns the passing assertions that previously didn't exist. */
-    public ImmutableSet<ConformanceTestAssertion> newTestsThatPass() {
-      return ImmutableSet.copyOf(filterValues(newVsOld.entriesOnlyOnLeft(), pass -> pass).keySet());
+    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatPass() {
+      return ImmutableSortedSet.copyOf(
+          filterValues(newVsOld.entriesOnlyOnLeft(), pass -> pass).keySet());
     }
 
     /** Returns the assertions that no longer exist. */
-    public ImmutableSet<ConformanceTestAssertion> deletedTests() {
-      return ImmutableSet.copyOf(newVsOld.entriesOnlyOnRight().keySet());
+    public ImmutableSortedSet<ConformanceTestAssertion> deletedTests() {
+      return ImmutableSortedSet.copyOf(newVsOld.entriesOnlyOnRight().keySet());
     }
 
     /**
@@ -190,11 +192,14 @@ public final class ConformanceTestReport {
       return newVsOld.areEqual();
     }
 
-    private static ImmutableMap<ConformanceTestAssertion, Boolean> resultsMap(
+    private static ImmutableSortedMap<ConformanceTestAssertion, Boolean> resultsMap(
         Iterable<ConformanceTestResult> results) {
       return stream(results)
           .collect(
-              toImmutableMap(ConformanceTestResult::getAssertion, ConformanceTestResult::passed));
+              toImmutableSortedMap(
+                  ConformanceTestAssertion::compareTo,
+                  ConformanceTestResult::getAssertion,
+                  ConformanceTestResult::passed));
     }
   }
 }

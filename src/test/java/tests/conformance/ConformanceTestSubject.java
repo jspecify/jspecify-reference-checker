@@ -25,6 +25,7 @@ import static java.util.stream.Collectors.joining;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.truth.Fact;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
@@ -94,7 +95,7 @@ public final class ConformanceTestSubject extends Subject {
                     fact(
                         "expected facts not found in " + file,
                         expectedFactFailures.stream()
-                            .sorted(ConformanceTestAssertion.COMPARATOR)
+                            .sorted(ConformanceTestAssertion::compareTo)
                             .map(ConformanceTestReport::toReportText)
                             .collect(joining("\n"))));
               }
@@ -131,7 +132,7 @@ public final class ConformanceTestSubject extends Subject {
   }
 
   private static Fact conformanceTestFact(
-      String key, ImmutableSet<ConformanceTestAssertion> assertions) {
+      String key, ImmutableSortedSet<ConformanceTestAssertion> assertions) {
     return fact(
         key,
         assertions.isEmpty()
