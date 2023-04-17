@@ -66,8 +66,11 @@ final class DetailMessage extends TestDiagnostic {
   /**
    * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
    * match the expected format.
+   *
+   * @param rootDirectory if not null, a root directory prefix to remove from the file part of the
+   *     message
    */
-  static @Nullable DetailMessage parse(String input) {
+  static @Nullable DetailMessage parse(String input, @Nullable Path rootDirectory) {
     Matcher matcher = DETAIL_MESSAGE_PATTERN.matcher(input);
     if (!matcher.matches()) {
       return null;
@@ -86,8 +89,9 @@ final class DetailMessage extends TestDiagnostic {
     Matcher offsets = OFFSETS_PATTERN.matcher(messageParts.get(messagePartCount));
     checkArgument(offsets.matches(), "unparseable offsets: %s", input);
 
+    Path file = Paths.get(matcher.group("file"));
     return new DetailMessage(
-        Paths.get(matcher.group("file")),
+        (rootDirectory != null) ? rootDirectory.relativize(file) : file,
         parseInt(matcher.group("lineNumber")),
         matcher.group("messageKey"),
         messageArguments,

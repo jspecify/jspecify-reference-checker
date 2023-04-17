@@ -93,7 +93,12 @@ public abstract class AbstractConformanceTest {
             "the location of the JSpecify conformance test report"));
   }
 
-  private ConformanceTestReport runTests(Path testDirectory) throws IOException {
+  /** Returns the directory that is the root of all test inputs. */
+  protected final Path getTestDirectory() {
+    return testDirectory;
+  }
+
+  private ConformanceTestReport runTests() throws IOException {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
           .filter(p -> p.toFile().isDirectory())
@@ -109,6 +114,7 @@ public abstract class AbstractConformanceTest {
         Streams.stream(analyze(files)).collect(ReportedFact.BY_FILE_AND_LINE_NUMBER);
     return files.stream().flatMap(file -> testResultsForFile(file, reportedFactsByFile).stream());
   }
+
   /**
    * Analyzes a nonempty set of Java source {@code files} that may refer to each other.
    *
@@ -120,7 +126,7 @@ public abstract class AbstractConformanceTest {
       Path file, ImmutableMap<Path, ListMultimap<Long, ReportedFact>> reportedFactsByFile) {
     Path relativeFile = testDirectory.relativize(file);
     ListMultimap<Long, ReportedFact> reportedFactsInFile =
-        requireNonNullElse(reportedFactsByFile.get(file), ArrayListMultimap.create());
+        requireNonNullElse(reportedFactsByFile.get(relativeFile), ArrayListMultimap.create());
     ImmutableSet.Builder<ConformanceTestResult> report = ImmutableSet.builder();
     readExpectedFacts(file).stream()
         .collect(groupingBy(ExpectedFactAssertion::getLineNumber))
@@ -192,7 +198,7 @@ public abstract class AbstractConformanceTest {
 
   @Test
   public void checkConformance() throws IOException {
-    ConformanceTestReport testResults = runTests(testDirectory);
+    ConformanceTestReport testResults = runTests();
     switch (Mode.fromEnvironment()) {
       case COMPARE:
         assertThat(testResults).matches(ConformanceTestReport.readFile(testReport));
@@ -493,6 +499,10 @@ public abstract class AbstractConformanceTest {
 
     /** Returns true if this reported fact matches the given expected fact. */
     protected abstract boolean matches(CannotConvert cannotConvert);
+
+    /** Returns the message reported, without the file name or line number. */
+    @Override
+    public abstract String toString();
 
     public static final Comparator<ReportedFact> COMPARATOR =
         comparing(ReportedFact::getFile).thenComparing(ReportedFact::getLineNumber);

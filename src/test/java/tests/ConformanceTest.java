@@ -47,11 +47,6 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-Astrict",
           "-AajavaChecks");
 
-  /**
-   * Analyzes a nonempty set of Java source {@code files} that may refer to each other.
-   *
-   * @return the facts reported by the analysis
-   */
   @Override
   protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
     TestConfiguration config =
@@ -64,7 +59,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
             TestUtilities.getShouldEmitDebugInfo());
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
-        .map(d -> DetailMessage.parse(d.getMessage()))
+        .map(d -> DetailMessage.parse(d.getMessage(), getTestDirectory()))
         .filter(Objects::nonNull)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
@@ -114,7 +109,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     @Override
     public String toString() {
-      return detailMessage.toString();
+      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.message);
     }
   }
 }

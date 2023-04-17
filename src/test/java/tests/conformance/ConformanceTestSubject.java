@@ -108,7 +108,10 @@ public final class ConformanceTestSubject extends Subject {
                         "unexpected facts found in " + file,
                         unexpectedFacts.stream()
                             .sorted(ReportedFact.COMPARATOR)
-                            .map(Object::toString)
+                            .map(
+                                rf ->
+                                    String.format(
+                                        "%s:%d: %s", rf.getFile(), rf.getLineNumber(), rf))
                             .collect(joining("\n"))));
               }
             });
