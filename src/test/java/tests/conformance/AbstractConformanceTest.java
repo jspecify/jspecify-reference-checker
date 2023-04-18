@@ -45,6 +45,7 @@ import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.Expect
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.CannotConvert;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.NullnessMismatch;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.NoUnexpectedFactsAssertion;
+import tests.conformance.ConformanceTestReport.ConformanceTestResult;
 
 /**
  * A test that analyzes source files and compares reported facts to expected facts declared in each
@@ -425,48 +426,6 @@ public abstract class AbstractConformanceTest {
         return getFile().hashCode();
       }
     }
-  }
-
-  /** The result (pass or fail) of an {@linkplain ConformanceTestAssertion assertion}. */
-  public static final class ConformanceTestResult {
-
-    private final ConformanceTestAssertion assertion;
-    private final boolean pass;
-    private final ImmutableList<ReportedFact> unexpectedFacts;
-
-    private ConformanceTestResult(
-        NoUnexpectedFactsAssertion assertion, Iterable<ReportedFact> unexpectedFacts) {
-      this.assertion = assertion;
-      this.unexpectedFacts = ImmutableList.copyOf(unexpectedFacts);
-      this.pass = this.unexpectedFacts.isEmpty();
-    }
-
-    ConformanceTestResult(ConformanceTestAssertion assertion, boolean pass) {
-      this.assertion = assertion;
-      this.pass = pass;
-      this.unexpectedFacts = ImmutableList.of();
-    }
-
-    /** The assertion. */
-    public ConformanceTestAssertion getAssertion() {
-      return assertion;
-    }
-
-    /** Whether the test passed. */
-    public boolean passed() {
-      return pass;
-    }
-
-    /**
-     * For {@link NoUnexpectedFactsAssertion} assertions, the unexpected must-report facts. Not
-     * written to or read from the report file.
-     */
-    public ImmutableList<ReportedFact> getUnexpectedFacts() {
-      return unexpectedFacts;
-    }
-
-    public static final Comparator<ConformanceTestResult> COMPARATOR =
-        comparing(ConformanceTestResult::getAssertion, ConformanceTestAssertion::compareTo);
   }
 
   /** A fact reported by the analysis under test. */

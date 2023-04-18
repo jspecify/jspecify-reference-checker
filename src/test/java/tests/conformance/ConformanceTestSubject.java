@@ -34,9 +34,9 @@ import java.util.ArrayList;
 import java.util.List;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
-import tests.conformance.AbstractConformanceTest.ConformanceTestResult;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 import tests.conformance.ConformanceTestReport.Comparison;
+import tests.conformance.ConformanceTestReport.ConformanceTestResult;
 
 /** A Truth {@link Subject} for {@link ConformanceTestReport}s. */
 public final class ConformanceTestSubject extends Subject {
