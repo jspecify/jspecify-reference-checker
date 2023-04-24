@@ -539,16 +539,16 @@ PASS: nullnessUnspecifiedTypeParameter/nullnessunspecifiedtypeparameter/Nullness
 PASS: nullnessUnspecifiedTypeParameter/nullnessunspecifiedtypeparameter/NullnessUnspecifiedTypeParameter.java:58 jspecify_nullness_mismatch
 PASS: nullnessUnspecifiedTypeParameter/nullnessunspecifiedtypeparameter/NullnessUnspecifiedTypeParameter.java:60 jspecify_nullness_mismatch
 PASS: nullnessUnspecifiedTypeParameter/nullnessunspecifiedtypeparameter/NullnessUnspecifiedTypeParameter.java: no unexpected facts
-PASS: packageDefault/packagedefault/Bar.java:24 jspecify_nullness_mismatch
+PASS: packageDefault/packagedefault/Bar.java:24 test:cannot-convert:Object? to Object!
 PASS: packageDefault/packagedefault/Bar.java: no unexpected facts
 PASS: packageDefault/packagedefault/package-info.java: no unexpected facts
-PASS: selfType/selftype/SelfType.java:37 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:46 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:62 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:65 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:69 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:73 jspecify_nullness_mismatch
-PASS: selfType/selftype/SelfType.java:76 jspecify_nullness_mismatch
+PASS: selfType/selftype/SelfType.java:37 test:cannot-convert:AK? to SelfType!<AK!>
+PASS: selfType/selftype/SelfType.java:46 test:cannot-convert:CK? to C!<CK!>
+PASS: selfType/selftype/SelfType.java:62 test:cannot-convert:null? to AK!
+PASS: selfType/selftype/SelfType.java:65 test:cannot-convert:null? to AK!
+PASS: selfType/selftype/SelfType.java:69 test:cannot-convert:null? to B!
+PASS: selfType/selftype/SelfType.java:73 test:cannot-convert:null? to CK!
+PASS: selfType/selftype/SelfType.java:76 test:cannot-convert:null? to CK!
 FAIL: selfType/selftype/SelfType.java: no unexpected facts
 FAIL: simple/simple/Simple.java:33 jspecify_nullness_mismatch
 FAIL: simple/simple/Simple.java:47 jspecify_nullness_mismatch
