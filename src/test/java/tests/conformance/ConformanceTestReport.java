@@ -26,7 +26,7 @@ import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Stream.concat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.readExpectedFact;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.readExpectedFact;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import tests.ConformanceTest;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
+import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.NoUnexpectedFactsAssertion;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
@@ -70,9 +71,10 @@ public final class ConformanceTestReport {
                 String expect = matcher.group("expect");
                 if (expect != null) {
                   int lineNumber = Integer.parseInt(matcher.group("line"));
-                  ExpectedFactAssertion.Factory fact = readExpectedFact(expect);
+                  ExpectedFact fact = readExpectedFact(expect);
                   assertNotNull("cannot parse expectation: " + expect, fact);
-                  return new ConformanceTestResult(fact.create(file, lineNumber), pass);
+                  return new ConformanceTestResult(
+                      new ExpectedFactAssertion(file, lineNumber, fact), pass);
                 } else {
                   return new ConformanceTestResult(new NoUnexpectedFactsAssertion(file), pass);
                 }
@@ -97,7 +99,10 @@ public final class ConformanceTestReport {
     StringBuilder string = new StringBuilder().append(assertion.getFile()).append(":");
     if (assertion instanceof ExpectedFactAssertion) {
       ExpectedFactAssertion expectedFact = (ExpectedFactAssertion) assertion;
-      string.append(expectedFact.getLineNumber()).append(" ").append(expectedFact.getCommentText());
+      string
+          .append(expectedFact.getLineNumber())
+          .append(" ")
+          .append(expectedFact.getFact().commentText());
     } else if (assertion instanceof NoUnexpectedFactsAssertion) {
       string.append(" no unexpected facts");
     } else {

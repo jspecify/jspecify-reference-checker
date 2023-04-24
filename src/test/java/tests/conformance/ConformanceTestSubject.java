@@ -32,6 +32,8 @@ import com.google.common.truth.Subject;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
@@ -109,10 +111,19 @@ public final class ConformanceTestSubject extends Subject {
                         "unexpected facts found in " + file,
                         unexpectedFacts.stream()
                             .sorted(ReportedFact.COMPARATOR)
-                            .map(
-                                rf ->
-                                    String.format(
-                                        "%s:%d: %s", rf.getFile(), rf.getLineNumber(), rf))
+                            .flatMap(
+                                reportedFact ->
+                                    // Report the expected-fact form of the reported fact if it
+                                    // exists, and also the raw reported fact.
+                                    Stream.of(reportedFact.expectedFact(), reportedFact)
+                                        .filter(Objects::nonNull)
+                                        .map(
+                                            report ->
+                                                String.format(
+                                                    "%s:%d: %s",
+                                                    reportedFact.getFile(),
+                                                    reportedFact.getLineNumber(),
+                                                    report)))
                             .collect(joining("\n"))));
               }
             });
