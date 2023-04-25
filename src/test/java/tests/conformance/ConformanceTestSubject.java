@@ -25,17 +25,20 @@ import static java.util.stream.Collectors.joining;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.truth.Fact;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
-import tests.conformance.AbstractConformanceTest.ConformanceTestResult;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 import tests.conformance.ConformanceTestReport.Comparison;
+import tests.conformance.ConformanceTestReport.ConformanceTestResult;
 
 /** A Truth {@link Subject} for {@link ConformanceTestReport}s. */
 public final class ConformanceTestSubject extends Subject {
@@ -94,7 +97,7 @@ public final class ConformanceTestSubject extends Subject {
                     fact(
                         "expected facts not found in " + file,
                         expectedFactFailures.stream()
-                            .sorted(ConformanceTestAssertion.COMPARATOR)
+                            .sorted(ConformanceTestAssertion::compareTo)
                             .map(ConformanceTestReport::toReportText)
                             .collect(joining("\n"))));
               }
@@ -108,7 +111,19 @@ public final class ConformanceTestSubject extends Subject {
                         "unexpected facts found in " + file,
                         unexpectedFacts.stream()
                             .sorted(ReportedFact.COMPARATOR)
-                            .map(Object::toString)
+                            .flatMap(
+                                reportedFact ->
+                                    // Report the expected-fact form of the reported fact if it
+                                    // exists, and also the raw reported fact.
+                                    Stream.of(reportedFact.expectedFact(), reportedFact)
+                                        .filter(Objects::nonNull)
+                                        .map(
+                                            report ->
+                                                String.format(
+                                                    "%s:%d: %s",
+                                                    reportedFact.getFile(),
+                                                    reportedFact.getLineNumber(),
+                                                    report)))
                             .collect(joining("\n"))));
               }
             });
@@ -128,7 +143,7 @@ public final class ConformanceTestSubject extends Subject {
   }
 
   private static Fact conformanceTestFact(
-      String key, ImmutableSet<ConformanceTestAssertion> assertions) {
+      String key, ImmutableSortedSet<ConformanceTestAssertion> assertions) {
     return fact(
         key,
         assertions.isEmpty()

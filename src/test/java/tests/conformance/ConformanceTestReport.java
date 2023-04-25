@@ -14,35 +14,40 @@
 
 package tests.conformance;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.ImmutableSortedMap.toImmutableSortedMap;
 import static com.google.common.collect.Maps.filterValues;
 import static com.google.common.collect.Streams.stream;
 import static com.google.common.io.Files.asCharSink;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.lines;
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Stream.concat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.readExpectedFact;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.readExpectedFact;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import tests.ConformanceTest;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
+import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.NoUnexpectedFactsAssertion;
-import tests.conformance.AbstractConformanceTest.ConformanceTestResult;
+import tests.conformance.AbstractConformanceTest.ReportedFact;
 
 /** Represents the results of running {@link ConformanceTest} on a set of files. */
 public final class ConformanceTestReport {
@@ -66,9 +71,10 @@ public final class ConformanceTestReport {
                 String expect = matcher.group("expect");
                 if (expect != null) {
                   int lineNumber = Integer.parseInt(matcher.group("line"));
-                  ExpectedFactAssertion.Factory fact = readExpectedFact(expect);
+                  ExpectedFact fact = readExpectedFact(expect);
                   assertNotNull("cannot parse expectation: " + expect, fact);
-                  return new ConformanceTestResult(fact.create(file, lineNumber), pass);
+                  return new ConformanceTestResult(
+                      new ExpectedFactAssertion(file, lineNumber, fact), pass);
                 } else {
                   return new ConformanceTestResult(new NoUnexpectedFactsAssertion(file), pass);
                 }
@@ -93,7 +99,10 @@ public final class ConformanceTestReport {
     StringBuilder string = new StringBuilder().append(assertion.getFile()).append(":");
     if (assertion instanceof ExpectedFactAssertion) {
       ExpectedFactAssertion expectedFact = (ExpectedFactAssertion) assertion;
-      string.append(expectedFact.getLineNumber()).append(" ").append(expectedFact.getCommentText());
+      string
+          .append(expectedFact.getLineNumber())
+          .append(" ")
+          .append(expectedFact.getFact().commentText());
     } else if (assertion instanceof NoUnexpectedFactsAssertion) {
       string.append(" no unexpected facts");
     } else {
@@ -152,33 +161,34 @@ public final class ConformanceTestReport {
     }
 
     /** Returns the failing assertions that had previously passed. */
-    public ImmutableSet<ConformanceTestAssertion> brokenTests() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> brokenTests() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesDiffering(), vd -> !vd.leftValue() && vd.rightValue())
               .keySet());
     }
 
     /** Returns the failing assertions that previously didn't exist. */
-    public ImmutableSet<ConformanceTestAssertion> newTestsThatFail() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatFail() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesOnlyOnLeft(), pass -> !pass).keySet());
     }
 
     /** Returns the passing assertions that previously failed. */
-    public ImmutableSet<ConformanceTestAssertion> fixedTests() {
-      return ImmutableSet.copyOf(
+    public ImmutableSortedSet<ConformanceTestAssertion> fixedTests() {
+      return ImmutableSortedSet.copyOf(
           filterValues(newVsOld.entriesDiffering(), vd -> vd.leftValue() && !vd.rightValue())
               .keySet());
     }
 
     /** Returns the passing assertions that previously didn't exist. */
-    public ImmutableSet<ConformanceTestAssertion> newTestsThatPass() {
-      return ImmutableSet.copyOf(filterValues(newVsOld.entriesOnlyOnLeft(), pass -> pass).keySet());
+    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatPass() {
+      return ImmutableSortedSet.copyOf(
+          filterValues(newVsOld.entriesOnlyOnLeft(), pass -> pass).keySet());
     }
 
     /** Returns the assertions that no longer exist. */
-    public ImmutableSet<ConformanceTestAssertion> deletedTests() {
-      return ImmutableSet.copyOf(newVsOld.entriesOnlyOnRight().keySet());
+    public ImmutableSortedSet<ConformanceTestAssertion> deletedTests() {
+      return ImmutableSortedSet.copyOf(newVsOld.entriesOnlyOnRight().keySet());
     }
 
     /**
@@ -190,11 +200,55 @@ public final class ConformanceTestReport {
       return newVsOld.areEqual();
     }
 
-    private static ImmutableMap<ConformanceTestAssertion, Boolean> resultsMap(
+    private static ImmutableSortedMap<ConformanceTestAssertion, Boolean> resultsMap(
         Iterable<ConformanceTestResult> results) {
       return stream(results)
           .collect(
-              toImmutableMap(ConformanceTestResult::getAssertion, ConformanceTestResult::passed));
+              toImmutableSortedMap(
+                  ConformanceTestAssertion::compareTo,
+                  ConformanceTestResult::getAssertion,
+                  ConformanceTestResult::passed));
     }
+  }
+
+  /** The result (pass or fail) of an {@linkplain ConformanceTestAssertion assertion}. */
+  public static final class ConformanceTestResult {
+    private final ConformanceTestAssertion assertion;
+    private final boolean pass;
+    private final ImmutableList<ReportedFact> unexpectedFacts;
+
+    ConformanceTestResult(
+        NoUnexpectedFactsAssertion assertion, Iterable<ReportedFact> unexpectedFacts) {
+      this.assertion = assertion;
+      this.unexpectedFacts = ImmutableList.copyOf(unexpectedFacts);
+      this.pass = this.unexpectedFacts.isEmpty();
+    }
+
+    ConformanceTestResult(ConformanceTestAssertion assertion, boolean pass) {
+      this.assertion = assertion;
+      this.pass = pass;
+      this.unexpectedFacts = ImmutableList.of();
+    }
+
+    /** The assertion. */
+    public ConformanceTestAssertion getAssertion() {
+      return assertion;
+    }
+
+    /** Whether the test passed. */
+    public boolean passed() {
+      return pass;
+    }
+
+    /**
+     * For {@link NoUnexpectedFactsAssertion} assertions, the unexpected must-report facts. Not
+     * written to or read from the report file.
+     */
+    public ImmutableList<ReportedFact> getUnexpectedFacts() {
+      return unexpectedFacts;
+    }
+
+    public static final Comparator<ConformanceTestResult> COMPARATOR =
+        comparing(ConformanceTestResult::getAssertion, ConformanceTestAssertion::compareTo);
   }
 }

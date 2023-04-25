@@ -14,25 +14,32 @@
 
 package tests;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.joining;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.jspecify.nullness.NullSpecChecker;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
 import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
+import org.jspecify.annotations.Nullable;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import tests.conformance.AbstractConformanceTest;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.CannotConvert;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion.NullnessMismatch;
+import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.CannotConvert;
+import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
 @RunWith(JUnit4.class)
@@ -47,11 +54,6 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-Astrict",
           "-AajavaChecks");
 
-  /**
-   * Analyzes a nonempty set of Java source {@code files} that may refer to each other.
-   *
-   * @return the facts reported by the analysis
-   */
   @Override
   protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
     TestConfiguration config =
@@ -64,7 +66,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
             TestUtilities.getShouldEmitDebugInfo());
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
-        .map(d -> DetailMessage.parse(d.getMessage()))
+        .map(d -> DetailMessage.parse(d.getMessage(), getTestDirectory()))
         .filter(Objects::nonNull)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
@@ -98,13 +100,14 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    protected boolean matches(NullnessMismatch nullnessMismatch) {
-      return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
-    }
+    protected boolean matches(ExpectedFact expectedFact) {
+      switch (expectedFact.kind()) {
+        case NULLNESS_MISMATCH:
+          return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
 
-    @Override
-    protected boolean matches(CannotConvert cannotConvert) {
-      return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
+        default:
+          return super.matches(expectedFact);
+      }
     }
 
     @Override
@@ -113,8 +116,53 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    public String toString() {
-      return detailMessage.toString();
+    protected @Nullable ExpectedFact expectedFact() {
+      if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
+        ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
+        String sourceType = fixType(reversedArguments.get(1)); // penultimate
+        String sinkType = fixType(reversedArguments.get(0)); // last
+        return CannotConvert.create(sourceType, sinkType);
+      }
+      return null;
     }
+
+    @Override
+    public String toString() {
+      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.message);
+    }
+
+    /**
+     * Rewrite the CF types into JSpecify types.
+     *
+     * <ul>
+     *   <li>Nullness sigils {@code ?}, {@code !}, and {@code *} move from after the type arguments
+     *       to before them.
+     *   <li>If there is no nullness sigil, use {@code !}. (TODO: What about parametric nullness?)
+     * </ul>
+     */
+    private static String fixType(String type) {
+      Matcher matcher = TYPE.matcher(type);
+      checkArgument(matcher.matches(), "did not match for \"%s\"", type);
+      String args = matcher.group("args");
+      String suffix = matcher.group("suffix");
+      if (args == null && suffix != null) {
+        return type;
+      }
+      StringBuilder newType = new StringBuilder(matcher.group("raw"));
+      newType.append(requireNonNullElse(suffix, "!"));
+      if (args != null) {
+        newType.append(
+            COMMA_SPLITTER
+                .splitToStream(args)
+                .map(DetailMessageReportedFact::fixType)
+                .collect(joining(",", "<", ">")));
+      }
+      return newType.toString();
+    }
+
+    private static final Pattern TYPE =
+        Pattern.compile("(?<raw>[^<,?!*]+)(?:<(?<args>.+)>)?(?<suffix>[?!*])?");
+
+    private static final Splitter COMMA_SPLITTER = Splitter.on(",");
   }
 }
