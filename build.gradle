@@ -62,15 +62,15 @@ tasks.withType(JavaCompile).all {
     options.compilerArgs.addAll(
             [
                 "api",
-                "code",
-                "comp",
-                "file",
-                "main",
-                "model",
-                "parser",
-                "processing",
-                "resources",
-                "tree",
+             "code",
+             "comp",
+             "file",
+             "main",
+             "model",
+             "parser",
+             "processing",
+             "resources",
+             "tree",
                 "util",
             ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
 }
@@ -84,10 +84,10 @@ tasks.withType(Test) {
     jvmArgs(
             [
                 "code",
-                "comp",
-                "main",
-                "processing",
-                "tree",
+             "comp",
+             "main",
+             "processing",
+             "tree",
                 "util"
             ]
             .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
@@ -115,14 +115,19 @@ task jspecifySamplesTest(type: Test) {
     inputs.files("${jspecifyHome}/samples")
 }
 
-task conformanceTest(type: Test) {
-    group = 'verification'
-    include '**/ConformanceTest.class'
-    inputs.files("${jspecifyHome}/samples")
-    inputs.files("tests/ConformanceTest-report.txt")
-    systemProperty("JSpecifyConformanceTest.sourceDirectory", "${jspecifyHome}/samples")
-    systemProperty("JSpecifyConformanceTest.report", "tests/ConformanceTest-report.txt")
+TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
+    return tasks.register(name, Test) {
+        include '**/ConformanceTest.class'
+        inputs.dir(testDirectory)
+        inputs.files(reportFile)
+        systemProperty("JSpecifyConformanceTest.sourceDirectory", testDirectory)
+        systemProperty("JSpecifyConformanceTest.report", reportFile)
+    }
 }
+
+conformanceTest('conformanceTest', "${jspecifyHome}/conformance", 'tests/ConformanceTest-report.txt')
+
+conformanceTest('conformanceTestOnSamples', "${jspecifyHome}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
