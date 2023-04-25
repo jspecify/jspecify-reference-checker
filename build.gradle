@@ -62,15 +62,15 @@ tasks.withType(JavaCompile).all {
     options.compilerArgs.addAll(
             [
                 "api",
-             "code",
-             "comp",
-             "file",
-             "main",
-             "model",
-             "parser",
-             "processing",
-             "resources",
-             "tree",
+                "code",
+                "comp",
+                "file",
+                "main",
+                "model",
+                "parser",
+                "processing",
+                "resources",
+                "tree",
                 "util",
             ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
 }
@@ -84,10 +84,10 @@ tasks.withType(Test) {
     jvmArgs(
             [
                 "code",
-             "comp",
-             "main",
-             "processing",
-             "tree",
+                "comp",
+                "main",
+                "processing",
+                "tree",
                 "util"
             ]
             .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
