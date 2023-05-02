@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: update-conformance-test-reports
+          fetch-depth: 0
       - name: Merge latest changes
         run: git rebase main
       - name: Run conformance tests
