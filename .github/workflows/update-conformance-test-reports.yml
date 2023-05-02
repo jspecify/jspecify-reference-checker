@@ -20,7 +20,7 @@ jobs:
         with:
           ref: update-conformance-test-reports
       - name: Merge latest changes
-        run: git pull main --rebase
+        run: git rebase main
       - name: Run conformance tests
         uses: gradle/gradle-build-action@v2
         with:
