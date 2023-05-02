@@ -1,50 +1,35 @@
 name: Update conformance test reports
 
 on:
-  repository_dispatch:
-    types: [update-conformance-test-reports]
 
 jobs:
   update:
     name: Update conformance test reports
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the code
+        uses: actions/checkout@v3
+        with:
+          path: reference-checker
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
-      - name: Check out the code
-        uses: actions/checkout@v3
       - name: Run Conformance Tests
         uses: gradle/gradle-build-action@v2
         with:
           arguments: conformanceTest conformanceTestOnSamples
         env:
           JSPECIFY_CONFORMANCE_TEST_MODE: write
-      - name: Check Report Status
-        id: check-report-status
-        run: git status --porcelain tests/ConformanceTest*-report.txt | egrep -q '^M'
-      - name: Create or Update PR
-        if: steps.check-report-status.outcome == 'success'
+      - name: Maybe create PR
         run: |
-          branch=update-conformance-test-reports
-          pr=''
-          while read; do
-            if [[ "${REPLY}" =~ ^#([0-9]+) ]]; then
-              pr="${BASH_REMATCH[1]}"
-              break
-            fi
-          done < <(gh pr list --head "${branch}" --state open)
-          if [[ -n "${pr}" ]]; then
-            gh pr checkout "${pr}" --force
-          else
-            git checkout -B "${branch}"
-          fi
-          git commit -m "Update conformance test reports." tests/ConformanceTest*-report.txt
-          git push
-          if [[ -z "${pr}" ]]; then
+          if git status --porcelain tests/*-report.txt | egrep -q '^M'; then
+            git checkout -B update-conformance-test-reports
+            git commit -m "Update conformance test reports." tests/ConformanceTest*-report.txt
+            git push
             gh pr create --base main --title "Update conformance test reports."  --body ""
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
