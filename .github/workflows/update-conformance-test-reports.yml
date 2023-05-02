@@ -3,7 +3,6 @@ name: Update conformance test reports
 on:
   repository_dispatch:
     types: [update-conformance-test-reports]
-  workflow_dispatch: # for testing this workflow
 
 jobs:
   update:
@@ -17,27 +16,35 @@ jobs:
           java-version: 17
       - name: Check out the code
         uses: actions/checkout@v3
-        with:
-          ref: update-conformance-test-reports
-      - name: Merge latest changes
-        run: git pull main --rebase
-      - name: Run conformance tests
+      - name: Run Conformance Tests
         uses: gradle/gradle-build-action@v2
         with:
           arguments: conformanceTest conformanceTestOnSamples
         env:
           JSPECIFY_CONFORMANCE_TEST_MODE: write
-      - name: Did the report change?
+      - name: Check Report Status
         id: check-report-status
         run: git status --porcelain tests/ConformanceTest*-report.txt | egrep -q '^M'
       - name: Create or Update PR
         if: steps.check-report-status.outcome == 'success'
         run: |
+          branch=update-conformance-test-reports
+          pr=''
+          while read; do
+            if [[ "${REPLY}" =~ ^#([0-9]+) ]]; then
+              pr="${BASH_REMATCH[1]}"
+              break
+            fi
+          done < <(gh pr list --head "${branch}" --state open)
+          if [[ -n "${pr}" ]]; then
+            gh pr checkout "${pr}" --force
+          else
+            git checkout -B "${branch}"
+          fi
           git commit -m "Update conformance test reports." tests/ConformanceTest*-report.txt
           git push
-          if gh pr list --head "${branch}" --state open | egrep -q 'no pull requests'; then
+          if [[ -z "${pr}" ]]; then
             gh pr create --base main --title "Update conformance test reports."  --body ""
           fi
-        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
