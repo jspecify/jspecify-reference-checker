@@ -149,7 +149,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     if (missing.getMessage().contains("jspecify_but_expect_error")
         || missing.getMessage().contains("jspecify_but_expect_warning")
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
-        || missing.getMessage().contains("jspecify_nullness_mismatch")) {
+        || missing.getMessage().contains("jspecify_nullness_mismatch")
+        || missing.getMessage().contains("test:cannot-convert")) {
       switch (unexpected.messageKey) {
         case "argument":
         case "assignment":
