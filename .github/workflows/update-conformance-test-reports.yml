@@ -1,0 +1,63 @@
+name: Update conformance test reports
+
+on:
+  repository_dispatch:
+    types: [update-conformance-test-reports]
+  workflow_dispatch: # for manual triggering
+
+permissions: write-all
+
+jobs:
+  update:
+    name: Update conformance test reports
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GIT_AUTHOR_NAME: update-conformance-test-reports[bot]
+      GIT_AUTHOR_EMAIL: update-conformance-test-reports[bot]@users.noreply.github.com
+      branch: update-conformance-test-reports
+    defaults:
+      run:
+        shell: bash --noprofile --norc -e -o pipefail -x {0}
+        working-directory: reference-checker
+    steps:
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Check out JSpecify
+        uses: actions/checkout@v3
+        with:
+          repository: jspecify/jspecify
+          ref: main
+          path: jspecify
+      - name: Check out the Reference Checker
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: reference-checker
+      - name: Create or update the Reference Checker ${{ env.branch }} branch
+        run: |
+          if git checkout "${branch}"; then
+            git merge -X theirs origin/main
+            git push
+          else
+            git checkout -b "${branch}"
+          fi
+      - name: Run the Reference Checker conformance tests
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: conformanceTest conformanceTestOnSamples
+          build-root-directory: reference-checker
+        env:
+          JSPECIFY_CONFORMANCE_TEST_MODE: write
+      - name: Create or update PR to update conformance test reports
+        run: |
+          if [[ -n $(git status --porcelain tests/ConformanceTest*-report.txt) ]]; then
+            git commit -m "Update conformance test reports." tests/ConformanceTest*-report.txt
+            git push
+            if [[ -z $(gh pr list --head "${branch}" --state open) ]]; then
+              gh pr create --base main --title "Update conformance test reports."  --body ""
+            fi
+          fi
