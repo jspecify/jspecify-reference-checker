@@ -3,7 +3,7 @@ name: Update conformance test reports
 on:
   repository_dispatch:
     types: [update-conformance-test-reports]
-  workflow_dispatch: # for manual triggering
+  workflow_dispatch: # for testing this workflow
 
 permissions: write-all
 
@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GIT_AUTHOR_NAME: update-conformance-test-reports[bot]
-      GIT_AUTHOR_EMAIL: update-conformance-test-reports[bot]@users.noreply.github.com
       branch: update-conformance-test-reports
     defaults:
       run:
@@ -39,11 +37,14 @@ jobs:
           path: reference-checker
       - name: Create or update the Reference Checker ${{ env.branch }} branch
         run: |
+          git config user.name 'update-conformance-test-reports[bot]'
+          git config user.email 'update-conformance-test-reports[bot]@users.noreply.github.com'
           if git checkout "${branch}"; then
             git merge -X theirs origin/main
             git push
           else
             git checkout -b "${branch}"
+            git config push.autoSetupRemote true
           fi
       - name: Run the Reference Checker conformance tests
         uses: gradle/gradle-build-action@v2
