@@ -1796,7 +1796,7 @@ final class NullSpecAnnotatedTypeFactory
      *
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
      * type.invalid.conflicting.annos error, which I have described more in
-     * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
+     * https://github.com/jspecify/jspecify-reference-checker/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
   }
 
