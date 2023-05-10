@@ -424,7 +424,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
    * visitTypeParameter and visitAnnotatedType because we want to operate on source trees, rather
    * than on derived types. For more details, see the bullet points below, plus the additional notes
    * in the commit message of
-   * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/611717437c3c8b967de6d21615223975dd97b60a
+   * https://github.com/jspecify/jspecify-reference-checker/commit/611717437c3c8b967de6d21615223975dd97b60a
    *
    * - If we instead want to look for annotations on a type parameter or wildcard based on the
    * derived types, we need to ask CF questions like "What is the lower/upper bound?" since that is
