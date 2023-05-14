@@ -830,7 +830,7 @@ final class NullSpecAnnotatedTypeFactory
          * our non-null-aware setup sets defaults for more locations than just these, it sets those
          * locations' defaults to minusNull -- matching the value that we want here.)
          */
-      } else if (initialDefaultsAreEmpty) {
+      } else if (hasNullUnmarked(elt) || initialDefaultsAreEmpty) {
         /*
          * We need to set defaults appropriate to non-null-aware code. In a normal checker, we would
          * expect for such "default defaults" to be set in addCheckedStandardDefaults. But we do
@@ -839,6 +839,14 @@ final class NullSpecAnnotatedTypeFactory
 
         // Here's the big default, the "default default":
         addElementDefault(elt, nullnessOperatorUnspecified, OTHERWISE);
+        /*
+         * OTHERWISE covers anything that does not have a more specific default inherited from an
+         * enclosing element (or, of course, a more specific default that we set below in this
+         * method). If this is a @NullUnmarked element, then it might have a had a @NullMarked
+         * enclosing element, which would have set a default for UNBOUNDED_WILDCARD_UPPER_BOUND. So
+         * we make sure to override that here.
+         */
+        addElementDefault(elt, nullnessOperatorUnspecified, UNBOUNDED_WILDCARD_UPPER_BOUND);
 
         // Some locations are intrinsically non-nullable:
         addElementDefault(elt, minusNull, CONSTRUCTOR_RESULT);
@@ -1788,7 +1796,7 @@ final class NullSpecAnnotatedTypeFactory
      *
      * Additionally, when I was letting CF write computed annotations into bytecode, I ran into an
      * type.invalid.conflicting.annos error, which I have described more in
-     * https://github.com/jspecify/nullness-checker-for-checker-framework/commit/d16a0231487e239bc94145177de464b5f77c8b19
+     * https://github.com/jspecify/jspecify-reference-checker/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
   }
 
@@ -1836,6 +1844,14 @@ final class NullSpecAnnotatedTypeFactory
          * might not arise at all in the generated code where ProtoNonnullApi is used.
          */
         || hasAnnotationInCode(elt, "ProtoNonnullApi");
+  }
+
+  private boolean hasNullUnmarked(Element elt) {
+    return getDeclAnnotations(elt).stream()
+        .anyMatch(
+            am ->
+                areSameByName(am, "org.jspecify.annotations.NullUnmarked")
+                    || areSameByName(am, "org.jspecify.nullness.NullUnmarked"));
   }
 
   /**

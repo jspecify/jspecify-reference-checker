@@ -49,13 +49,13 @@ root_dir=/absolute/pathname/for/fresh/new/directory
 
 Now get the code for this project. 
 
-**Warning:** If you clone this project under a different name, watch out, as the later steps assume it to be named exactly `nullness-checker-for-checker-framework`.
+**Warning:** If you clone this project under a different name, watch out, as the later steps assume it to be named exactly `jspecify-reference-checker`.
 
 ```sh
 mkdir $root_dir
 cd $root_dir
-git clone https://github.com/jspecify/nullness-checker-for-checker-framework
-cd nullness-checker-for-checker-framework
+git clone https://github.com/jspecify/jspecify-reference-checker
+cd jspecify-reference-checker
 ```
 
 Now build it, which will retrieve a lot of other code too, and will take 10-15 minutes:
@@ -67,7 +67,7 @@ Now build it, which will retrieve a lot of other code too, and will take 10-15 m
 Now try the sample file:
 
 ```sh
-cd $root_dir/nullness-checker-for-checker-framework
+cd $root_dir/jspecify-reference-checker
 ./demo SimpleSample.java
 ```
 
@@ -89,7 +89,7 @@ Note that the `demo` script is not complicated, and illustrates how you can enab
 To perform a minimal test, run:
 
 ```sh
-cd $root_dir/nullness-checker-for-checker-framework
+cd $root_dir/jspecify-reference-checker
 ./gradlew test
 ```
 
@@ -97,7 +97,7 @@ To run the (incomplete) conformance test suite, check out the `main` branch of `
 
 ```sh
 git -C $root_dir/jspecify checkout main
-cd $root_dir/nullness-checker-for-checker-framework
+cd $root_dir/jspecify-reference-checker
 ./gradlew conformanceTest
 ```
 
@@ -105,7 +105,7 @@ To run the (legacy) "samples" test suite, check out the `samples-google-prototyp
 
 ```sh
 git -C $root_dir/jspecify checkout samples-google-prototype
-cd $root_dir/nullness-checker-for-checker-framework
+cd $root_dir/jspecify-reference-checker
 ./gradlew jspecifySamplesTest
 ```
 

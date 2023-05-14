@@ -4,7 +4,7 @@
 # To integrate the checker into a more complex build, reading the below should give you what you need to know.
 
 dir=$(dirname $0)
-ourclasspath="$dir/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:$dir/build/libs/nullness-checker-for-checker-framework.jar"
+ourclasspath="$dir/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:$dir/build/libs/jspecify-reference-checker.jar"
 
 export CLASSPATH="$ourclasspath:$CLASSPATH"
 
@@ -12,4 +12,6 @@ $dir/../checker-framework/checker/bin/javac \
   -processorpath "$ourclasspath" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
   -AcheckImpl \
+  -AassumePure \
+  -AsuppressWarnings=contracts.conditional.postcondition.false.methodref,contracts.conditional.postcondition.false.override,contracts.conditional.postcondition.true.methodref,contracts.conditional.postcondition.true.override,purity.methodref,purity.overriding,type.anno.before.decl.anno,type.anno.before.modifier \
   "$@"

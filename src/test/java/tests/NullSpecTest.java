@@ -101,8 +101,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     for (ListIterator<TestDiagnostic> i = unexpected.listIterator(); i.hasNext(); ) {
       TestDiagnostic diagnostic = i.next();
-      // TODO: should this use .getMessage() or .toString()?
-      DetailMessage detailMessage = DetailMessage.parse(diagnostic.toString());
+      DetailMessage detailMessage = DetailMessage.parse(diagnostic.getMessage(), null);
       if (detailMessage != null) {
         // Replace diagnostics that can be parsed with DetailMessage diagnostics.
         i.set(detailMessage);
@@ -150,7 +149,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     if (missing.getMessage().contains("jspecify_but_expect_error")
         || missing.getMessage().contains("jspecify_but_expect_warning")
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
-        || missing.getMessage().contains("jspecify_nullness_mismatch")) {
+        || missing.getMessage().contains("jspecify_nullness_mismatch")
+        || missing.getMessage().contains("test:cannot-convert")) {
       switch (unexpected.messageKey) {
         case "argument.type.incompatible":
         case "assignment.type.incompatible":
