@@ -101,8 +101,11 @@ public abstract class AbstractConformanceTest {
   private ConformanceTestReport runTests() throws IOException {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
-          .filter(p -> p.toFile().isDirectory())
-          .map(AbstractConformanceTest::javaFilesInDirectory)
+          .filter(path -> path.toFile().isDirectory())
+          // Compile each file in the top-level directory by itself.
+          .flatMap(
+              directory ->
+                  javaFilesInDirectory(directory, directory.equals(testDirectory)).stream())
           .filter(files -> !files.isEmpty())
           .flatMap(this::analyzeFiles)
           .collect(collectingAndThen(toImmutableSet(), ConformanceTestReport::new));
@@ -190,9 +193,13 @@ public abstract class AbstractConformanceTest {
 
   private static final Pattern EXPECTATION_COMMENT = Pattern.compile("\\s*// (?<expectation>.*)");
 
-  private static ImmutableList<Path> javaFilesInDirectory(Path directory) {
+  private static ImmutableList<ImmutableList<Path>> javaFilesInDirectory(
+      Path directory, boolean asIndividualFiles) {
     try (Stream<Path> files = Files.list(directory)) {
-      return files.filter(f -> f.toString().endsWith(".java")).collect(toImmutableList());
+      Stream<Path> javaFiles = files.filter(f -> f.toString().endsWith(".java"));
+      return asIndividualFiles
+          ? javaFiles.map(ImmutableList::of).collect(toImmutableList())
+          : ImmutableList.of(javaFiles.collect(toImmutableList()));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
