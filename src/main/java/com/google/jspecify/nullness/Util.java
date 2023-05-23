@@ -59,7 +59,7 @@ final class Util {
   final TypeMirror javaUtilConcurrentExecutionException;
   final TypeMirror uncheckedExecutionException;
   final TypeElement javaLangClassElement;
-  final ExecutableElement classGetEnumConstantsElement;
+  final Optional<ExecutableElement> classGetEnumConstantsElement;
   final TypeMirror javaLangClassOfExtendsEnum;
   final Optional<ExecutableElement> classIsAnonymousClassElement;
   final Optional<ExecutableElement> classIsMemberClassElement;
@@ -153,7 +153,7 @@ final class Util {
             : uncheckedExecutionExceptionElement.asType();
     javaLangClassElement = e.getTypeElement("java.lang.Class");
     classGetEnumConstantsElement =
-        onlyNoArgExecutableWithName(javaLangClassElement, "getEnumConstants");
+        optionalOnlyExecutableWithName(javaLangClassElement, "getEnumConstants");
     classIsAnonymousClassElement =
         optionalOnlyExecutableWithName(javaLangClassElement, "isAnonymousClass");
     classIsMemberClassElement =
