@@ -2,6 +2,7 @@ package tests.conformance;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Lists.partition;
 import static com.google.common.collect.Multimaps.toMultimap;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.readAllLines;
@@ -102,19 +103,16 @@ public abstract class AbstractConformanceTest {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
           .filter(path -> path.toFile().isDirectory())
-          // Compile each file in the top-level directory by itself.
-          .flatMap(
-              directory ->
-                  javaFilesInDirectory(directory, directory.equals(testDirectory)).stream())
-          .filter(files -> !files.isEmpty())
+          .flatMap(this::javaFileGroups)
           .flatMap(this::analyzeFiles)
           .collect(collectingAndThen(toImmutableSet(), ConformanceTestReport::new));
     }
   }
 
-  private Stream<ConformanceTestResult> analyzeFiles(ImmutableList<Path> files) {
+  private Stream<ConformanceTestResult> analyzeFiles(List<Path> files) {
     ImmutableMap<Path, ListMultimap<Long, ReportedFact>> reportedFactsByFile =
-        Streams.stream(analyze(files)).collect(ReportedFact.BY_FILE_AND_LINE_NUMBER);
+        Streams.stream(analyze(ImmutableList.copyOf(files)))
+            .collect(ReportedFact.BY_FILE_AND_LINE_NUMBER);
     return files.stream().flatMap(file -> testResultsForFile(file, reportedFactsByFile).stream());
   }
 
@@ -193,13 +191,23 @@ public abstract class AbstractConformanceTest {
 
   private static final Pattern EXPECTATION_COMMENT = Pattern.compile("\\s*// (?<expectation>.*)");
 
-  private static ImmutableList<ImmutableList<Path>> javaFilesInDirectory(
-      Path directory, boolean asIndividualFiles) {
+  private Stream<List<Path>> javaFileGroups(Path directory) {
+    ImmutableList<Path> files = javaFilesInDirectory(directory);
+    if (files.isEmpty()) {
+      return Stream.empty();
+    }
+    if (directory.equals(testDirectory)) {
+      // Each file in the top-level directory is in a group by itself.
+      return partition(files, 1).stream();
+    } else {
+      // Group files in other directories.
+      return Stream.of(files);
+    }
+  }
+
+  private static ImmutableList<Path> javaFilesInDirectory(Path directory) {
     try (Stream<Path> files = Files.list(directory)) {
-      Stream<Path> javaFiles = files.filter(f -> f.toString().endsWith(".java"));
-      return asIndividualFiles
-          ? javaFiles.map(ImmutableList::of).collect(toImmutableList())
-          : ImmutableList.of(javaFiles.collect(toImmutableList()));
+      return files.filter(f -> f.toString().endsWith(".java")).collect(toImmutableList());
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -311,7 +319,8 @@ public abstract class AbstractConformanceTest {
          * Returns the expected fact represented by some comment text, or {@code null} if the
          * comment doesn't represent an expected fact of this kind.
          */
-        @Nullable ExpectedFact parse(String commentText);
+        @Nullable
+        ExpectedFact parse(String commentText);
       }
 
       /** A kind of fact expected. */
@@ -322,7 +331,7 @@ public abstract class AbstractConformanceTest {
         CANNOT_CONVERT(CannotConvert::parse),
         ;
 
-        private ExpectedFact.Factory factory;
+        private final ExpectedFact.Factory factory;
 
         Kind(ExpectedFact.Factory factory) {
           this.factory = factory;
