@@ -319,8 +319,7 @@ public abstract class AbstractConformanceTest {
          * Returns the expected fact represented by some comment text, or {@code null} if the
          * comment doesn't represent an expected fact of this kind.
          */
-        @Nullable
-        ExpectedFact parse(String commentText);
+        @Nullable ExpectedFact parse(String commentText);
       }
 
       /** A kind of fact expected. */
