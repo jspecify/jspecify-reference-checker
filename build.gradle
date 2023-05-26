@@ -133,6 +133,29 @@ clean.doFirst {
     delete "${rootDir}/tests/build/"
 }
 
+/*
+ Spotless validates its formatters' dependencies eagerly, on project configuration.
+ google-java-format depends on checker-qual, which is built by a subproject.
+ On a clean build, the checker-qual JAR file doesn't exist yet, so Spotless throws an error
+ The file doesn't have to be correct; it just has to be a JAR file.
+ So here, before the spotless block,  we create a meaningless JAR file at that location if it doesn't already exist.
+ See https://github.com/jspecify/jspecify-reference-checker/issues/81
+ */
+
+def cfQualJar = file("${cfHome}/checker-qual/build/libs/checker-qual-${cfVersion}.jar")
+
+if (!cfQualJar.exists()) {
+    mkdir(cfQualJar.parent)
+    exec {
+        executable 'jar'
+        args = [
+            'cf',
+            cfQualJar.path,
+            buildFile.path // Use this build script file!
+        ]
+    }
+}
+
 spotless {
     java {
         googleJavaFormat()
