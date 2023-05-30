@@ -157,12 +157,12 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         case "atomicreference.must.include.null":
         case "cast.unsafe":
         case "dereference":
-        case "lambda.param":
-        case "methodref.receiver.bound":
-        case "methodref.receiver":
-        case "methodref.return":
-        case "override.param.type.incompatible":
-        case "override.return.type.incompatible":
+        case "lambda.param.type.incompatible":
+        case "methodref.receiver.bound.invalid":
+        case "methodref.receiver.invalid":
+        case "methodref.return.invalid":
+        case "override.param.invalid":
+        case "override.return.invalid":
         case "return.type.incompatible":
         case "threadlocal.must.include.null":
         case "type.argument.type.incompatible":
@@ -192,7 +192,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
              * custom `*.annotated` error. This test probably doesn't confirm that second thing
              * anymore, but I did manually confirm that it is true as of this writing.
              */
-          case "bound":
+          case "bound.type.incompatible":
           case "local.variable.annotated":
           case "type.parameter.annotated":
           case "wildcard.annotated":
