@@ -1227,7 +1227,8 @@ final class NullSpecAnnotatedTypeFactory
     }
 
     private boolean isGetEnumConstantsOnEnumClass(MethodInvocationTree tree) {
-      if (elementFromUse(tree) != util.classGetEnumConstantsElement) {
+      if (util.classGetEnumConstantsElement.isEmpty()
+          || elementFromUse(tree) != util.classGetEnumConstantsElement.get()) {
         return false;
       }
       if (tree.getMethodSelect().getKind() != MEMBER_SELECT) {
