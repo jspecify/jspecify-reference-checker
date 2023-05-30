@@ -1,4 +1,4 @@
-# 28 pass; 545 fail; 573 total; 4.9% score
+# 75 pass; 498 fail; 573 total; 13.1% score
 FAIL: AnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: AnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: AnnotatedReceiver.java: no unexpected facts
@@ -11,18 +11,18 @@ FAIL: ArraySameType.java:49 jspecify_nullness_mismatch
 FAIL: ArraySameType.java: no unexpected facts
 FAIL: ArraySubtype.java:44 jspecify_nullness_mismatch
 FAIL: ArraySubtype.java: no unexpected facts
-FAIL: AssignmentAsExpression.java: no unexpected facts
-FAIL: AugmentedInferenceAgreesWithBaseInference.java:35 jspecify_nullness_mismatch
-FAIL: AugmentedInferenceAgreesWithBaseInference.java: no unexpected facts
-FAIL: BoundedTypeVariableReturn.java:27 jspecify_nullness_mismatch
-FAIL: BoundedTypeVariableReturn.java:32 jspecify_nullness_mismatch
-FAIL: BoundedTypeVariableReturn.java: no unexpected facts
+PASS: AssignmentAsExpression.java: no unexpected facts
+PASS: AugmentedInferenceAgreesWithBaseInference.java:35 jspecify_nullness_mismatch
+PASS: AugmentedInferenceAgreesWithBaseInference.java: no unexpected facts
+PASS: BoundedTypeVariableReturn.java:27 jspecify_nullness_mismatch
+PASS: BoundedTypeVariableReturn.java:32 jspecify_nullness_mismatch
+PASS: BoundedTypeVariableReturn.java: no unexpected facts
 FAIL: CaptureAsInferredTypeArgument.java:51 jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:53 jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:61 jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:63 jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java: no unexpected facts
-FAIL: CaptureConversionForSubtyping.java: no unexpected facts
+PASS: CaptureConversionForSubtyping.java: no unexpected facts
 FAIL: CaptureConvertedToObject.java:71 jspecify_nullness_mismatch
 FAIL: CaptureConvertedToObject.java: no unexpected facts
 FAIL: CaptureConvertedToObjectUnionNull.java: no unexpected facts
@@ -69,15 +69,15 @@ FAIL: CaptureConvertedUnspecToOther.java:79 jspecify_nullness_mismatch
 FAIL: CaptureConvertedUnspecToOther.java: no unexpected facts
 FAIL: CaptureConvertedUnspecToOtherUnionNull.java: no unexpected facts
 FAIL: CaptureConvertedUnspecToOtherUnspec.java: no unexpected facts
-FAIL: CastOfCaptureOfNotNullMarkedUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
+PASS: CastOfCaptureOfNotNullMarkedUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
 FAIL: CastOfCaptureOfUnboundedWildcardForNotNullMarkedObjectBoundedTypeParameter.java: no unexpected facts
-FAIL: CastOfCaptureOfUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
+PASS: CastOfCaptureOfUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
 FAIL: CastToPrimitive.java:33 jspecify_nullness_mismatch
 FAIL: CastToPrimitive.java: no unexpected facts
-FAIL: CastWildcardToTypeVariable.java:23 jspecify_nullness_mismatch
-FAIL: CastWildcardToTypeVariable.java: no unexpected facts
-FAIL: Catch.java: no unexpected facts
-FAIL: ClassLiteral.java: no unexpected facts
+PASS: CastWildcardToTypeVariable.java:23 jspecify_nullness_mismatch
+PASS: CastWildcardToTypeVariable.java: no unexpected facts
+PASS: Catch.java: no unexpected facts
+PASS: ClassLiteral.java: no unexpected facts
 FAIL: ClassToObject.java:33 jspecify_nullness_mismatch
 FAIL: ClassToObject.java: no unexpected facts
 FAIL: ClassToSelf.java:33 jspecify_nullness_mismatch
@@ -106,27 +106,27 @@ FAIL: ComplexParametric.java:263 jspecify_nullness_mismatch
 FAIL: ComplexParametric.java: no unexpected facts
 FAIL: ConcatResult.java: no unexpected facts
 FAIL: ConflictingAnnotations.java: no unexpected facts
-FAIL: Constants.java: no unexpected facts
+PASS: Constants.java: no unexpected facts
 FAIL: ContainmentExtends.java:29 jspecify_nullness_mismatch
 FAIL: ContainmentExtends.java: no unexpected facts
-FAIL: ContainmentExtendsBounded.java: no unexpected facts
+PASS: ContainmentExtendsBounded.java: no unexpected facts
 FAIL: ContainmentSuper.java:38 jspecify_nullness_mismatch
 FAIL: ContainmentSuper.java: no unexpected facts
 FAIL: ContainmentSuperVsExtends.java:24 jspecify_nullness_mismatch
 FAIL: ContainmentSuperVsExtends.java: no unexpected facts
 FAIL: ContainmentSuperVsExtendsSameType.java:23 jspecify_nullness_mismatch
-FAIL: ContainmentSuperVsExtendsSameType.java: no unexpected facts
-FAIL: ContravariantReturns.java:30 jspecify_nullness_mismatch
-FAIL: ContravariantReturns.java:34 jspecify_nullness_mismatch
-FAIL: ContravariantReturns.java:38 jspecify_nullness_mismatch
-FAIL: ContravariantReturns.java: no unexpected facts
-FAIL: CovariantReturns.java: no unexpected facts
+PASS: ContainmentSuperVsExtendsSameType.java: no unexpected facts
+PASS: ContravariantReturns.java:30 jspecify_nullness_mismatch
+PASS: ContravariantReturns.java:34 jspecify_nullness_mismatch
+PASS: ContravariantReturns.java:38 jspecify_nullness_mismatch
+PASS: ContravariantReturns.java: no unexpected facts
+PASS: CovariantReturns.java: no unexpected facts
 FAIL: DereferenceClass.java:33 jspecify_nullness_mismatch
 FAIL: DereferenceClass.java: no unexpected facts
 FAIL: DereferenceIntersection.java:82 jspecify_nullness_mismatch
 FAIL: DereferenceIntersection.java: no unexpected facts
-FAIL: DereferenceTernary.java:23 jspecify_nullness_mismatch
-FAIL: DereferenceTernary.java: no unexpected facts
+PASS: DereferenceTernary.java:23 jspecify_nullness_mismatch
+PASS: DereferenceTernary.java: no unexpected facts
 FAIL: DereferenceTypeVariable.java:61 jspecify_nullness_mismatch
 FAIL: DereferenceTypeVariable.java:83 jspecify_nullness_mismatch
 FAIL: DereferenceTypeVariable.java:107 jspecify_nullness_mismatch
@@ -146,7 +146,7 @@ FAIL: ExtendsVsExtendsNullable.java:42 jspecify_nullness_mismatch
 FAIL: ExtendsVsExtendsNullable.java: no unexpected facts
 FAIL: IfCondition.java:45 jspecify_nullness_mismatch
 FAIL: IfCondition.java: no unexpected facts
-FAIL: InferenceChoosesNullableTypeVariable.java: no unexpected facts
+PASS: InferenceChoosesNullableTypeVariable.java: no unexpected facts
 FAIL: InstanceOfCheck.java:44 jspecify_nullness_mismatch
 FAIL: InstanceOfCheck.java: no unexpected facts
 FAIL: IntersectionSupertype.java:74 jspecify_nullness_mismatch
@@ -218,11 +218,11 @@ FAIL: MultiBoundTypeVariableUnspecToSelfUnspec.java: no unexpected facts
 FAIL: MultiplePathsToTypeVariable.java:71 jspecify_nullness_mismatch
 FAIL: MultiplePathsToTypeVariable.java: no unexpected facts
 FAIL: NoPathToTypeVariableMinusNull.java: no unexpected facts
-FAIL: NonConstantPrimitives.java: no unexpected facts
-FAIL: NonNullProjection.java:24 jspecify_nullness_mismatch
-FAIL: NonNullProjection.java: no unexpected facts
-FAIL: NonNullSimple.java:22 jspecify_nullness_mismatch
-FAIL: NonNullSimple.java: no unexpected facts
+PASS: NonConstantPrimitives.java: no unexpected facts
+PASS: NonNullProjection.java:24 jspecify_nullness_mismatch
+PASS: NonNullProjection.java: no unexpected facts
+PASS: NonNullSimple.java:22 jspecify_nullness_mismatch
+PASS: NonNullSimple.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: NotNullMarkedAnnotatedTypeParameter.java: no unexpected facts
@@ -236,7 +236,7 @@ FAIL: NotNullMarkedContainmentSuper.java: no unexpected facts
 FAIL: NotNullMarkedContainmentSuperVsExtends.java: no unexpected facts
 FAIL: NotNullMarkedIfCondition.java:44 jspecify_nullness_mismatch
 FAIL: NotNullMarkedIfCondition.java: no unexpected facts
-FAIL: NotNullMarkedInferenceChoosesNullableTypeVariable.java: no unexpected facts
+PASS: NotNullMarkedInferenceChoosesNullableTypeVariable.java: no unexpected facts
 FAIL: NotNullMarkedLocalVariable.java:44 jspecify_nullness_mismatch
 FAIL: NotNullMarkedLocalVariable.java: no unexpected facts
 FAIL: NotNullMarkedOverrides.java: no unexpected facts
@@ -304,19 +304,19 @@ FAIL: NullLiteralToTypeVariableUnspec.java: no unexpected facts
 FAIL: NullMarkedDirectUseOfNotNullMarkedBoundedTypeVariable.java: no unexpected facts
 FAIL: NullUnmarkedUndoesNullMarked.java: no unexpected facts
 FAIL: NullUnmarkedUndoesNullMarkedForWildcards.java: no unexpected facts
-FAIL: NullnessDoesNotAffectOverloadSelection.java:23 jspecify_nullness_mismatch
-FAIL: NullnessDoesNotAffectOverloadSelection.java: no unexpected facts
-FAIL: ObjectAsSuperOfTypeVariable.java:35 jspecify_nullness_mismatch
-FAIL: ObjectAsSuperOfTypeVariable.java: no unexpected facts
-FAIL: OutOfBoundsTypeVariable.java:23 jspecify_nullness_mismatch
-FAIL: OutOfBoundsTypeVariable.java: no unexpected facts
+PASS: NullnessDoesNotAffectOverloadSelection.java:23 jspecify_nullness_mismatch
+PASS: NullnessDoesNotAffectOverloadSelection.java: no unexpected facts
+PASS: ObjectAsSuperOfTypeVariable.java:35 jspecify_nullness_mismatch
+PASS: ObjectAsSuperOfTypeVariable.java: no unexpected facts
+PASS: OutOfBoundsTypeVariable.java:23 jspecify_nullness_mismatch
+PASS: OutOfBoundsTypeVariable.java: no unexpected facts
 FAIL: OverrideParameters.java:48 jspecify_nullness_mismatch
 FAIL: OverrideParameters.java:68 jspecify_nullness_mismatch
 FAIL: OverrideParameters.java: no unexpected facts
-FAIL: OverrideParametersThatAreTypeVariables.java: no unexpected facts
+PASS: OverrideParametersThatAreTypeVariables.java: no unexpected facts
 FAIL: OverrideReturns.java:57 jspecify_nullness_mismatch
 FAIL: OverrideReturns.java: no unexpected facts
-FAIL: ParameterizedWithTypeVariableArgumentToSelf.java: no unexpected facts
+PASS: ParameterizedWithTypeVariableArgumentToSelf.java: no unexpected facts
 FAIL: PrimitiveAnnotations.java: no unexpected facts
 FAIL: PrimitiveAnnotationsUnspec.java: no unexpected facts
 FAIL: SameTypeObject.java:33 jspecify_nullness_mismatch
@@ -325,8 +325,8 @@ FAIL: SameTypeObject.java: no unexpected facts
 FAIL: SameTypeTypeVariable.java:33 jspecify_nullness_mismatch
 FAIL: SameTypeTypeVariable.java:53 jspecify_nullness_mismatch
 FAIL: SameTypeTypeVariable.java: no unexpected facts
-FAIL: SuperNullableForNonNullableTypeParameter.java:29 jspecify_nullness_mismatch
-FAIL: SuperNullableForNonNullableTypeParameter.java: no unexpected facts
+PASS: SuperNullableForNonNullableTypeParameter.java:29 jspecify_nullness_mismatch
+PASS: SuperNullableForNonNullableTypeParameter.java: no unexpected facts
 FAIL: SuperObject.java:33 jspecify_nullness_mismatch
 FAIL: SuperObject.java: no unexpected facts
 FAIL: SuperObjectUnionNull.java: no unexpected facts
@@ -357,10 +357,10 @@ FAIL: TypeArgumentOfTypeVariableBound.java: no unexpected facts
 FAIL: TypeArgumentOfWildcardBound.java:37 jspecify_nullness_mismatch
 FAIL: TypeArgumentOfWildcardBound.java:58 jspecify_nullness_mismatch
 FAIL: TypeArgumentOfWildcardBound.java: no unexpected facts
-FAIL: TypeVariableMinusNullVsTypeVariable.java:30 jspecify_nullness_mismatch
+PASS: TypeVariableMinusNullVsTypeVariable.java:30 jspecify_nullness_mismatch
 FAIL: TypeVariableMinusNullVsTypeVariable.java:32 jspecify_nullness_mismatch
-FAIL: TypeVariableMinusNullVsTypeVariable.java:52 jspecify_nullness_mismatch
-FAIL: TypeVariableMinusNullVsTypeVariable.java: no unexpected facts
+PASS: TypeVariableMinusNullVsTypeVariable.java:52 jspecify_nullness_mismatch
+PASS: TypeVariableMinusNullVsTypeVariable.java: no unexpected facts
 FAIL: TypeVariableToObject.java:58 jspecify_nullness_mismatch
 FAIL: TypeVariableToObject.java:76 jspecify_nullness_mismatch
 FAIL: TypeVariableToObject.java:96 jspecify_nullness_mismatch
@@ -467,12 +467,12 @@ FAIL: UnionTypeArgumentWithUseSite.java:97 jspecify_nullness_mismatch
 FAIL: UnionTypeArgumentWithUseSite.java:101 jspecify_nullness_mismatch
 FAIL: UnionTypeArgumentWithUseSite.java: no unexpected facts
 FAIL: UnrecognizedLocationsMisc.java: no unexpected facts
-FAIL: UnspecifiedClassTypeArgumentForNonNullableParameter.java:28 jspecify_nullness_mismatch
+PASS: UnspecifiedClassTypeArgumentForNonNullableParameter.java:28 jspecify_nullness_mismatch
 FAIL: UnspecifiedClassTypeArgumentForNonNullableParameter.java: no unexpected facts
 FAIL: UnspecifiedTypeArgumentForNonNullableParameter.java: no unexpected facts
 FAIL: UnspecifiedTypeArgumentForNonNullableParameterRepeatedSubstitution.java: no unexpected facts
 FAIL: UnspecifiedTypeArgumentForNonNullableParameterUseUnspec.java: no unexpected facts
-FAIL: UnspecifiedTypeVariableTypeArgumentForNonNullableParameter.java:28 jspecify_nullness_mismatch
+PASS: UnspecifiedTypeVariableTypeArgumentForNonNullableParameter.java:28 jspecify_nullness_mismatch
 FAIL: UnspecifiedTypeVariableTypeArgumentForNonNullableParameter.java: no unexpected facts
 FAIL: UseOfTypeVariableAsTypeArgument.java:46 jspecify_nullness_mismatch
 FAIL: UseOfTypeVariableAsTypeArgument.java:60 jspecify_nullness_mismatch
@@ -497,8 +497,8 @@ FAIL: UseOfTypeVariableUnspecAsTypeArgument.java:82 jspecify_nullness_mismatch
 FAIL: UseOfTypeVariableUnspecAsTypeArgument.java: no unexpected facts
 FAIL: WildcardBoundWithAnnotations.java:44 jspecify_nullness_mismatch
 FAIL: WildcardBoundWithAnnotations.java: no unexpected facts
-FAIL: WildcardCapturesToBoundOfTypeParameterNotToTypeVariableItself.java:26 jspecify_nullness_mismatch
-FAIL: WildcardCapturesToBoundOfTypeParameterNotToTypeVariableItself.java: no unexpected facts
+PASS: WildcardCapturesToBoundOfTypeParameterNotToTypeVariableItself.java:26 jspecify_nullness_mismatch
+PASS: WildcardCapturesToBoundOfTypeParameterNotToTypeVariableItself.java: no unexpected facts
 FAIL: annotatedBoundsOfWildcard/annotatedboundsofwildcard/AnnotatedBoundsOfWildcard.java:76 jspecify_nullness_mismatch
 FAIL: annotatedBoundsOfWildcard/annotatedboundsofwildcard/AnnotatedBoundsOfWildcard.java:78 jspecify_nullness_mismatch
 FAIL: annotatedBoundsOfWildcard/annotatedboundsofwildcard/AnnotatedBoundsOfWildcard.java:89 jspecify_nullness_mismatch
