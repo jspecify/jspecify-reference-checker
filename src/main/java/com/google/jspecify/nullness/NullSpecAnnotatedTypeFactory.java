@@ -127,7 +127,7 @@ final class NullSpecAnnotatedTypeFactory
   final AnnotatedDeclaredType javaLangThreadLocal;
   final AnnotatedDeclaredType javaUtilMap;
 
-  private final TypeUseLocation[] defaultLocationsMinusNull =
+  private static final TypeUseLocation[] defaultLocationsMinusNull =
       new TypeUseLocation[] {
         TypeUseLocation.CONSTRUCTOR_RESULT,
         TypeUseLocation.EXCEPTION_PARAMETER,
@@ -135,12 +135,12 @@ final class NullSpecAnnotatedTypeFactory
         TypeUseLocation.RECEIVER,
       };
 
-  private final TypeUseLocation[] defaultLocationsUnionNull =
+  private static final TypeUseLocation[] defaultLocationsUnionNull =
       new TypeUseLocation[] {
         TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
       };
 
-  private final TypeUseLocation[] defaultLocationsUnspecified =
+  private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
         TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TypeUseLocation.OTHERWISE
       };
