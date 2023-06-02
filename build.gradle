@@ -52,6 +52,9 @@ dependencies {
     errorprone "com.google.errorprone:error_prone_core:2.18.0"
 }
 
+// Assemble checker-framework when assembling the reference checker.
+assemble.dependsOn(gradle.includedBuild("checker-framework").task(":assemble"))
+
 tasks.withType(JavaCompile).all {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
@@ -158,7 +161,7 @@ if (!cfQualJar.exists()) {
 
 spotless {
     java {
-        googleJavaFormat()
+//        googleJavaFormat()
         formatAnnotations()
     }
     groovyGradle {
