@@ -161,7 +161,7 @@ if (!cfQualJar.exists()) {
 
 spotless {
     java {
-//        googleJavaFormat()
+        googleJavaFormat()
         formatAnnotations()
     }
     groovyGradle {
