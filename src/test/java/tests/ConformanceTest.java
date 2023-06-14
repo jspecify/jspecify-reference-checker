@@ -40,6 +40,7 @@ import org.junit.runners.JUnit4;
 import tests.conformance.AbstractConformanceTest;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.CannotConvert;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
+import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.IrrelevantAnnotation;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
 @RunWith(JUnit4.class)
@@ -92,6 +93,25 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "threadlocal.must.include.null",
             "type.argument");
 
+    private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
+        ImmutableSet.of(
+            "argument",
+            "assignment",
+            "atomicreference.must.include.null",
+            "cast.unsafe",
+            "lambda.param",
+            "methodref.receiver.bound",
+            "methodref.receiver",
+            "methodref.return",
+            "override.param",
+            "override.return",
+            "return",
+            "threadlocal.must.include.null",
+            "type.argument");
+
+    private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
+        ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
+
     private final DetailMessage detailMessage;
 
     DetailMessageReportedFact(DetailMessage detailMessage) {
@@ -117,11 +137,14 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     @Override
     protected @Nullable ExpectedFact expectedFact() {
-      if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
+      if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
         return CannotConvert.create(sourceType, sinkType);
+      }
+      if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
+        return IrrelevantAnnotation.create("Nullable"); // TODO(dpb): Support other annotations.
       }
       return null;
     }
@@ -140,15 +163,21 @@ public final class ConformanceTest extends AbstractConformanceTest {
      *   <li>If there is no nullness sigil, use {@code !}. (TODO: What about parametric nullness?)
      * </ul>
      */
-    private static String fixType(String type) {
-      Matcher matcher = TYPE.matcher(type);
-      checkArgument(matcher.matches(), "did not match for \"%s\"", type);
-      String args = matcher.group("args");
-      String suffix = matcher.group("suffix");
-      if (args == null && suffix != null) {
-        return type;
+    private static String fixType(String input) {
+      Matcher capture = CAPTURE_TYPE.matcher(input);
+      if (capture.matches()) {
+        String bound = fixType(capture.group("bound"));
+        String suffix = requireNonNullElse(capture.group("suffix"), "!");
+        return String.format("{capture of ? extends %s}%s", bound, suffix);
       }
-      StringBuilder newType = new StringBuilder(matcher.group("raw"));
+      Matcher type = TYPE.matcher(input);
+      checkArgument(type.matches(), "did not match for \"%s\"", input);
+      String args = type.group("args");
+      String suffix = type.group("suffix");
+      if (args == null && suffix != null) {
+        return input;
+      }
+      StringBuilder newType = new StringBuilder(type.group("raw"));
       newType.append(requireNonNullElse(suffix, "!"));
       if (args != null) {
         newType.append(
@@ -162,6 +191,9 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     private static final Pattern TYPE =
         Pattern.compile("(?<raw>[^<,?!*]+)(?:<(?<args>.+)>)?(?<suffix>[?!*])?");
+
+    private static final Pattern CAPTURE_TYPE =
+        Pattern.compile("\\{capture#\\d+ of \\? extends (?<bound>.*)}(?<suffix>[?!*])?");
 
     private static final Splitter COMMA_SPLITTER = Splitter.on(",");
   }

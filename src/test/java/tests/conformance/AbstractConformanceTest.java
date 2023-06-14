@@ -326,8 +326,12 @@ public abstract class AbstractConformanceTest {
       public enum Kind implements ExpectedFact.Factory {
         /** An assertion that there is some nullness mismatch. */
         NULLNESS_MISMATCH(NullnessMismatch::parse),
+
         /** An assertion that a static type cannot be converted to an expected static type. */
         CANNOT_CONVERT(CannotConvert::parse),
+
+        /** An assertion that an annotation is irrelevant on this element. */
+        IRRELEVANT_ANNOTATION(IrrelevantAnnotation::parse),
         ;
 
         private final ExpectedFact.Factory factory;
@@ -432,6 +436,24 @@ public abstract class AbstractConformanceTest {
 
       CannotConvert(String commentText) {
         super(Kind.CANNOT_CONVERT, commentText);
+      }
+    }
+
+    public static final class IrrelevantAnnotation extends ExpectedFact {
+      private static final Pattern REGEX = Pattern.compile("test:irrelevant-annotation:(\\S+)");
+
+      public static @Nullable IrrelevantAnnotation parse(String commentText) {
+        Matcher matcher = REGEX.matcher(commentText);
+        return matcher.matches() ? new IrrelevantAnnotation(commentText) : null;
+      }
+
+      public static IrrelevantAnnotation create(String annotationType) {
+        return new IrrelevantAnnotation(
+            String.format("test:irrelevant-annotation:%s", annotationType));
+      }
+
+      IrrelevantAnnotation(String commentText) {
+        super(Kind.IRRELEVANT_ANNOTATION, commentText);
       }
     }
 
