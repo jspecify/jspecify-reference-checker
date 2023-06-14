@@ -933,51 +933,6 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-    super.addComputedTypeAnnotations(
-        tree,
-        type,
-        iUseFlow
-            /*
-             * TODO(cpovirk): Eliminate this workaround (which may cause problems of its own). But
-             * currently, it helps in some of our samples and in Guava, though I am unsure why. The
-             * problem it works around may well be caused by our failure to keep wildcards'
-             * annotations in sync with their bounds' annotations (whereas stock CF does).
-             *
-             * Note that the `type.getKind() != WILDCARD` check appears to be necessary before the
-             * CF implementation of capture conversion and unnecessary afterward, while the reverse
-             * is true of the `isCapturedTypeVariable` check.
-             */
-            && type.getKind() != WILDCARD
-            && !isCapturedTypeVariable(type.getUnderlyingType())
-            /*
-             * TODO(cpovirk): See if we can remove this workaround after merging the fix for
-             * https://github.com/typetools/checker-framework/issues/5042.
-             *
-             * The workaround becomes necessary after the CF implementation of capture conversion.
-             * Without it, we see dataflow decide that `b ? null : nullable` has a type of
-             * _non-null_, as in code like the following:
-             *
-             * https://github.com/google/guava/blob/156694066b5198740a820c6eef723fb86c054343/guava/src/com/google/common/base/Throwables.java#L470
-             *
-             * (But I haven't been able to reproduce this in a smaller test.)
-             *
-             * Fortunately, I think the workaround is harmless:
-             * TypeFromExpressionVisitor.visitConditionalExpression calls getAnnotatedType on both
-             * candidate expressions, and getAnnotatedType applies dataflow. So the ternary should
-             * end up with the dataflow-correct result by virtue of applying lub to those types.
-             *
-             * (I think the only exception would be if someone performed a null check _on an entire
-             * ternary_ and then expected _another appearance of that same ternary_ to be recognized
-             * as non-null. That seems implausible.)
-             *
-             * (Still, it would be good to look into what's going on here in case it's a sign of a
-             * deeper problem.)
-             */
-            && tree.getKind() != CONDITIONAL_EXPRESSION);
-  }
-
-  @Override
   protected TypeAnnotator createTypeAnnotator() {
     /*
      * Override to:
@@ -1475,63 +1430,6 @@ final class NullSpecAnnotatedTypeFactory
   @Override
   protected NullSpecAnalysis createFlowAnalysis() {
     return new NullSpecAnalysis(checker, this);
-  }
-
-  @Override
-  public void addDefaultAnnotations(AnnotatedTypeMirror type) {
-    super.addDefaultAnnotations(type);
-    /*
-     * TODO(cpovirk): Find a better solution than this.
-     *
-     * The problem I'm working around arises during AnnotatedTypes.leastUpperBound on a
-     * JSpecify-annotated variant of this code:
-     * https://github.com/google/guava/blob/39aa77fa0e8912d6bfb5cb9a0bc1ed5135747b6f/guava/src/com/google/common/collect/ImmutableMultiset.java#L205
-     *
-     * CF is unable to infer the right type for `LinkedHashMultiset.create(elements)`: It should
-     * infer `LinkedHashMultiset<? extends E>`, but instead, it infers `LinkedHashMultiset<? extends
-     * Object>`. As expected, it sets isUninferredTypeArgument. As *not* expected, it gets to
-     * AtmLubVisitor.lubTypeArgument with type2Wildcard.extendsBound.lowerBound (a null type)
-     * missing its annotation.
-     *
-     * The part of CF responsible for copying annotations, including those on the extends bound, is
-     * AsSuperVisitor.visitWildcard_Wildcard. Under stock CF, copyPrimaryAnnos(from, typevar) "also
-     * sets primary annotations _on the bounds_." Under our CF fork, this is not the case, and we
-     * end up with an unannotated lower bound on the type-variable usage E (which, again, is itself
-     * a bound of a wildcard).
-     *
-     * (Aside: I haven't looked into how the _upper_ bound of the type-variable usage gets an
-     * annotation set on it. Could it be happening "accidentally," and if so, might it be wrong
-     * sometimes?)
-     *
-     * The result of an unannotated lower bound is a crash in NullSpecQualifierHierarchy.isSubtype,
-     * which passes null to areSame.
-     *
-     * The workaround: If we see a type-variable usage whose lower bound is a null type that lacks
-     * an annotation, we annotate that bound as non-null. This workaround shouldn't break any
-     * working code, but it may or may not be universally the right solution to a missing
-     * annotation.
-     *
-     * I am trying to ignore other questions here, such as:
-     *
-     * - Would it make more sense to set the lower bound to match the upper bound, as stock CF does?
-     * I suspect not under our approach, but I haven't thought about it.
-     *
-     * - Does trying to pick correct annotations even matter in the context of an uninferred type
-     * argument? Does the very idea of "correct annotations" lose meaning in that context?
-     *
-     * - Should we fix this in AsSuperVisitor instead? Or would it fix itself if we set bounds on
-     * our type-variable usages and wildcards in the same way that stock CF does? (Following stock
-     * CF would likely save us from other problems, too.)
-     *
-     * - What's up with the _upper_ bound, as discussed in a parenthetical above?
-     */
-    if (type instanceof AnnotatedTypeVariable) {
-      AnnotatedTypeMirror lowerBound = ((AnnotatedTypeVariable) type).getLowerBound();
-      if (lowerBound instanceof AnnotatedNullType
-          && !lowerBound.isAnnotatedInHierarchy(unionNull)) {
-        lowerBound.addAnnotation(minusNull);
-      }
-    }
   }
 
   @Override
