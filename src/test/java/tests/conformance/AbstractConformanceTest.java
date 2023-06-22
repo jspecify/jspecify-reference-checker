@@ -358,7 +358,7 @@ public abstract class AbstractConformanceTest {
           return false;
         }
         ExpectedFact that = (ExpectedFact) obj;
-        return Objects.equals(this.commentText, that.commentText);
+        return this.commentText.equals(that.commentText);
       }
 
       @Override
