@@ -76,7 +76,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
   /** A {@link ReportedFact} parsed from a Checker Framework {@link DetailMessage}. */
   static final class DetailMessageReportedFact extends ReportedFact {
 
-    private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
+    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
         ImmutableSet.of(
             "argument",
             "assignment",
@@ -91,9 +91,6 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "return",
             "threadlocal.must.include.null",
             "type.argument");
-
-    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
-        ImmutableSet.<String>builder().addAll(CANNOT_CONVERT_KEYS).add("dereference").build();
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
         ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
@@ -120,7 +117,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     @Override
     protected @Nullable ExpectedFact expectedFact() {
-      if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
+      if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
@@ -146,21 +143,15 @@ public final class ConformanceTest extends AbstractConformanceTest {
      *   <li>If there is no nullness sigil, use {@code !}. (TODO: What about parametric nullness?)
      * </ul>
      */
-    private static String fixType(String input) {
-      Matcher capture = CAPTURE_TYPE.matcher(input);
-      if (capture.matches()) {
-        String bound = fixType(capture.group("bound"));
-        String suffix = requireNonNullElse(capture.group("suffix"), "!");
-        return String.format("{capture of ? extends %s}%s", bound, suffix);
-      }
-      Matcher type = TYPE.matcher(input);
-      checkArgument(type.matches(), "did not match for \"%s\"", input);
-      String args = type.group("args");
-      String suffix = type.group("suffix");
+    private static String fixType(String type) {
+      Matcher matcher = TYPE.matcher(type);
+      checkArgument(matcher.matches(), "did not match for \"%s\"", type);
+      String args = matcher.group("args");
+      String suffix = matcher.group("suffix");
       if (args == null && suffix != null) {
-        return input;
+        return type;
       }
-      StringBuilder newType = new StringBuilder(type.group("raw"));
+      StringBuilder newType = new StringBuilder(matcher.group("raw"));
       newType.append(requireNonNullElse(suffix, "!"));
       if (args != null) {
         newType.append(
@@ -174,9 +165,6 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     private static final Pattern TYPE =
         Pattern.compile("(?<raw>[^<,?!*]+)(?:<(?<args>.+)>)?(?<suffix>[?!*])?");
-
-    private static final Pattern CAPTURE_TYPE =
-        Pattern.compile("\\{capture#\\d+ of \\? extends (?<bound>.*)}(?<suffix>[?!*])?");
 
     private static final Splitter COMMA_SPLITTER = Splitter.on(",");
   }
