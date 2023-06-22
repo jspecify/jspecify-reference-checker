@@ -19,6 +19,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.cannotConvert;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -38,7 +39,6 @@ import org.jspecify.annotations.Nullable;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import tests.conformance.AbstractConformanceTest;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.CannotConvert;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
@@ -101,13 +101,10 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     @Override
     protected boolean matches(ExpectedFact expectedFact) {
-      switch (expectedFact.kind()) {
-        case NULLNESS_MISMATCH:
-          return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
-
-        default:
-          return super.matches(expectedFact);
+      if (expectedFact.isNullnessMismatch()) {
+        return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
       }
+      return super.matches(expectedFact);
     }
 
     @Override
@@ -121,7 +118,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
-        return CannotConvert.create(sourceType, sinkType);
+        return cannotConvert(sourceType, sinkType);
       }
       return null;
     }
