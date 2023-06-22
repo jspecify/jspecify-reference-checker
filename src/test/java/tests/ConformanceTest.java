@@ -82,6 +82,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "assignment",
             "atomicreference.must.include.null",
             "cast.unsafe",
+            "dereference",
             "lambda.param",
             "methodref.receiver.bound",
             "methodref.receiver",
