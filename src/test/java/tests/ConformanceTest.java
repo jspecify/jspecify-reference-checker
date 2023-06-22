@@ -19,7 +19,8 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.Kind.NULLNESS_MISMATCH;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.cannotConvert;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.irrelevantAnnotation;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -39,9 +40,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import tests.conformance.AbstractConformanceTest;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.CannotConvert;
 import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.IrrelevantAnnotation;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
 @RunWith(JUnit4.class)
@@ -122,7 +121,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
 
     @Override
     protected boolean matches(ExpectedFact expectedFact) {
-      if (expectedFact.kind().equals(NULLNESS_MISMATCH)) {
+      if (expectedFact.isNullnessMismatch()) {
         return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
       }
       return super.matches(expectedFact);
@@ -139,10 +138,10 @@ public final class ConformanceTest extends AbstractConformanceTest {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
-        return CannotConvert.create(sourceType, sinkType);
+        return cannotConvert(sourceType, sinkType);
       }
       if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
-        return IrrelevantAnnotation.create("Nullable"); // TODO(dpb): Support other annotations.
+        return irrelevantAnnotation("Nullable"); // TODO(dpb): Support other annotations.
       }
       return null;
     }
