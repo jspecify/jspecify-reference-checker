@@ -76,23 +76,6 @@ public final class ConformanceTest extends AbstractConformanceTest {
   /** A {@link ReportedFact} parsed from a Checker Framework {@link DetailMessage}. */
   static final class DetailMessageReportedFact extends ReportedFact {
 
-    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
-        ImmutableSet.of(
-            "argument",
-            "assignment",
-            "atomicreference.must.include.null",
-            "cast.unsafe",
-            "dereference",
-            "lambda.param",
-            "methodref.receiver.bound",
-            "methodref.receiver",
-            "methodref.return",
-            "override.param",
-            "override.return",
-            "return",
-            "threadlocal.must.include.null",
-            "type.argument");
-
     private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
         ImmutableSet.of(
             "argument",
@@ -108,6 +91,9 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "return",
             "threadlocal.must.include.null",
             "type.argument");
+
+    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
+        ImmutableSet.<String>builder().addAll(CANNOT_CONVERT_KEYS).add("dereference").build();
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
         ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
