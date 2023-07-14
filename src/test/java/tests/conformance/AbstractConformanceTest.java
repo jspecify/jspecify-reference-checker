@@ -31,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
@@ -302,62 +301,52 @@ public abstract class AbstractConformanceTest {
      * error that should be reported to users; other expected facts are informational, such as the
      * expected nullness-augmented type of an expression.
      */
-    public abstract static class ExpectedFact {
+    public static final class ExpectedFact {
+      private static final Pattern NULLNESS_MISMATCH =
+          Pattern.compile("jspecify_nullness_mismatch\\b.*");
+      private static final Pattern CANNOT_CONVERT =
+          Pattern.compile("test:cannot-convert:\\S+ to \\S+");
+      private static final Pattern IRRELEVANT_ANNOTATION =
+          Pattern.compile("test:irrelevant-annotation:\\S+");
+
+      private static final ImmutableList<Pattern> ASSERTION_PATTERNS =
+          ImmutableList.of(NULLNESS_MISMATCH, CANNOT_CONVERT, IRRELEVANT_ANNOTATION);
+
+      /**
+       * Returns an expected fact representing that the source type cannot be converted to the sink
+       * type in any world.
+       */
+      public static ExpectedFact cannotConvert(String sourceType, String sinkType) {
+        return new ExpectedFact(
+            String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
+      }
+
+      /** Returns an expected fact representing that an annotation is not relevant. */
+      public static ExpectedFact irrelevantAnnotation(String annotationType) {
+        return new ExpectedFact(String.format("test:irrelevant-annotation:%s", annotationType));
+      }
+
       /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
       static @Nullable ExpectedFact readExpectedFact(String text) {
-        return Arrays.stream(ExpectedFact.Kind.values())
-            .map(kind -> kind.parse(text))
-            .filter(Objects::nonNull)
-            .findFirst()
-            .orElse(null);
+        return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
+            ? new ExpectedFact(text)
+            : null;
       }
 
-      /** A factory for {@link ExpectedFact} objects. */
-      @FunctionalInterface
-      public interface Factory {
-        /**
-         * Returns the expected fact represented by some comment text, or {@code null} if the
-         * comment doesn't represent an expected fact of this kind.
-         */
-        @Nullable ExpectedFact parse(String commentText);
-      }
-
-      /** A kind of fact expected. */
-      public enum Kind implements ExpectedFact.Factory {
-        /** An assertion that there is some nullness mismatch. */
-        NULLNESS_MISMATCH(NullnessMismatch::parse),
-        /** An assertion that a static type cannot be converted to an expected static type. */
-        CANNOT_CONVERT(CannotConvert::parse),
-        ;
-
-        private final ExpectedFact.Factory factory;
-
-        Kind(ExpectedFact.Factory factory) {
-          this.factory = factory;
-        }
-
-        @Override
-        public @Nullable ExpectedFact parse(String commentText) {
-          return factory.parse(commentText);
-        }
-      }
-
-      private ExpectedFact(Kind kind, String commentText) {
-        this.kind = kind;
+      private ExpectedFact(String commentText) {
         this.commentText = commentText;
       }
 
-      private final Kind kind;
       private final String commentText;
-
-      /** The kind of this expected fact. */
-      public Kind kind() {
-        return kind;
-      }
 
       /** The comment text representing this expected fact. */
       public String commentText() {
         return commentText;
+      }
+
+      /** Returns {@code true} if this is a legacy {@code jspecify_nullness_mismatch} assertion. */
+      public boolean isNullnessMismatch() {
+        return NULLNESS_MISMATCH.matcher(commentText).matches();
       }
 
       @Override
@@ -369,69 +358,17 @@ public abstract class AbstractConformanceTest {
           return false;
         }
         ExpectedFact that = (ExpectedFact) obj;
-        return Objects.equals(this.kind, that.kind)
-            && Objects.equals(this.commentText, that.commentText);
+        return this.commentText.equals(that.commentText);
       }
 
       @Override
       public int hashCode() {
-        return Objects.hash(kind, commentText);
+        return commentText.hashCode();
       }
 
       @Override
       public String toString() {
-        return String.format("%s: %s", kind, commentText);
-      }
-    }
-
-    public static final class NullnessMismatch extends ExpectedFact {
-      private static final Pattern REGEX = Pattern.compile("jspecify_nullness_mismatch\\b.*");
-
-      /**
-       * Returns the expected fact represented by some comment text, or {@code null} if the comment
-       * doesn't represent an expected fact of this kind.
-       */
-      public static @Nullable NullnessMismatch parse(String commentText) {
-        Matcher matcher = REGEX.matcher(commentText);
-        return matcher.matches() ? new NullnessMismatch(commentText) : null;
-      }
-
-      /**
-       * Returns an expected fact representing that a type is not convertible to another because of
-       * a nullness mismatch.
-       */
-      public static NullnessMismatch create() {
-        return new NullnessMismatch("jspecify_nullness_mismatch");
-      }
-
-      private NullnessMismatch(String commentText) {
-        super(Kind.NULLNESS_MISMATCH, commentText);
-      }
-    }
-
-    public static final class CannotConvert extends ExpectedFact {
-      private static final Pattern REGEX = Pattern.compile("test:cannot-convert:(\\S+) to (\\S+)");
-
-      /**
-       * Returns the expected fact represented by some comment text, or {@code null} if the comment
-       * doesn't represent an expected fact of this kind.
-       */
-      public static @Nullable CannotConvert parse(String commentText) {
-        Matcher matcher = REGEX.matcher(commentText);
-        return matcher.matches() ? new CannotConvert(commentText) : null;
-      }
-
-      /**
-       * Returns an expected fact representing that the source type cannot be converted to the sink
-       * type in any world.
-       */
-      public static CannotConvert create(String sourceType, String sinkType) {
-        return new CannotConvert(
-            String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
-      }
-
-      CannotConvert(String commentText) {
-        super(Kind.CANNOT_CONVERT, commentText);
+        return commentText;
       }
     }
 
