@@ -1,3 +1,11 @@
-# 2 pass; 0 fail; 2 total; 100.0% score
+# 4 pass; 6 fail; 10 total; 40.0% score
 PASS: Basic.java:24 test:cannot-convert:Object? to Object!
 PASS: Basic.java: no unexpected facts
+PASS: Irrelevant.java:28 test:irrelevant-annotation:Nullable
+PASS: Irrelevant.java:34 test:irrelevant-annotation:Nullable
+FAIL: Irrelevant.java:38 test:irrelevant-annotation:NonNull
+FAIL: Irrelevant.java:43 test:irrelevant-annotation:NonNull
+FAIL: Irrelevant.java:43 test:irrelevant-annotation:Nullable
+FAIL: Irrelevant.java:47 test:irrelevant-annotation:NullMarked
+FAIL: Irrelevant.java:49 test:irrelevant-annotation:NullUnmarked
+FAIL: Irrelevant.java: no unexpected facts
