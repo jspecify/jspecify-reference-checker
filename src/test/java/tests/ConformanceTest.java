@@ -54,7 +54,8 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-AcheckImpl",
           "-AsuppressWarnings=conditional",
           "-Astrict",
-          "-AajavaChecks");
+          "-AajavaChecks",
+          "-AshowTypes");
 
   @Override
   protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
