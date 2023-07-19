@@ -20,6 +20,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
 import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.cannotConvert;
+import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.expressionType;
 import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.irrelevantAnnotation;
 
 import com.google.common.base.Splitter;
@@ -126,6 +127,10 @@ public final class ConformanceTest extends AbstractConformanceTest {
       }
       if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
         return irrelevantAnnotation("Nullable"); // TODO(dpb): Support other annotations.
+      }
+      if (detailMessage.messageKey.equals("sourceType")) {
+        return expressionType(
+            fixType(detailMessage.messageArguments.get(0)), detailMessage.messageArguments.get(1));
       }
       return null;
     }
