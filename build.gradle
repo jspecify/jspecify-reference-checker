@@ -54,6 +54,7 @@ dependencies {
 
 // Assemble checker-framework when assembling the reference checker.
 assemble.dependsOn(gradle.includedBuild("checker-framework").task(":assemble"))
+assemble.dependsOn(gradle.includedBuild("jspecify").task(":assemble"))
 
 tasks.withType(JavaCompile).all {
     options.compilerArgs.add("-Xlint:all")
