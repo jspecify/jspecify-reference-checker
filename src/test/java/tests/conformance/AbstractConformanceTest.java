@@ -304,13 +304,14 @@ public abstract class AbstractConformanceTest {
     public static final class ExpectedFact {
       private static final Pattern NULLNESS_MISMATCH =
           Pattern.compile("jspecify_nullness_mismatch\\b.*");
-      private static final Pattern CANNOT_CONVERT =
-          Pattern.compile("test:cannot-convert:\\S+ to \\S+");
-      private static final Pattern IRRELEVANT_ANNOTATION =
-          Pattern.compile("test:irrelevant-annotation:\\S+");
 
       private static final ImmutableList<Pattern> ASSERTION_PATTERNS =
-          ImmutableList.of(NULLNESS_MISMATCH, CANNOT_CONVERT, IRRELEVANT_ANNOTATION);
+          ImmutableList.of(
+              NULLNESS_MISMATCH,
+              // TODO: wildcard types have whitespace
+              Pattern.compile("test:cannot-convert:\\S+ to \\S+"),
+              Pattern.compile("test:expression-type:[^:]+:.*"),
+              Pattern.compile("test:irrelevant-annotation:\\S+"));
 
       /**
        * Returns an expected fact representing that the source type cannot be converted to the sink
@@ -319,6 +320,12 @@ public abstract class AbstractConformanceTest {
       public static ExpectedFact cannotConvert(String sourceType, String sinkType) {
         return new ExpectedFact(
             String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
+      }
+
+      /** Returns an expected fact representing an expected expression type. */
+      public static ExpectedFact expressionType(String expressionType, String expression) {
+        return new ExpectedFact(
+            String.format("test:expression-type:%s:%s", expressionType, expression));
       }
 
       /** Returns an expected fact representing that an annotation is not relevant. */
