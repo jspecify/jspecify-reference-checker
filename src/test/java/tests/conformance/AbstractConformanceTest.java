@@ -3,7 +3,6 @@ package tests.conformance;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.Lists.partition;
-import static com.google.common.collect.Sets.union;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.readAllLines;
@@ -12,9 +11,6 @@ import static java.nio.file.Files.walk;
 import static java.nio.file.Files.writeString;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
-import static java.util.Objects.requireNonNullElse;
-import static java.util.stream.Collectors.collectingAndThen;
-import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
@@ -22,10 +18,6 @@ import com.google.common.base.Ascii;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Streams;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -33,14 +25,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Formatter;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collector;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.Test;
@@ -97,31 +86,26 @@ public abstract class AbstractConformanceTest {
     return testDirectory;
   }
 
-  private Matches runTests() throws IOException {
+  private ConformanceTestReport runTests() throws IOException {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
           .filter(path -> path.toFile().isDirectory())
           .flatMap(this::javaFileGroups)
           .flatMap(this::analyzeFiles)
-          .reduce(Matches.EMPTY, Matches::combine);
+          .reduce(ConformanceTestReport.EMPTY, ConformanceTestReport::combine);
     }
   }
 
-  private Stream<Matches> analyzeFiles(List<Path> files) {
-    ImmutableMap<Path, ImmutableListMultimap<Long, ReportedFact>> reportedFactsByFile =
+  private Stream<ConformanceTestReport> analyzeFiles(List<Path> files) {
+    ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
         Streams.stream(analyze(ImmutableList.copyOf(files)))
-            .collect(ReportedFact.BY_FILE_AND_LINE_NUMBER);
+            .collect(toImmutableListMultimap(ReportedFact::getFile, rf -> rf));
     return files.stream()
         .map(testDirectory::relativize)
         .map(
             file ->
-                Matches.inFile(
-                    file,
-                    requireNonNullElse(reportedFactsByFile.get(file), ImmutableListMultimap.of()),
-                    readExpectedFacts(file).stream()
-                        .collect(
-                            toImmutableListMultimap(
-                                ExpectedFactAssertion::getLineNumber, a -> a))));
+                ConformanceTestReport.forFile(
+                    file, reportedFactsByFile.get(file), readExpectedFacts(file)));
   }
 
   /**
@@ -130,140 +114,6 @@ public abstract class AbstractConformanceTest {
    * @return the facts reported by the analysis
    */
   protected abstract Iterable<ReportedFact> analyze(ImmutableList<Path> files);
-
-  static final class Matches {
-    static final Matches EMPTY =
-        new Matches(
-            ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableListMultimap.of());
-
-    static Matches inFile(
-        Path file,
-        Multimap<Long, ReportedFact> reportedFactsByLine,
-        Multimap<Long, ExpectedFactAssertion> expectedFactsByLine) {
-      ImmutableListMultimap.Builder<ExpectedFactAssertion, ReportedFact> matches =
-          ImmutableListMultimap.builder();
-      for (long lineNumber : union(reportedFactsByLine.keySet(), expectedFactsByLine.keySet())) {
-        for (ExpectedFactAssertion expectedFact : expectedFactsByLine.get(lineNumber)) {
-          for (ReportedFact reportedFact : reportedFactsByLine.get(lineNumber)) {
-            if (reportedFact.matches(expectedFact.getFact())) {
-              matches.put(expectedFact, reportedFact);
-            }
-          }
-        }
-      }
-      return new Matches(
-          ImmutableSet.of(file),
-          expectedFactsByLine.values(),
-          reportedFactsByLine.values(),
-          matches.build());
-    }
-
-    private final ImmutableSortedSet<Path> files;
-    private final ImmutableSet<ExpectedFactAssertion> expectedFacts;
-    private final ImmutableSet<ReportedFact> reportedFacts;
-    private final ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matches;
-
-    Matches(
-        Collection<Path> files,
-        Collection<ExpectedFactAssertion> expectedFacts,
-        Collection<ReportedFact> reportedFacts,
-        Multimap<ExpectedFactAssertion, ReportedFact> matches) {
-      this.files = ImmutableSortedSet.copyOf(files);
-      this.expectedFacts = ImmutableSet.copyOf(expectedFacts);
-      this.reportedFacts = ImmutableSet.copyOf(reportedFacts);
-      this.matches = ImmutableListMultimap.copyOf(matches);
-    }
-
-    private static Matches combine(Matches left, Matches right) {
-      return new Matches(
-          union(left.files, right.files),
-          union(left.expectedFacts, right.expectedFacts),
-          union(left.reportedFacts, right.reportedFacts),
-          ImmutableListMultimap.copyOf(
-              Stream.concat(left.matches.entries().stream(), right.matches.entries().stream())
-                  .collect(toList())));
-    }
-
-    boolean isReported(ExpectedFactAssertion expectedFact) {
-      return matches.containsKey(expectedFact);
-    }
-
-    boolean isExpected(ReportedFact reportedFact) {
-      return matches.containsValue(reportedFact);
-    }
-
-    String report(boolean details) {
-      ImmutableListMultimap<Path, ExpectedFactAssertion> expectedFactsByFile =
-          expectedFacts.stream()
-              .collect(toImmutableListMultimap(ExpectedFactAssertion::getFile, efa -> efa));
-      ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
-          reportedFacts.stream().collect(toImmutableListMultimap(ReportedFact::getFile, rf -> rf));
-      long passes =
-          expectedFacts.stream().filter(this::isReported).count()
-              + files.stream()
-                  .filter(
-                      f ->
-                          reportedFactsByFile.get(f).stream()
-                              .noneMatch(rf -> rf.mustBeExpected() && !isExpected(rf)))
-                  .count();
-      long fails =
-          expectedFacts.stream().filter(efa -> !isReported(efa)).count()
-              + files.stream()
-                  .filter(
-                      f ->
-                          reportedFactsByFile.get(f).stream()
-                              .anyMatch(rf -> rf.mustBeExpected() && !isExpected(rf)))
-                  .count();
-      Formatter report = new Formatter();
-      report.format(
-          "# %d pass; %d fail; %d total; %.1f%% score%n",
-          passes, fails, passes + fails, 100.0 * passes / (passes + fails));
-      for (Path file : files) {
-        ImmutableListMultimap<Long, ExpectedFactAssertion> expectedFactsInFile =
-            expectedFactsByFile.get(file).stream()
-                .collect(toImmutableListMultimap(ExpectedFactAssertion::getLineNumber, efa -> efa));
-        ImmutableListMultimap<Long, ReportedFact> reportedFactsInFile =
-            reportedFactsByFile.get(file).stream()
-                .collect(toImmutableListMultimap(ReportedFact::getLineNumber, rf -> rf));
-        for (long lineNumber :
-            ImmutableSortedSet.copyOf(
-                union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
-          for (ExpectedFactAssertion expectedFact : expectedFactsInFile.get(lineNumber)) {
-            report.format(
-                "%s: %s:%d %s%n",
-                isReported(expectedFact) ? "PASS" : "FAIL",
-                file,
-                lineNumber,
-                expectedFact.getFact().commentText());
-          }
-          if (details) {
-            for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {
-              if (!isExpected(reportedFact)) {
-                report.format(
-                    "%s: %s:%d %s%n",
-                    reportedFact.mustBeExpected() ? "OOPS" : "INFO",
-                    file,
-                    lineNumber,
-                    reportedFact.expectedFact() != null
-                        ? reportedFact.expectedFact().commentText()
-                        : reportedFact.toString());
-              }
-            }
-          }
-        }
-        if (!details) {
-          report.format(
-              "%s: %s: no unexpected facts%n",
-              reportedFactsByFile.get(file).stream()
-                      .noneMatch(rf -> rf.mustBeExpected() && !isExpected(rf))
-                  ? "PASS"
-                  : "FAIL",
-              file);
-        }
-      }
-      return report.toString();
-    }
-  }
 
   /** Reads {@link ExpectedFactAssertion}s from comments in a file. */
   private ImmutableList<ExpectedFactAssertion> readExpectedFacts(Path relativeFile) {
@@ -327,18 +177,18 @@ public abstract class AbstractConformanceTest {
 
   @Test
   public void checkConformance() throws IOException {
-    Matches matches = runTests();
+    ConformanceTestReport conformanceTestReport = runTests();
     switch (Mode.fromEnvironment()) {
       case DETAILS:
-        System.out.print(matches.report(true));
+        System.out.print(conformanceTestReport.report(true));
         // fall-through
 
       case COMPARE:
-        assertThat(matches.report(false)).isEqualTo(readString(testReport, UTF_8));
+        assertThat(conformanceTestReport.report(false)).isEqualTo(readString(testReport, UTF_8));
         break;
 
       case WRITE:
-        writeString(testReport, matches.report(false), UTF_8);
+        writeString(testReport, conformanceTestReport.report(false), UTF_8);
         break;
 
       default:
@@ -452,13 +302,28 @@ public abstract class AbstractConformanceTest {
     }
   }
 
+  /** An expected or reported fact within a test input file. */
+  public interface Fact {
+    /** The test input file. */
+    Path getFile();
+
+    /**
+     * The line number that the fact applies to. Will not be the line number on which the fact
+     * comment is found.
+     */
+    long getLineNumber();
+
+    /** The fact text. */
+    String getFactText();
+  }
+
   /**
    * An assertion that the tool behaves in a way consistent with a specific fact about a line in the
    * source code. Some of these facts indicate that according to the JSpecify specification, the
    * code in question may have an error that should be reported to users; other expected facts are
    * informational, such as the expected nullness-augmented type of an expression.
    */
-  public static final class ExpectedFactAssertion {
+  public static final class ExpectedFactAssertion implements Fact {
     private final Path file;
     private final long lineNumber;
     private final ExpectedFact fact;
@@ -469,13 +334,19 @@ public abstract class AbstractConformanceTest {
       this.fact = fact;
     }
 
+    @Override
     public Path getFile() {
       return file;
     }
 
-    /** Returns the line number of the code in the source file to which this assertion applies. */
+    @Override
     public long getLineNumber() {
       return lineNumber;
+    }
+
+    @Override
+    public String getFactText() {
+      return fact.commentText();
     }
 
     /** Returns the fact expected at the file and line number. */
@@ -504,19 +375,8 @@ public abstract class AbstractConformanceTest {
   }
 
   /** A fact reported by the analysis under test. */
-  public abstract static class ReportedFact {
-
-    static final Collector<
-            ReportedFact, ?, ImmutableMap<Path, ImmutableListMultimap<Long, ReportedFact>>>
-        BY_FILE_AND_LINE_NUMBER =
-            collectingAndThen(
-                groupingBy(
-                    ReportedFact::getFile,
-                    toImmutableListMultimap(ReportedFact::getLineNumber, rf -> rf)),
-                ImmutableMap::copyOf);
-
+  public abstract static class ReportedFact implements Fact {
     private final Path file;
-
     private final long lineNumber;
 
     protected ReportedFact(Path file, long lineNumber) {
@@ -524,12 +384,20 @@ public abstract class AbstractConformanceTest {
       this.lineNumber = lineNumber;
     }
 
+    @Override
     public final Path getFile() {
       return file;
     }
 
+    @Override
     public final long getLineNumber() {
       return lineNumber;
+    }
+
+    @Override
+    public String getFactText() {
+      ExpectedFact expectedFact = expectedFact();
+      return expectedFact != null ? expectedFact.commentText() : toString();
     }
 
     /** Returns true if this reported fact must match an {@link ExpectedFactAssertion}. */
