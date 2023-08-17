@@ -11,13 +11,12 @@ import static java.nio.file.Files.readString;
 import static java.nio.file.Files.walk;
 import static java.nio.file.Files.writeString;
 import static java.util.Arrays.stream;
-import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.readExpectedFact;
+import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.Strings;
@@ -35,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Formatter;
 import java.util.List;
 import java.util.ListIterator;
@@ -46,8 +44,6 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.Test;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
 
 /**
  * A test that analyzes source files and compares reported facts to expected facts declared in each
@@ -374,210 +370,136 @@ public abstract class AbstractConformanceTest {
   }
 
   /**
-   * An assertion about a test source file.
+   * An assertion that the tool behaves in a way consistent with a specific fact. Some of these
+   * facts indicate that according to the JSpecify specification, the code in question may have an
+   * error that should be reported to users; other expected facts are informational, such as the
+   * expected nullness-augmented type of an expression.
    */
-  public abstract static class ConformanceTestAssertion
-      implements Comparable<ConformanceTestAssertion> {
+  public static final class ExpectedFact {
+    private static final Pattern NULLNESS_MISMATCH =
+        Pattern.compile("jspecify_nullness_mismatch\\b.*");
 
-    private final Path file;
+    private static final ImmutableList<Pattern> ASSERTION_PATTERNS =
+        ImmutableList.of(
+            NULLNESS_MISMATCH,
+            // TODO: wildcard types have whitespace
+            Pattern.compile("test:cannot-convert:\\S+ to \\S+"),
+            Pattern.compile("test:expression-type:[^:]+:.*"),
+            Pattern.compile("test:irrelevant-annotation:\\S+"));
 
-    protected ConformanceTestAssertion(Path file) {
-      this.file = file;
+    /**
+     * Returns an expected fact representing that the source type cannot be converted to the sink
+     * type in any world.
+     */
+    public static ExpectedFact cannotConvert(String sourceType, String sinkType) {
+      return new ExpectedFact(String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
     }
 
-    /** The file path relative to the test source root. */
-    public final Path getFile() {
-      return file;
+    /** Returns an expected fact representing an expected expression type. */
+    public static ExpectedFact expressionType(String expressionType, String expression) {
+      return new ExpectedFact(
+          String.format("test:expression-type:%s:%s", expressionType, expression));
+    }
+
+    /** Returns an expected fact representing that an annotation is not relevant. */
+    public static ExpectedFact irrelevantAnnotation(String annotationType) {
+      return new ExpectedFact(String.format("test:irrelevant-annotation:%s", annotationType));
+    }
+
+    /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
+    static @Nullable ExpectedFact readExpectedFact(String text) {
+      return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
+          ? new ExpectedFact(text)
+          : null;
+    }
+
+    private ExpectedFact(String commentText) {
+      this.commentText = commentText;
+    }
+
+    private final String commentText;
+
+    /** The comment text representing this expected fact. */
+    public String commentText() {
+      return commentText;
+    }
+
+    /** Returns {@code true} if this is a legacy {@code jspecify_nullness_mismatch} assertion. */
+    public boolean isNullnessMismatch() {
+      return NULLNESS_MISMATCH.matcher(commentText).matches();
     }
 
     @Override
-    public final int compareTo(ConformanceTestAssertion that) {
-      return COMPARATOR.compare(this, that);
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+      if (!(obj instanceof ExpectedFact)) {
+        return false;
+      }
+      ExpectedFact that = (ExpectedFact) obj;
+      return this.commentText.equals(that.commentText);
     }
 
-    private static final Comparator<ConformanceTestAssertion> COMPARATOR =
-        comparing(ConformanceTestAssertion::getFile)
-            .thenComparing(
-                cta ->
-                    cta instanceof ExpectedFactAssertion
-                        ? ((ExpectedFactAssertion) cta).lineNumber
-                        : Long.MAX_VALUE)
-            .thenComparing(ConformanceTestAssertion::toReportText);
-
-    private static String toReportText(ConformanceTestAssertion assertion) {
-      StringBuilder string = new StringBuilder().append(assertion.getFile()).append(":");
-      if (assertion instanceof ExpectedFactAssertion) {
-        ExpectedFactAssertion expectedFact = (ExpectedFactAssertion) assertion;
-        string
-            .append(expectedFact.getLineNumber())
-            .append(" ")
-            .append(expectedFact.getFact().commentText());
-      } else if (assertion instanceof NoUnexpectedFactsAssertion) {
-        string.append(" no unexpected facts");
-      } else {
-        throw new AssertionError("unexpected assertion class: " + assertion);
-      }
-      return string.toString();
+    @Override
+    public int hashCode() {
+      return commentText.hashCode();
     }
 
-    /**
-     * An assertion that the tool behaves in a way consistent with a specific fact. Some of these
-     * facts indicate that according to the JSpecify specification, the code in question may have an
-     * error that should be reported to users; other expected facts are informational, such as the
-     * expected nullness-augmented type of an expression.
-     */
-    public static final class ExpectedFact {
-      private static final Pattern NULLNESS_MISMATCH =
-          Pattern.compile("jspecify_nullness_mismatch\\b.*");
+    @Override
+    public String toString() {
+      return commentText;
+    }
+  }
 
-      private static final ImmutableList<Pattern> ASSERTION_PATTERNS =
-          ImmutableList.of(
-              NULLNESS_MISMATCH,
-              // TODO: wildcard types have whitespace
-              Pattern.compile("test:cannot-convert:\\S+ to \\S+"),
-              Pattern.compile("test:expression-type:[^:]+:.*"),
-              Pattern.compile("test:irrelevant-annotation:\\S+"));
+  /**
+   * An assertion that the tool behaves in a way consistent with a specific fact about a line in the
+   * source code. Some of these facts indicate that according to the JSpecify specification, the
+   * code in question may have an error that should be reported to users; other expected facts are
+   * informational, such as the expected nullness-augmented type of an expression.
+   */
+  public static final class ExpectedFactAssertion {
+    private final Path file;
+    private final long lineNumber;
+    private final ExpectedFact fact;
 
-      /**
-       * Returns an expected fact representing that the source type cannot be converted to the sink
-       * type in any world.
-       */
-      public static ExpectedFact cannotConvert(String sourceType, String sinkType) {
-        return new ExpectedFact(
-            String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
-      }
-
-      /** Returns an expected fact representing an expected expression type. */
-      public static ExpectedFact expressionType(String expressionType, String expression) {
-        return new ExpectedFact(
-            String.format("test:expression-type:%s:%s", expressionType, expression));
-      }
-
-      /** Returns an expected fact representing that an annotation is not relevant. */
-      public static ExpectedFact irrelevantAnnotation(String annotationType) {
-        return new ExpectedFact(String.format("test:irrelevant-annotation:%s", annotationType));
-      }
-
-      /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
-      static @Nullable ExpectedFact readExpectedFact(String text) {
-        return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
-            ? new ExpectedFact(text)
-            : null;
-      }
-
-      private ExpectedFact(String commentText) {
-        this.commentText = commentText;
-      }
-
-      private final String commentText;
-
-      /** The comment text representing this expected fact. */
-      public String commentText() {
-        return commentText;
-      }
-
-      /** Returns {@code true} if this is a legacy {@code jspecify_nullness_mismatch} assertion. */
-      public boolean isNullnessMismatch() {
-        return NULLNESS_MISMATCH.matcher(commentText).matches();
-      }
-
-      @Override
-      public boolean equals(Object obj) {
-        if (obj == this) {
-          return true;
-        }
-        if (!(obj instanceof ExpectedFact)) {
-          return false;
-        }
-        ExpectedFact that = (ExpectedFact) obj;
-        return this.commentText.equals(that.commentText);
-      }
-
-      @Override
-      public int hashCode() {
-        return commentText.hashCode();
-      }
-
-      @Override
-      public String toString() {
-        return commentText;
-      }
+    ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact) {
+      this.file = file;
+      this.lineNumber = lineNumber;
+      this.fact = fact;
     }
 
-    /**
-     * An assertion that the tool behaves in a way consistent with a specific fact about a line in
-     * the source code. Some of these facts indicate that according to the JSpecify specification,
-     * the code in question may have an error that should be reported to users; other expected facts
-     * are informational, such as the expected nullness-augmented type of an expression.
-     */
-    public static final class ExpectedFactAssertion extends ConformanceTestAssertion {
-      private final long lineNumber;
-      private final ExpectedFact fact;
-
-      ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact) {
-        super(file);
-        this.lineNumber = lineNumber;
-        this.fact = fact;
-      }
-
-      /** Returns the line number of the code in the source file to which this assertion applies. */
-      public long getLineNumber() {
-        return lineNumber;
-      }
-
-      /** Returns the fact expected at the file and line number. */
-      public ExpectedFact getFact() {
-        return fact;
-      }
-
-      @Override
-      public boolean equals(Object o) {
-        if (this == o) {
-          return true;
-        }
-        if (!(o instanceof ExpectedFactAssertion)) {
-          return false;
-        }
-        ExpectedFactAssertion that = (ExpectedFactAssertion) o;
-        return this.getFile().equals(that.getFile())
-            && this.lineNumber == that.lineNumber
-            && this.fact.equals(that.fact);
-      }
-
-      @Override
-      public int hashCode() {
-        return Objects.hash(getFile(), lineNumber, fact);
-      }
+    public Path getFile() {
+      return file;
     }
 
-    /**
-     * An assertion that the tool does not behave in a way such that it might report an error to a
-     * user for any part of the code that doesn't have a corresponding {@link
-     * ExpectedFactAssertion}.
-     */
-    public static final class NoUnexpectedFactsAssertion extends ConformanceTestAssertion {
+    /** Returns the line number of the code in the source file to which this assertion applies. */
+    public long getLineNumber() {
+      return lineNumber;
+    }
 
-      NoUnexpectedFactsAssertion(Path file) {
-        super(file);
+    /** Returns the fact expected at the file and line number. */
+    public ExpectedFact getFact() {
+      return fact;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
       }
-
-      @Override
-      public boolean equals(Object o) {
-        if (this == o) {
-          return true;
-        }
-        if (o == null || this.getClass() != o.getClass()) {
-          return false;
-        }
-
-        NoUnexpectedFactsAssertion that = (NoUnexpectedFactsAssertion) o;
-        return this.getFile().equals(that.getFile());
+      if (!(o instanceof ExpectedFactAssertion)) {
+        return false;
       }
+      ExpectedFactAssertion that = (ExpectedFactAssertion) o;
+      return this.file.equals(that.file)
+          && this.lineNumber == that.lineNumber
+          && this.fact.equals(that.fact);
+    }
 
-      @Override
-      public int hashCode() {
-        return getFile().hashCode();
-      }
+    @Override
+    public int hashCode() {
+      return Objects.hash(file, lineNumber, fact);
     }
   }
 
@@ -624,5 +546,5 @@ public abstract class AbstractConformanceTest {
     /** Returns the message reported, without the file name or line number. */
     @Override
     public abstract String toString();
-}
+  }
 }
