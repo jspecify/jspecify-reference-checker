@@ -1,5 +1,7 @@
-# 4 pass; 6 fail; 10 total; 40.0% score
-PASS: Basic.java:24 test:cannot-convert:Object? to Object!
+# 6 pass; 6 fail; 12 total; 50.0% score
+PASS: Basic.java:25 test:cannot-convert:Object? to Object!
+PASS: Basic.java:25 test:expression-type:Object?:nullable
+PASS: Basic.java:30 test:expression-type:Object!:nonNull
 PASS: Basic.java: no unexpected facts
 PASS: Irrelevant.java:28 test:irrelevant-annotation:Nullable
 PASS: Irrelevant.java:34 test:irrelevant-annotation:Nullable
