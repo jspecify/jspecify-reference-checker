@@ -234,12 +234,12 @@ public abstract class AbstractConformanceTest {
     }
 
     /** The file path relative to the test source root. */
-    public Path getFile() {
+    public final Path getFile() {
       return file;
     }
 
     /** Returns the line number of the code in the source file to which this assertion applies. */
-    public long getLineNumber() {
+    public final long getLineNumber() {
       return lineNumber;
     }
 
