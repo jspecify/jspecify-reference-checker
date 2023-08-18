@@ -177,18 +177,18 @@ public abstract class AbstractConformanceTest {
 
   @Test
   public void checkConformance() throws IOException {
-    ConformanceTestReport conformanceTestReport = runTests();
+    ConformanceTestReport testResults = runTests();
     switch (Mode.fromEnvironment()) {
       case DETAILS:
-        System.out.print(conformanceTestReport.report(true));
+        System.out.print(testResults.report(true));
         // fall-through
 
       case COMPARE:
-        assertThat(conformanceTestReport.report(false)).isEqualTo(readString(testReport, UTF_8));
+        assertThat(testResults.report(false)).isEqualTo(readString(testReport, UTF_8));
         break;
 
       case WRITE:
-        writeString(testReport, conformanceTestReport.report(false), UTF_8);
+        writeString(testReport, testResults.report(false), UTF_8);
         break;
 
       default:
@@ -219,12 +219,28 @@ public abstract class AbstractConformanceTest {
     }
   }
 
+  /** An expected or reported fact within a test input file. */
+  public interface Fact {
+    /** The test input file. */
+    Path getFile();
+
+    /**
+     * The line number that the fact applies to. Will not be the line number on which the fact
+     * comment is found.
+     */
+    long getLineNumber();
+
+    /** The fact text. */
+    String getFactText();
+  }
+
   /**
    * An assertion that the tool behaves in a way consistent with a specific fact. Some of these
    * facts indicate that according to the JSpecify specification, the code in question may have an
    * error that should be reported to users; other expected facts are informational, such as the
    * expected nullness-augmented type of an expression.
    */
+  // TODO(dpb): Maybe just use the string instead of this class?
   public static final class ExpectedFact {
     private static final Pattern NULLNESS_MISMATCH =
         Pattern.compile("jspecify_nullness_mismatch\\b.*");
@@ -300,21 +316,6 @@ public abstract class AbstractConformanceTest {
     public String toString() {
       return commentText;
     }
-  }
-
-  /** An expected or reported fact within a test input file. */
-  public interface Fact {
-    /** The test input file. */
-    Path getFile();
-
-    /**
-     * The line number that the fact applies to. Will not be the line number on which the fact
-     * comment is found.
-     */
-    long getLineNumber();
-
-    /** The fact text. */
-    String getFactText();
   }
 
   /**

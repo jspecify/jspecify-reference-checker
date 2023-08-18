@@ -1,3 +1,17 @@
+// Copyright 2023 The JSpecify Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tests.conformance;
 
 import static com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
@@ -7,20 +21,22 @@ import static com.google.common.collect.Multimaps.index;
 import static com.google.common.collect.Sets.union;
 import static java.util.Comparator.comparingLong;
 import static java.util.function.Function.identity;
+import static java.util.function.Predicate.not;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Multimap;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Formatter;
+import tests.ConformanceTest;
 import tests.conformance.AbstractConformanceTest.ExpectedFactAssertion;
 import tests.conformance.AbstractConformanceTest.Fact;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 
-/** A report showing expected facts and reported facts. */
-final class ConformanceTestReport {
+/** Represents the results of running {@link ConformanceTest} on a set of files. */
+public final class ConformanceTestReport {
   /** An empty report. */
   static final ConformanceTestReport EMPTY =
       new ConformanceTestReport(
@@ -44,13 +60,13 @@ final class ConformanceTestReport {
                         reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
                             .filter(reportedFact -> reportedFact.matches(expectedFact.getFact()))));
     return new ConformanceTestReport(
-        ImmutableSet.of(file), expectedFacts, reportedFacts, matchingFacts);
+        ImmutableSortedSet.of(file), expectedFacts, reportedFacts, matchingFacts);
   }
 
   /** Combines two reports into one. */
   static ConformanceTestReport combine(ConformanceTestReport left, ConformanceTestReport right) {
     return new ConformanceTestReport(
-        concat(left.files, right.files),
+        union(left.files, right.files),
         concat(left.expectedFactsByFile.values(), right.expectedFactsByFile.values()),
         concat(left.reportedFactsByFile.values(), right.reportedFactsByFile.values()),
         ImmutableListMultimap.copyOf(
@@ -63,27 +79,14 @@ final class ConformanceTestReport {
   private final ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts;
 
   private ConformanceTestReport(
-      Iterable<Path> files,
+      Collection<Path> files, // Path unfortunately implements Iterable<Path>.
       Iterable<ExpectedFactAssertion> expectedFacts,
       Iterable<ReportedFact> reportedFacts,
       Multimap<ExpectedFactAssertion, ReportedFact> matchingFacts) {
-    this.files =
-        files instanceof Path
-            ? ImmutableSortedSet.of((Path) files)
-            : ImmutableSortedSet.copyOf(files);
+    this.files = ImmutableSortedSet.copyOf(files);
     this.expectedFactsByFile = index(expectedFacts, ExpectedFactAssertion::getFile);
     this.reportedFactsByFile = index(reportedFacts, ReportedFact::getFile);
     this.matchingFacts = ImmutableListMultimap.copyOf(matchingFacts);
-  }
-
-  /** Returns {@code true} if a matching fact was reported. */
-  public boolean isReported(ExpectedFactAssertion expectedFact) {
-    return matchingFacts.containsKey(expectedFact);
-  }
-
-  /** Returns {@code true} if this fact was expected. */
-  boolean isExpected(ReportedFact reportedFact) {
-    return matchingFacts.containsValue(reportedFact);
   }
 
   /**
@@ -94,11 +97,14 @@ final class ConformanceTestReport {
    *     {@code false}, shows for each file whether there were any unexpected facts that must be
    *     expected
    */
-  String report(boolean details) {
+  public String report(boolean details) {
     Formatter report = new Formatter();
+    long fails = getFails();
+    int total = getTotal();
+    long passes = total - fails;
     report.format(
-        "# %d pass; %d fail; %d total; %.1f%% score%n",
-        getPasses(), getFails(), getTotal(), 100.0 * getPasses() / getTotal());
+        "# %,d pass; %,d fail; %,d total; %.1f%% score%n",
+        passes, fails, total, 100.0 * passes / total);
     for (Path file : files) {
       ImmutableListMultimap<Long, ExpectedFactAssertion> expectedFactsInFile =
           index(expectedFactsByFile.get(file), Fact::getLineNumber);
@@ -108,11 +114,11 @@ final class ConformanceTestReport {
           ImmutableSortedSet.copyOf(
               union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
         for (ExpectedFactAssertion expectedFact : expectedFactsInFile.get(lineNumber)) {
-          writeFact(report, expectedFact, isReported(expectedFact) ? "PASS" : "FAIL");
+          writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
         }
         if (details) {
           for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {
-            if (!isExpected(reportedFact)) {
+            if (isUnexpected(reportedFact)) {
               writeFact(report, reportedFact, reportedFact.mustBeExpected() ? "OOPS" : "INFO");
             }
           }
@@ -121,38 +127,31 @@ final class ConformanceTestReport {
       if (!details) {
         report.format(
             "%s: %s: no unexpected facts%n",
-            reportedFactsInFile.values().stream()
-                    .noneMatch(rf -> rf.mustBeExpected() && !isExpected(rf))
-                ? "PASS"
-                : "FAIL",
-            file);
+            hasUnexpectedFacts(reportedFactsInFile.values()) ? "FAIL" : "PASS", file);
       }
     }
     return report.toString();
   }
 
   private long getFails() {
-    return expectedFactsByFile.values().stream().filter(efa -> !isReported(efa)).count()
-        + files.stream()
-            .filter(
-                f ->
-                    reportedFactsByFile.get(f).stream()
-                        .anyMatch(rf -> rf.mustBeExpected() && !isExpected(rf)))
-            .count();
-  }
-
-  private long getPasses() {
-    return expectedFactsByFile.values().stream().filter(this::isReported).count()
-        + files.stream()
-            .filter(
-                f ->
-                    reportedFactsByFile.get(f).stream()
-                        .noneMatch(rf -> rf.mustBeExpected() && !isExpected(rf)))
-            .count();
+    return expectedFactsByFile.values().stream().filter(not(this::matchesReportedFact)).count()
+        + files.stream().map(reportedFactsByFile::get).filter(this::hasUnexpectedFacts).count();
   }
 
   private int getTotal() {
     return expectedFactsByFile.size() + files.size();
+  }
+
+  private boolean hasUnexpectedFacts(Collection<ReportedFact> reportedFacts) {
+    return reportedFacts.stream().anyMatch(rf -> rf.mustBeExpected() && isUnexpected(rf));
+  }
+
+  private boolean matchesReportedFact(ExpectedFactAssertion expectedFact) {
+    return matchingFacts.containsKey(expectedFact);
+  }
+
+  private boolean isUnexpected(ReportedFact reportedFact) {
+    return !matchingFacts.containsValue(reportedFact);
   }
 
   private static void writeFact(Formatter report, Fact fact, String status) {
