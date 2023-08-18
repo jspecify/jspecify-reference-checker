@@ -113,10 +113,12 @@ public final class ConformanceTestReport {
       for (long lineNumber :
           ImmutableSortedSet.copyOf(
               union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
+        // Report all expected facts on this line and whether they're reported or not.
         for (ExpectedFactAssertion expectedFact : expectedFactsInFile.get(lineNumber)) {
           writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
         }
         if (details) {
+          // Report all unexpected reported facts on this line and whether they must be expected or not.
           for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {
             if (isUnexpected(reportedFact)) {
               writeFact(report, reportedFact, reportedFact.mustBeExpected() ? "OOPS" : "INFO");
@@ -125,6 +127,7 @@ public final class ConformanceTestReport {
         }
       }
       if (!details) {
+        // Report whether the file has any unexpected reported facts that must be expected.
         report.format(
             "%s: %s: no unexpected facts%n",
             hasUnexpectedFacts(reportedFactsInFile.values()) ? "FAIL" : "PASS", file);
