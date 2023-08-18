@@ -11,6 +11,7 @@ import static java.nio.file.Files.walk;
 import static java.nio.file.Files.writeString;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
@@ -99,7 +100,7 @@ public abstract class AbstractConformanceTest {
   private Stream<ConformanceTestReport> analyzeFiles(List<Path> files) {
     ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
         Streams.stream(analyze(ImmutableList.copyOf(files)))
-            .collect(toImmutableListMultimap(ReportedFact::getFile, rf -> rf));
+            .collect(toImmutableListMultimap(ReportedFact::getFile, identity()));
     return files.stream()
         .map(testDirectory::relativize)
         .map(
@@ -116,12 +117,11 @@ public abstract class AbstractConformanceTest {
   protected abstract Iterable<ReportedFact> analyze(ImmutableList<Path> files);
 
   /** Reads {@link ExpectedFactAssertion}s from comments in a file. */
-  private ImmutableList<ExpectedFactAssertion> readExpectedFacts(Path relativeFile) {
+  private ImmutableList<ExpectedFactAssertion> readExpectedFacts(Path file) {
     try {
       ImmutableList.Builder<ExpectedFactAssertion> expectedFactAssertions = ImmutableList.builder();
       List<ExpectedFact> expectedFacts = new ArrayList<>();
-      for (ListIterator<String> i =
-              readAllLines(testDirectory.resolve(relativeFile), UTF_8).listIterator();
+      for (ListIterator<String> i = readAllLines(testDirectory.resolve(file), UTF_8).listIterator();
           i.hasNext(); ) {
         String line = i.next();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
@@ -132,8 +132,7 @@ public abstract class AbstractConformanceTest {
         } else {
           long lineNumber = i.nextIndex();
           expectedFacts.stream()
-              .map(
-                  expectedFact -> new ExpectedFactAssertion(relativeFile, lineNumber, expectedFact))
+              .map(expectedFact -> new ExpectedFactAssertion(file, lineNumber, expectedFact))
               .forEach(expectedFactAssertions::add);
           expectedFacts.clear();
         }
