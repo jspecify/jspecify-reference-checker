@@ -3,12 +3,12 @@ package tests.conformance;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.Lists.partition;
+import static com.google.common.io.MoreFiles.asCharSink;
+import static com.google.common.io.MoreFiles.asCharSource;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.readAllLines;
-import static java.nio.file.Files.readString;
 import static java.nio.file.Files.walk;
-import static java.nio.file.Files.writeString;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
@@ -20,6 +20,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Streams;
+import com.google.common.io.CharSink;
+import com.google.common.io.CharSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -65,11 +67,13 @@ import org.junit.Test;
 public abstract class AbstractConformanceTest {
 
   private final Path testDirectory;
-  private final Path testReport;
+  private final CharSource testReportSource;
+  private final CharSink testReportSink;
 
   protected AbstractConformanceTest(Path testDirectory, Path testReport) {
     this.testDirectory = testDirectory;
-    this.testReport = testReport;
+    this.testReportSource = asCharSource(testReport, UTF_8);
+    this.testReportSink = asCharSink(testReport, UTF_8);
   }
 
   protected AbstractConformanceTest() {
@@ -183,11 +187,11 @@ public abstract class AbstractConformanceTest {
         // fall-through
 
       case COMPARE:
-        assertThat(testResults.report(false)).isEqualTo(readString(testReport, UTF_8));
+        assertThat(testResults.report(false)).isEqualTo(testReportSource.read());
         break;
 
       case WRITE:
-        writeString(testReport, testResults.report(false), UTF_8);
+        testReportSink.write(testResults.report(false));
         break;
 
       default:
