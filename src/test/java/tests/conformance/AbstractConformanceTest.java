@@ -336,7 +336,7 @@ public abstract class AbstractConformanceTest {
 
       /** Returns an expected fact representing that an annotation is not relevant. */
       public static ExpectedFact sinkType(String sinkType, String sink) {
-        return new ExpectedFact(String.format("test:sink-typeype:%s:%s", sinkType, sink));
+        return new ExpectedFact(String.format("test:sink-type:%s:%s", sinkType, sink));
       }
 
       /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
