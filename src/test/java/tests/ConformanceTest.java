@@ -139,7 +139,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
         case "sinkType":
           return sinkType(
               fixType(detailMessage.messageArguments.get(0)),
-              detailMessage.messageArguments.get(1));
+              detailMessage.messageArguments.get(1).replaceFirst("^[^.]+\\.", ""));
       }
       return null;
     }
