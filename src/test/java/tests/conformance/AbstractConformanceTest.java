@@ -220,18 +220,28 @@ public abstract class AbstractConformanceTest {
   }
 
   /** An expected or reported fact within a test input file. */
-  public interface Fact {
-    /** The test input file. */
-    Path getFile();
+  public abstract static class Fact {
 
-    /**
-     * The line number that the fact applies to. Will not be the line number on which the fact
-     * comment is found.
-     */
-    long getLineNumber();
+    private final Path file;
+    private final long lineNumber;
+
+    protected Fact(Path file, long lineNumber) {
+      this.file = file;
+      this.lineNumber = lineNumber;
+    }
+
+    /** The file path relative to the test source root. */
+    public Path getFile() {
+      return file;
+    }
+
+    /** Returns the line number of the code in the source file to which this assertion applies. */
+    public long getLineNumber() {
+      return lineNumber;
+    }
 
     /** The fact text. */
-    String getFactText();
+    public abstract String getFactText();
   }
 
   /**
@@ -324,25 +334,12 @@ public abstract class AbstractConformanceTest {
    * code in question may have an error that should be reported to users; other expected facts are
    * informational, such as the expected nullness-augmented type of an expression.
    */
-  public static final class ExpectedFactAssertion implements Fact {
-    private final Path file;
-    private final long lineNumber;
+  public static final class ExpectedFactAssertion extends Fact {
     private final ExpectedFact fact;
 
     ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact) {
-      this.file = file;
-      this.lineNumber = lineNumber;
+      super(file, lineNumber);
       this.fact = fact;
-    }
-
-    @Override
-    public Path getFile() {
-      return file;
-    }
-
-    @Override
-    public long getLineNumber() {
-      return lineNumber;
     }
 
     @Override
@@ -364,35 +361,21 @@ public abstract class AbstractConformanceTest {
         return false;
       }
       ExpectedFactAssertion that = (ExpectedFactAssertion) o;
-      return this.file.equals(that.file)
-          && this.lineNumber == that.lineNumber
+      return this.getFile().equals(that.getFile())
+          && this.getLineNumber() == that.getLineNumber()
           && this.fact.equals(that.fact);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(file, lineNumber, fact);
+      return Objects.hash(getFile(), getLineNumber(), fact);
     }
   }
 
   /** A fact reported by the analysis under test. */
-  public abstract static class ReportedFact implements Fact {
-    private final Path file;
-    private final long lineNumber;
-
+  public abstract static class ReportedFact extends Fact {
     protected ReportedFact(Path file, long lineNumber) {
-      this.file = file;
-      this.lineNumber = lineNumber;
-    }
-
-    @Override
-    public final Path getFile() {
-      return file;
-    }
-
-    @Override
-    public final long getLineNumber() {
-      return lineNumber;
+      super(file, lineNumber);
     }
 
     @Override
