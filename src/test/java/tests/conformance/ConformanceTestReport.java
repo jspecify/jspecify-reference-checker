@@ -118,7 +118,8 @@ public final class ConformanceTestReport {
           writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
         }
         if (details) {
-          // Report all unexpected reported facts on this line and whether they must be expected or not.
+          // Report all unexpected reported facts on this line and whether they must be expected or
+          // not.
           for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {
             if (isUnexpected(reportedFact)) {
               writeFact(report, reportedFact, reportedFact.mustBeExpected() ? "OOPS" : "INFO");
