@@ -14,241 +14,148 @@
 
 package tests.conformance;
 
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.google.common.collect.ImmutableSortedMap.toImmutableSortedMap;
-import static com.google.common.collect.Maps.filterValues;
-import static com.google.common.collect.Streams.stream;
-import static com.google.common.io.Files.asCharSink;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.nio.file.Files.lines;
-import static java.util.Comparator.comparing;
-import static java.util.stream.Collectors.collectingAndThen;
-import static java.util.stream.Stream.concat;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact.readExpectedFact;
+import static com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
+import static com.google.common.collect.Iterables.concat;
+import static com.google.common.collect.Multimaps.index;
+import static com.google.common.collect.Sets.union;
+import static java.util.Comparator.comparingLong;
+import static java.util.function.Predicate.not;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
-import java.io.IOException;
-import java.nio.file.NoSuchFileException;
+import com.google.common.collect.Multimap;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Comparator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
+import java.util.Collection;
+import java.util.Formatter;
 import tests.ConformanceTest;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFactAssertion;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.NoUnexpectedFactsAssertion;
+import tests.conformance.AbstractConformanceTest.ExpectedFactAssertion;
+import tests.conformance.AbstractConformanceTest.Fact;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 
 /** Represents the results of running {@link ConformanceTest} on a set of files. */
 public final class ConformanceTestReport {
+  /** An empty report. */
+  static final ConformanceTestReport EMPTY =
+      new ConformanceTestReport(
+          ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableListMultimap.of());
 
-  /**
-   * Reads a previously-written report file. Note that actual unexpected facts are never written to
-   * the report; only whether there were any unexpected facts.
-   */
-  // TODO(dpb): Should more details about the unexpected facts be recorded so that the test can note
-  // when they change? Maybe just the lines with unexpected facts?
-  static ConformanceTestReport readFile(Path testReport) throws IOException {
-    try (Stream<String> lines = lines(testReport)) {
-      return lines
-          .filter(line -> !line.startsWith("#"))
-          .map(
-              line -> {
-                Matcher matcher = REPORT_LINE.matcher(line);
-                assertTrue("cannot parse line: " + line, matcher.matches());
-                boolean pass = matcher.group("result").equals("PASS");
-                Path file = Paths.get(matcher.group("path"));
-                String expect = matcher.group("expect");
-                if (expect != null) {
-                  int lineNumber = Integer.parseInt(matcher.group("line"));
-                  ExpectedFact fact = readExpectedFact(expect);
-                  assertNotNull("cannot parse expectation: " + expect, fact);
-                  return new ConformanceTestResult(
-                      new ExpectedFactAssertion(file, lineNumber, fact), pass);
-                } else {
-                  return new ConformanceTestResult(new NoUnexpectedFactsAssertion(file), pass);
-                }
-              })
-          .collect(collectingAndThen(toImmutableSet(), ConformanceTestReport::new));
-    } catch (NoSuchFileException e) {
-      return new ConformanceTestReport(ImmutableSet.of());
-    }
+  /** Creates a report for a file. */
+  static ConformanceTestReport forFile(
+      Path file,
+      ImmutableList<ReportedFact> reportedFacts,
+      ImmutableList<ExpectedFactAssertion> expectedFacts) {
+    ImmutableListMultimap<Long, ReportedFact> reportedFactsByLine =
+        index(reportedFacts, ReportedFact::getLineNumber);
+    ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts =
+        expectedFacts.stream()
+            .sorted(comparingLong(ExpectedFactAssertion::getLineNumber))
+            .collect(
+                flatteningToImmutableListMultimap(
+                    f -> f,
+                    expectedFact ->
+                        reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
+                            .filter(reportedFact -> reportedFact.matches(expectedFact.getFact()))));
+    return new ConformanceTestReport(
+        ImmutableSortedSet.of(file), expectedFacts, reportedFacts, matchingFacts);
   }
 
-  private static final Pattern REPORT_LINE =
-      Pattern.compile(
-          "(?<result>PASS|FAIL): (?<path>\\S+\\.java):"
-              + "((?<line>\\d+) (?<expect>.*)| no unexpected facts)");
-
-  private static String toReportLine(ConformanceTestResult result) {
-    return String.format(
-        "%s: %s", result.passed() ? "PASS" : "FAIL", toReportText(result.getAssertion()));
+  /** Combines two reports into one. */
+  static ConformanceTestReport combine(ConformanceTestReport left, ConformanceTestReport right) {
+    return new ConformanceTestReport(
+        union(left.files, right.files),
+        concat(left.expectedFactsByFile.values(), right.expectedFactsByFile.values()),
+        concat(left.reportedFactsByFile.values(), right.reportedFactsByFile.values()),
+        ImmutableListMultimap.copyOf(
+            concat(left.matchingFacts.entries(), right.matchingFacts.entries())));
   }
 
-  static String toReportText(ConformanceTestAssertion assertion) {
-    StringBuilder string = new StringBuilder().append(assertion.getFile()).append(":");
-    if (assertion instanceof ExpectedFactAssertion) {
-      ExpectedFactAssertion expectedFact = (ExpectedFactAssertion) assertion;
-      string
-          .append(expectedFact.getLineNumber())
-          .append(" ")
-          .append(expectedFact.getFact().commentText());
-    } else if (assertion instanceof NoUnexpectedFactsAssertion) {
-      string.append(" no unexpected facts");
-    } else {
-      throw new AssertionError("unexpected assertion class: " + assertion);
-    }
-    return string.toString();
-  }
+  private final ImmutableSortedSet<Path> files;
+  private final ImmutableListMultimap<Path, ExpectedFactAssertion> expectedFactsByFile;
+  private final ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile;
+  private final ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts;
 
-  private final ImmutableSet<ConformanceTestResult> results;
-
-  ConformanceTestReport(Iterable<ConformanceTestResult> results) {
-    this.results = ImmutableSet.copyOf(results);
-  }
-
-  /** Compares this report to a report read from a file. */
-  public Comparison compareTo(ConformanceTestReport previousResults) {
-    return new Comparison(results, previousResults.results);
-  }
-
-  /** Returns the failing assertions. */
-  public ImmutableSet<ConformanceTestResult> failures() {
-    return results.stream().filter(result -> !result.passed()).collect(toImmutableSet());
+  private ConformanceTestReport(
+      Collection<Path> files, // Path unfortunately implements Iterable<Path>.
+      Iterable<ExpectedFactAssertion> expectedFacts,
+      Iterable<ReportedFact> reportedFacts,
+      Multimap<ExpectedFactAssertion, ReportedFact> matchingFacts) {
+    this.files = ImmutableSortedSet.copyOf(files);
+    this.expectedFactsByFile = index(expectedFacts, ExpectedFactAssertion::getFile);
+    this.reportedFactsByFile = index(reportedFacts, ReportedFact::getFile);
+    this.matchingFacts = ImmutableListMultimap.copyOf(matchingFacts);
   }
 
   /**
-   * Writes the report to a file. Note that actual unexpected facts are never written to the report;
-   * only whether there were any unexpected facts.
+   * Returns a textual report showing all expected facts, and whether each was reported, and
+   * information about unexpected facts
+   *
+   * @param details if {@code true}, shows each unexpected fact, and whether it must be expected; if
+   *     {@code false}, shows for each file whether there were any unexpected facts that must be
+   *     expected
    */
-  public void writeFile(Path file) throws IOException {
-    asCharSink(file.toFile(), UTF_8).writeLines(concat(reportHeader(), reportBody()));
+  public String report(boolean details) {
+    Formatter report = new Formatter();
+    long fails = getFails();
+    int total = getTotal();
+    long passes = total - fails;
+    report.format(
+        "# %,d pass; %,d fail; %,d total; %.1f%% score%n",
+        passes, fails, total, 100.0 * passes / total);
+    for (Path file : files) {
+      ImmutableListMultimap<Long, ExpectedFactAssertion> expectedFactsInFile =
+          index(expectedFactsByFile.get(file), Fact::getLineNumber);
+      ImmutableListMultimap<Long, ReportedFact> reportedFactsInFile =
+          index(reportedFactsByFile.get(file), Fact::getLineNumber);
+      for (long lineNumber :
+          ImmutableSortedSet.copyOf(
+              union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
+        // Report all expected facts on this line and whether they're reported or not.
+        for (ExpectedFactAssertion expectedFact : expectedFactsInFile.get(lineNumber)) {
+          writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
+        }
+        if (details) {
+          // Report all unexpected facts on this line and whether they must be expected or not.
+          for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {
+            if (isUnexpected(reportedFact)) {
+              writeFact(report, reportedFact, reportedFact.mustBeExpected() ? "OOPS" : "INFO");
+            }
+          }
+        }
+      }
+      if (!details) {
+        // Report whether the file has any unexpected reported facts that must be expected.
+        report.format(
+            "%s: %s: no unexpected facts%n",
+            hasUnexpectedFacts(reportedFactsInFile.values()) ? "FAIL" : "PASS", file);
+      }
+    }
+    return report.toString();
   }
 
-  private Stream<String> reportHeader() {
-    int fails = failures().size();
-    int passes = results.size() - fails;
-    return Stream.of(
-        String.format(
-            "# %d pass; %d fail; %d total; %.1f%% score",
-            passes, fails, results.size(), 100.0 * passes / results.size()));
+  private long getFails() {
+    return expectedFactsByFile.values().stream().filter(not(this::matchesReportedFact)).count()
+        + files.stream().map(reportedFactsByFile::get).filter(this::hasUnexpectedFacts).count();
   }
 
-  private Stream<String> reportBody() {
-    return results.stream()
-        .sorted(ConformanceTestResult.COMPARATOR)
-        .map(ConformanceTestReport::toReportLine);
+  private int getTotal() {
+    return expectedFactsByFile.size() + files.size();
   }
 
-  /** A comparison between a current test report and a previous report loaded from a file. */
-  public static final class Comparison {
-
-    private final MapDifference<ConformanceTestAssertion, Boolean> newVsOld;
-
-    private Comparison(
-        Iterable<ConformanceTestResult> results, Iterable<ConformanceTestResult> previousResults) {
-      this.newVsOld = Maps.difference(resultsMap(results), resultsMap(previousResults));
-    }
-
-    /** Returns the failing assertions that had previously passed. */
-    public ImmutableSortedSet<ConformanceTestAssertion> brokenTests() {
-      return ImmutableSortedSet.copyOf(
-          filterValues(newVsOld.entriesDiffering(), vd -> !vd.leftValue() && vd.rightValue())
-              .keySet());
-    }
-
-    /** Returns the failing assertions that previously didn't exist. */
-    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatFail() {
-      return ImmutableSortedSet.copyOf(
-          filterValues(newVsOld.entriesOnlyOnLeft(), pass -> !pass).keySet());
-    }
-
-    /** Returns the passing assertions that previously failed. */
-    public ImmutableSortedSet<ConformanceTestAssertion> fixedTests() {
-      return ImmutableSortedSet.copyOf(
-          filterValues(newVsOld.entriesDiffering(), vd -> vd.leftValue() && !vd.rightValue())
-              .keySet());
-    }
-
-    /** Returns the passing assertions that previously didn't exist. */
-    public ImmutableSortedSet<ConformanceTestAssertion> newTestsThatPass() {
-      return ImmutableSortedSet.copyOf(
-          filterValues(newVsOld.entriesOnlyOnLeft(), pass -> pass).keySet());
-    }
-
-    /** Returns the assertions that no longer exist. */
-    public ImmutableSortedSet<ConformanceTestAssertion> deletedTests() {
-      return ImmutableSortedSet.copyOf(newVsOld.entriesOnlyOnRight().keySet());
-    }
-
-    /**
-     * Returns {@code true} if the current report matches the previous report. Note that the actual
-     * unexpected facts in the current report are not compared; only whether there were any
-     * unexpected facts.
-     */
-    public boolean reportsAreEqual() {
-      return newVsOld.areEqual();
-    }
-
-    private static ImmutableSortedMap<ConformanceTestAssertion, Boolean> resultsMap(
-        Iterable<ConformanceTestResult> results) {
-      return stream(results)
-          .collect(
-              toImmutableSortedMap(
-                  ConformanceTestAssertion::compareTo,
-                  ConformanceTestResult::getAssertion,
-                  ConformanceTestResult::passed));
-    }
+  private boolean hasUnexpectedFacts(Collection<ReportedFact> reportedFacts) {
+    return reportedFacts.stream().anyMatch(rf -> rf.mustBeExpected() && isUnexpected(rf));
   }
 
-  /** The result (pass or fail) of an {@linkplain ConformanceTestAssertion assertion}. */
-  public static final class ConformanceTestResult {
-    private final ConformanceTestAssertion assertion;
-    private final boolean pass;
-    private final ImmutableList<ReportedFact> unexpectedFacts;
+  private boolean matchesReportedFact(ExpectedFactAssertion expectedFact) {
+    return matchingFacts.containsKey(expectedFact);
+  }
 
-    ConformanceTestResult(
-        NoUnexpectedFactsAssertion assertion, Iterable<ReportedFact> unexpectedFacts) {
-      this.assertion = assertion;
-      this.unexpectedFacts = ImmutableList.copyOf(unexpectedFacts);
-      this.pass = this.unexpectedFacts.isEmpty();
-    }
+  private boolean isUnexpected(ReportedFact reportedFact) {
+    return !matchingFacts.containsValue(reportedFact);
+  }
 
-    ConformanceTestResult(ConformanceTestAssertion assertion, boolean pass) {
-      this.assertion = assertion;
-      this.pass = pass;
-      this.unexpectedFacts = ImmutableList.of();
-    }
-
-    /** The assertion. */
-    public ConformanceTestAssertion getAssertion() {
-      return assertion;
-    }
-
-    /** Whether the test passed. */
-    public boolean passed() {
-      return pass;
-    }
-
-    /**
-     * For {@link NoUnexpectedFactsAssertion} assertions, the unexpected must-report facts. Not
-     * written to or read from the report file.
-     */
-    public ImmutableList<ReportedFact> getUnexpectedFacts() {
-      return unexpectedFacts;
-    }
-
-    public static final Comparator<ConformanceTestResult> COMPARATOR =
-        comparing(ConformanceTestResult::getAssertion, ConformanceTestAssertion::compareTo);
+  private static void writeFact(Formatter report, Fact fact, String status) {
+    report.format(
+        "%s: %s:%d %s%n", status, fact.getFile(), fact.getLineNumber(), fact.getFactText());
   }
 }

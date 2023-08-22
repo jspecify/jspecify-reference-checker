@@ -1,7 +1,7 @@
 # 10 pass; 6 fail; 16 total; 62.5% score
-PASS: Basic.java:26 test:cannot-convert:Object? to Object!
 PASS: Basic.java:26 test:expression-type:Object?:nullable
 PASS: Basic.java:26 test:sink-type:Object!:return
+PASS: Basic.java:26 test:cannot-convert:Object? to Object!
 PASS: Basic.java:32 test:expression-type:Object!:nonNull
 PASS: Basic.java:32 test:sink-type:Object?:return
 PASS: Basic.java:39 test:sink-type:Object?:nullableObject
