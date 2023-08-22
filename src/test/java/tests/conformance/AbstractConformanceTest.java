@@ -1,8 +1,8 @@
 package tests.conformance;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.Lists.partition;
+import static com.google.common.collect.Multimaps.index;
 import static com.google.common.io.MoreFiles.asCharSink;
 import static com.google.common.io.MoreFiles.asCharSource;
 import static com.google.common.truth.Truth.assertThat;
@@ -11,7 +11,6 @@ import static java.nio.file.Files.readAllLines;
 import static java.nio.file.Files.walk;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
@@ -19,7 +18,6 @@ import com.google.common.base.Ascii;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.Streams;
 import com.google.common.io.CharSink;
 import com.google.common.io.CharSource;
 import java.io.IOException;
@@ -103,8 +101,7 @@ public abstract class AbstractConformanceTest {
 
   private Stream<ConformanceTestReport> analyzeFiles(List<Path> files) {
     ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
-        Streams.stream(analyze(ImmutableList.copyOf(files)))
-            .collect(toImmutableListMultimap(ReportedFact::getFile, identity()));
+        index(analyze(ImmutableList.copyOf(files)), ReportedFact::getFile);
     return files.stream()
         .map(testDirectory::relativize)
         .map(
@@ -238,7 +235,7 @@ public abstract class AbstractConformanceTest {
       return file;
     }
 
-    /** Returns the line number of the code in the source file to which this assertion applies. */
+    /** Returns the line number of the code in the source file to which this fact applies. */
     public final long getLineNumber() {
       return lineNumber;
     }
@@ -265,7 +262,7 @@ public abstract class AbstractConformanceTest {
             Pattern.compile("test:cannot-convert:\\S+ to \\S+"),
             Pattern.compile("test:expression-type:[^:]+:.*"),
             Pattern.compile("test:irrelevant-annotation:\\S+"),
-              Pattern.compile("test:sink-type:[^:]+:.*"));
+            Pattern.compile("test:sink-type:[^:]+:.*"));
 
     /**
      * Returns an expected fact representing that the source type cannot be converted to the sink
@@ -287,11 +284,11 @@ public abstract class AbstractConformanceTest {
     }
 
     /** Returns an expected fact representing that an annotation is not relevant. */
-      public static ExpectedFact sinkType(String sinkType, String sink) {
-        return new ExpectedFact(String.format("test:sink-type:%s:%s", sinkType, sink));
-      }
+    public static ExpectedFact sinkType(String sinkType, String sink) {
+      return new ExpectedFact(String.format("test:sink-type:%s:%s", sinkType, sink));
+    }
 
-      /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
+    /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
     static @Nullable ExpectedFact readExpectedFact(String text) {
       return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
           ? new ExpectedFact(text)

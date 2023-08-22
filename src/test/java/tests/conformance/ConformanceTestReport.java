@@ -15,12 +15,10 @@
 package tests.conformance;
 
 import static com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
-import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Multimaps.index;
 import static com.google.common.collect.Sets.union;
 import static java.util.Comparator.comparingLong;
-import static java.util.function.Function.identity;
 import static java.util.function.Predicate.not;
 
 import com.google.common.collect.ImmutableList;
@@ -48,14 +46,13 @@ public final class ConformanceTestReport {
       ImmutableList<ReportedFact> reportedFacts,
       ImmutableList<ExpectedFactAssertion> expectedFacts) {
     ImmutableListMultimap<Long, ReportedFact> reportedFactsByLine =
-        reportedFacts.stream()
-            .collect(toImmutableListMultimap(ReportedFact::getLineNumber, rf -> rf));
+        index(reportedFacts, ReportedFact::getLineNumber);
     ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts =
         expectedFacts.stream()
             .sorted(comparingLong(ExpectedFactAssertion::getLineNumber))
             .collect(
                 flatteningToImmutableListMultimap(
-                    identity(),
+                    f -> f,
                     expectedFact ->
                         reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
                             .filter(reportedFact -> reportedFact.matches(expectedFact.getFact()))));
