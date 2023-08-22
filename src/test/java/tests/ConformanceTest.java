@@ -132,14 +132,18 @@ public final class ConformanceTest extends AbstractConformanceTest {
       }
       switch (detailMessage.messageKey) {
         case "sourceType":
-          return expressionType(
-              fixType(detailMessage.messageArguments.get(0)),
-              detailMessage.messageArguments.get(1));
-
+          {
+            String expressionType = fixType(detailMessage.messageArguments.get(0));
+            String expression = detailMessage.messageArguments.get(1);
+            return expressionType(expressionType, expression);
+          }
         case "sinkType":
-          return sinkType(
-              fixType(detailMessage.messageArguments.get(0)),
-              detailMessage.messageArguments.get(1).replaceFirst("^[^.]+\\.", ""));
+          {
+            String sinkType = fixType(detailMessage.messageArguments.get(0));
+            // Remove the simple name of the class and the dot before the method name.
+            String sink = detailMessage.messageArguments.get(1).replaceFirst("^[^.]+\\.", "");
+            return sinkType(sinkType, sink);
+          }
       }
       return null;
     }
