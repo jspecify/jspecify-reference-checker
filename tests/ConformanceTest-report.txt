@@ -1,17 +1,17 @@
-# 8 pass; 8 fail; 16 total; 50.0% score
-PASS: Basic.java:26 test:cannot-convert:Object? to Object!
-PASS: Basic.java:26 test:expression-type:Object?:nullable
+# 3 pass; 13 fail; 16 total; 18.8% score
+FAIL: Basic.java:26 test:cannot-convert:Object? to Object!
+FAIL: Basic.java:26 test:expression-type:Object?:nullable
 FAIL: Basic.java:26 test:sink-type:Object!:return
-PASS: Basic.java:32 test:expression-type:Object!:nonNull
+FAIL: Basic.java:32 test:expression-type:Object!:nonNull
 FAIL: Basic.java:32 test:sink-type:Object?:return
-PASS: Basic.java:39 test:sink-type:Object?:nullableObject
-PASS: Basic.java:41 test:sink-type:String!:testSinkType#nonNullString
+FAIL: Basic.java:39 test:sink-type:Object?:nullableObject
+FAIL: Basic.java:41 test:sink-type:String!:testSinkType#nonNullString
 PASS: Basic.java: no unexpected facts
 PASS: Irrelevant.java:28 test:irrelevant-annotation:Nullable
-PASS: Irrelevant.java:34 test:irrelevant-annotation:Nullable
+FAIL: Irrelevant.java:34 test:irrelevant-annotation:Nullable
 FAIL: Irrelevant.java:38 test:irrelevant-annotation:NonNull
 FAIL: Irrelevant.java:43 test:irrelevant-annotation:NonNull
 FAIL: Irrelevant.java:43 test:irrelevant-annotation:Nullable
 FAIL: Irrelevant.java:47 test:irrelevant-annotation:NullMarked
 FAIL: Irrelevant.java:49 test:irrelevant-annotation:NullUnmarked
-FAIL: Irrelevant.java: no unexpected facts
+PASS: Irrelevant.java: no unexpected facts
