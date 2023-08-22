@@ -264,7 +264,8 @@ public abstract class AbstractConformanceTest {
             // TODO: wildcard types have whitespace
             Pattern.compile("test:cannot-convert:\\S+ to \\S+"),
             Pattern.compile("test:expression-type:[^:]+:.*"),
-            Pattern.compile("test:irrelevant-annotation:\\S+"));
+            Pattern.compile("test:irrelevant-annotation:\\S+"),
+              Pattern.compile("test:sink-type:[^:]+:.*"));
 
     /**
      * Returns an expected fact representing that the source type cannot be converted to the sink
@@ -285,7 +286,12 @@ public abstract class AbstractConformanceTest {
       return new ExpectedFact(String.format("test:irrelevant-annotation:%s", annotationType));
     }
 
-    /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
+    /** Returns an expected fact representing that an annotation is not relevant. */
+      public static ExpectedFact sinkType(String sinkType, String sink) {
+        return new ExpectedFact(String.format("test:sink-type:%s:%s", sinkType, sink));
+      }
+
+      /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
     static @Nullable ExpectedFact readExpectedFact(String text) {
       return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
           ? new ExpectedFact(text)
