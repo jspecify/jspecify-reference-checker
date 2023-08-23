@@ -135,7 +135,8 @@ public abstract class AbstractConformanceTest {
         } else {
           facts.forEach(
               (factLineNumber, expectedFact) ->
-                  expectedFacts.add(new ExpectedFact(file, lineNumber, fact, factLineNumber)));
+                  expectedFacts.add(
+                      new ExpectedFact(file, lineNumber, expectedFact, factLineNumber)));
           facts.clear();
         }
       }
