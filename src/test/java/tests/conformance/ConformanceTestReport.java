@@ -49,7 +49,6 @@ public final class ConformanceTestReport {
         index(reportedFacts, ReportedFact::getLineNumber);
     ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts =
         expectedFacts.stream()
-            .sorted(comparingLong(ExpectedFact::getLineNumber))
             .collect(
                 flatteningToImmutableListMultimap(
                     f -> f,
@@ -112,9 +111,12 @@ public final class ConformanceTestReport {
           ImmutableSortedSet.copyOf(
               union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
         // Report all expected facts on this line and whether they're reported or not.
-        for (ExpectedFact expectedFact : expectedFactsInFile.get(lineNumber)) {
-          writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
-        }
+        expectedFactsInFile.get(lineNumber).stream()
+            .sorted(comparingLong(ExpectedFact::getFactLineNumber))
+            .forEach(
+                expectedFact ->
+                    writeFact(
+                        report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL"));
         if (details) {
           // Report all unexpected facts on this line and whether they must be expected or not.
           for (ReportedFact reportedFact : reportedFactsInFile.get(lineNumber)) {

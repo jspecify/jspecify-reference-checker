@@ -26,9 +26,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -122,19 +123,20 @@ public abstract class AbstractConformanceTest {
   private ImmutableList<ExpectedFact> readExpectedFacts(Path file) {
     try {
       ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
-      List<String> facts = new ArrayList<>();
+      Map<Long, String> facts = new HashMap<>();
       for (ListIterator<String> i = readAllLines(testDirectory.resolve(file), UTF_8).listIterator();
           i.hasNext(); ) {
         String line = i.next();
+        long lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         String fact = matcher.matches() ? readExpectedFact(matcher.group("expectation")) : null;
         if (fact != null) {
-          facts.add(fact);
+          facts.put(lineNumber, fact);
         } else {
-          long lineNumber = i.nextIndex();
-          facts.stream()
-              .map(expectedFact -> new ExpectedFact(file, lineNumber, expectedFact))
-              .forEach(expectedFacts::add);
+          facts.forEach(
+              (factLineNumber, expectedFact) ->
+                  expectedFacts.add(
+                      new ExpectedFact(file, lineNumber, expectedFact, factLineNumber)));
           facts.clear();
         }
       }
@@ -302,15 +304,22 @@ public abstract class AbstractConformanceTest {
     }
 
     private final String fact;
+    private final long factLineNumber;
 
-    ExpectedFact(Path file, long lineNumber, String fact) {
+    ExpectedFact(Path file, long lineNumber, String fact, long factLineNumber) {
       super(file, lineNumber);
       this.fact = fact;
+      this.factLineNumber = factLineNumber;
     }
 
     @Override
     public String getFactText() {
       return fact;
+    }
+
+    /** Returns the line number in the input file where the expected fact is. */
+    public long getFactLineNumber() {
+      return factLineNumber;
     }
 
     @Override
