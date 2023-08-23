@@ -25,9 +25,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -121,20 +122,21 @@ public abstract class AbstractConformanceTest {
   private ImmutableList<ExpectedFactAssertion> readExpectedFacts(Path file) {
     try {
       ImmutableList.Builder<ExpectedFactAssertion> expectedFactAssertions = ImmutableList.builder();
-      List<ExpectedFact> expectedFacts = new ArrayList<>();
+      Map<Long, ExpectedFact> expectedFacts = new HashMap<>();
       for (ListIterator<String> i = readAllLines(testDirectory.resolve(file), UTF_8).listIterator();
           i.hasNext(); ) {
         String line = i.next();
+        long lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         ExpectedFact fact =
             matcher.matches() ? readExpectedFact(matcher.group("expectation")) : null;
         if (fact != null) {
-          expectedFacts.add(fact);
+          expectedFacts.put(lineNumber, fact);
         } else {
-          long lineNumber = i.nextIndex();
-          expectedFacts.stream()
-              .map(expectedFact -> new ExpectedFactAssertion(file, lineNumber, expectedFact))
-              .forEach(expectedFactAssertions::add);
+          expectedFacts.forEach(
+              (factLineNumber, expectedFact) ->
+                  expectedFactAssertions.add(
+                      new ExpectedFactAssertion(file, lineNumber, expectedFact, factLineNumber)));
           expectedFacts.clear();
         }
       }
@@ -342,10 +344,12 @@ public abstract class AbstractConformanceTest {
    */
   public static final class ExpectedFactAssertion extends Fact {
     private final ExpectedFact fact;
+    private final long factLineNumber;
 
-    ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact) {
+    ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact, long factLineNumber) {
       super(file, lineNumber);
       this.fact = fact;
+      this.factLineNumber = factLineNumber;
     }
 
     @Override
@@ -356,6 +360,11 @@ public abstract class AbstractConformanceTest {
     /** Returns the fact expected at the file and line number. */
     public ExpectedFact getFact() {
       return fact;
+    }
+
+    /** Returns the line number in the input file where the expected fact is. */
+    public long getFactLineNumber() {
+      return factLineNumber;
     }
 
     @Override
