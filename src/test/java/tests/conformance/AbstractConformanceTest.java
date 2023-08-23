@@ -11,6 +11,7 @@ import static java.nio.file.Files.readAllLines;
 import static java.nio.file.Files.walk;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toList;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
@@ -117,28 +118,27 @@ public abstract class AbstractConformanceTest {
    */
   protected abstract Iterable<ReportedFact> analyze(ImmutableList<Path> files);
 
-  /** Reads {@link ExpectedFactAssertion}s from comments in a file. */
-  private ImmutableList<ExpectedFactAssertion> readExpectedFacts(Path file) {
+  /** Reads {@link ExpectedFact}s from comments in a file. */
+  private ImmutableList<ExpectedFact> readExpectedFacts(Path file) {
     try {
-      ImmutableList.Builder<ExpectedFactAssertion> expectedFactAssertions = ImmutableList.builder();
-      List<ExpectedFact> expectedFacts = new ArrayList<>();
+      ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
+      List<String> facts = new ArrayList<>();
       for (ListIterator<String> i = readAllLines(testDirectory.resolve(file), UTF_8).listIterator();
           i.hasNext(); ) {
         String line = i.next();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
-        ExpectedFact fact =
-            matcher.matches() ? readExpectedFact(matcher.group("expectation")) : null;
+        String fact = matcher.matches() ? readExpectedFact(matcher.group("expectation")) : null;
         if (fact != null) {
-          expectedFacts.add(fact);
+          facts.add(fact);
         } else {
           long lineNumber = i.nextIndex();
-          expectedFacts.stream()
-              .map(expectedFact -> new ExpectedFactAssertion(file, lineNumber, expectedFact))
-              .forEach(expectedFactAssertions::add);
-          expectedFacts.clear();
+          facts.stream()
+              .map(expectedFact -> new ExpectedFact(file, lineNumber, expectedFact))
+              .forEach(expectedFacts::add);
+          facts.clear();
         }
       }
-      return expectedFactAssertions.build();
+      return expectedFacts.build();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -245,13 +245,12 @@ public abstract class AbstractConformanceTest {
   }
 
   /**
-   * An assertion that the tool behaves in a way consistent with a specific fact. Some of these
-   * facts indicate that according to the JSpecify specification, the code in question may have an
-   * error that should be reported to users; other expected facts are informational, such as the
-   * expected nullness-augmented type of an expression.
+   * An assertion that the tool behaves in a way consistent with a specific fact about a line in the
+   * source code. Some of these facts indicate that according to the JSpecify specification, the
+   * code in question may have an error that should be reported to users; other expected facts are
+   * informational, such as the expected nullness-augmented type of an expression.
    */
-  // TODO(dpb): Maybe just use the string instead of this class?
-  public static final class ExpectedFact {
+  public static final class ExpectedFact extends Fact {
     private static final Pattern NULLNESS_MISMATCH =
         Pattern.compile("jspecify_nullness_mismatch\\b.*");
 
@@ -268,93 +267,49 @@ public abstract class AbstractConformanceTest {
      * Returns an expected fact representing that the source type cannot be converted to the sink
      * type in any world.
      */
-    public static ExpectedFact cannotConvert(String sourceType, String sinkType) {
-      return new ExpectedFact(String.format("test:cannot-convert:%s to %s", sourceType, sinkType));
+    public static String cannotConvert(String sourceType, String sinkType) {
+      return String.format("test:cannot-convert:%s to %s", sourceType, sinkType);
     }
 
     /** Returns an expected fact representing an expected expression type. */
-    public static ExpectedFact expressionType(String expressionType, String expression) {
-      return new ExpectedFact(
-          String.format("test:expression-type:%s:%s", expressionType, expression));
+    public static String expressionType(String expressionType, String expression) {
+      return String.format("test:expression-type:%s:%s", expressionType, expression);
     }
 
     /** Returns an expected fact representing that an annotation is not relevant. */
-    public static ExpectedFact irrelevantAnnotation(String annotationType) {
-      return new ExpectedFact(String.format("test:irrelevant-annotation:%s", annotationType));
+    public static String irrelevantAnnotation(String annotationType) {
+      return String.format("test:irrelevant-annotation:%s", annotationType);
     }
 
     /** Returns an expected fact representing that an annotation is not relevant. */
-    public static ExpectedFact sinkType(String sinkType, String sink) {
-      return new ExpectedFact(String.format("test:sink-type:%s:%s", sinkType, sink));
+    public static String sinkType(String sinkType, String sink) {
+      return String.format("test:sink-type:%s:%s", sinkType, sink);
     }
 
-    /** Read an {@link ExpectedFact} from a line of either a source file or a report. */
-    static @Nullable ExpectedFact readExpectedFact(String text) {
+    /**
+     * Returns {@code true} if {@code fact} is a legacy {@code jspecify_nullness_mismatch}
+     * assertion.
+     */
+    public static boolean isNullnessMismatch(String fact) {
+      return NULLNESS_MISMATCH.matcher(fact).matches();
+    }
+
+    /** Read an expected fact from a line of either a source file or a report. */
+    static @Nullable String readExpectedFact(String text) {
       return ASSERTION_PATTERNS.stream().anyMatch(pattern -> pattern.matcher(text).matches())
-          ? new ExpectedFact(text)
+          ? text
           : null;
     }
 
-    private ExpectedFact(String commentText) {
-      this.commentText = commentText;
-    }
+    private final String fact;
 
-    private final String commentText;
-
-    /** The comment text representing this expected fact. */
-    public String commentText() {
-      return commentText;
-    }
-
-    /** Returns {@code true} if this is a legacy {@code jspecify_nullness_mismatch} assertion. */
-    public boolean isNullnessMismatch() {
-      return NULLNESS_MISMATCH.matcher(commentText).matches();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == this) {
-        return true;
-      }
-      if (!(obj instanceof ExpectedFact)) {
-        return false;
-      }
-      ExpectedFact that = (ExpectedFact) obj;
-      return this.commentText.equals(that.commentText);
-    }
-
-    @Override
-    public int hashCode() {
-      return commentText.hashCode();
-    }
-
-    @Override
-    public String toString() {
-      return commentText;
-    }
-  }
-
-  /**
-   * An assertion that the tool behaves in a way consistent with a specific fact about a line in the
-   * source code. Some of these facts indicate that according to the JSpecify specification, the
-   * code in question may have an error that should be reported to users; other expected facts are
-   * informational, such as the expected nullness-augmented type of an expression.
-   */
-  public static final class ExpectedFactAssertion extends Fact {
-    private final ExpectedFact fact;
-
-    ExpectedFactAssertion(Path file, long lineNumber, ExpectedFact fact) {
+    ExpectedFact(Path file, long lineNumber, String fact) {
       super(file, lineNumber);
       this.fact = fact;
     }
 
     @Override
     public String getFactText() {
-      return fact.commentText();
-    }
-
-    /** Returns the fact expected at the file and line number. */
-    public ExpectedFact getFact() {
       return fact;
     }
 
@@ -363,10 +318,10 @@ public abstract class AbstractConformanceTest {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof ExpectedFactAssertion)) {
+      if (!(o instanceof ExpectedFact)) {
         return false;
       }
-      ExpectedFactAssertion that = (ExpectedFactAssertion) o;
+      ExpectedFact that = (ExpectedFact) o;
       return this.getFile().equals(that.getFile())
           && this.getLineNumber() == that.getLineNumber()
           && this.fact.equals(that.fact);
@@ -386,20 +341,19 @@ public abstract class AbstractConformanceTest {
 
     @Override
     public String getFactText() {
-      ExpectedFact expectedFact = expectedFact();
-      return expectedFact != null ? expectedFact.commentText() : toString();
+      return requireNonNullElse(expectedFact(), toString());
     }
 
-    /** Returns true if this reported fact must match an {@link ExpectedFactAssertion}. */
+    /** Returns true if this reported fact must match an {@link ExpectedFact}. */
     protected abstract boolean mustBeExpected();
 
     /** Returns true if this reported fact matches the given expected fact. */
-    protected boolean matches(ExpectedFact expectedFact) {
+    protected boolean matches(String expectedFact) {
       return expectedFact.equals(expectedFact());
     }
 
     /** Returns the equivalent expected fact. */
-    protected abstract @Nullable ExpectedFact expectedFact();
+    protected abstract @Nullable String expectedFact();
 
     /** Returns the message reported, without the file name or line number. */
     @Override

@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Formatter;
 import tests.ConformanceTest;
-import tests.conformance.AbstractConformanceTest.ExpectedFactAssertion;
+import tests.conformance.AbstractConformanceTest.ExpectedFact;
 import tests.conformance.AbstractConformanceTest.Fact;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 
@@ -44,18 +44,19 @@ public final class ConformanceTestReport {
   static ConformanceTestReport forFile(
       Path file,
       ImmutableList<ReportedFact> reportedFacts,
-      ImmutableList<ExpectedFactAssertion> expectedFacts) {
+      ImmutableList<ExpectedFact> expectedFacts) {
     ImmutableListMultimap<Long, ReportedFact> reportedFactsByLine =
         index(reportedFacts, ReportedFact::getLineNumber);
-    ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts =
+    ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts =
         expectedFacts.stream()
-            .sorted(comparingLong(ExpectedFactAssertion::getLineNumber))
+            .sorted(comparingLong(ExpectedFact::getLineNumber))
             .collect(
                 flatteningToImmutableListMultimap(
                     f -> f,
                     expectedFact ->
                         reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
-                            .filter(reportedFact -> reportedFact.matches(expectedFact.getFact()))));
+                            .filter(
+                                reportedFact -> reportedFact.matches(expectedFact.getFactText()))));
     return new ConformanceTestReport(
         ImmutableSortedSet.of(file), expectedFacts, reportedFacts, matchingFacts);
   }
@@ -71,18 +72,18 @@ public final class ConformanceTestReport {
   }
 
   private final ImmutableSortedSet<Path> files;
-  private final ImmutableListMultimap<Path, ExpectedFactAssertion> expectedFactsByFile;
+  private final ImmutableListMultimap<Path, ExpectedFact> expectedFactsByFile;
   private final ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile;
-  private final ImmutableListMultimap<ExpectedFactAssertion, ReportedFact> matchingFacts;
+  private final ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts;
 
   private ConformanceTestReport(
       Collection<Path> files, // Path unfortunately implements Iterable<Path>.
-      Iterable<ExpectedFactAssertion> expectedFacts,
+      Iterable<ExpectedFact> expectedFacts,
       Iterable<ReportedFact> reportedFacts,
-      Multimap<ExpectedFactAssertion, ReportedFact> matchingFacts) {
+      Multimap<ExpectedFact, ReportedFact> matchingFacts) {
     this.files = ImmutableSortedSet.copyOf(files);
-    this.expectedFactsByFile = index(expectedFacts, ExpectedFactAssertion::getFile);
-    this.reportedFactsByFile = index(reportedFacts, ReportedFact::getFile);
+    this.expectedFactsByFile = index(expectedFacts, Fact::getFile);
+    this.reportedFactsByFile = index(reportedFacts, Fact::getFile);
     this.matchingFacts = ImmutableListMultimap.copyOf(matchingFacts);
   }
 
@@ -103,7 +104,7 @@ public final class ConformanceTestReport {
         "# %,d pass; %,d fail; %,d total; %.1f%% score%n",
         passes, fails, total, 100.0 * passes / total);
     for (Path file : files) {
-      ImmutableListMultimap<Long, ExpectedFactAssertion> expectedFactsInFile =
+      ImmutableListMultimap<Long, ExpectedFact> expectedFactsInFile =
           index(expectedFactsByFile.get(file), Fact::getLineNumber);
       ImmutableListMultimap<Long, ReportedFact> reportedFactsInFile =
           index(reportedFactsByFile.get(file), Fact::getLineNumber);
@@ -111,7 +112,7 @@ public final class ConformanceTestReport {
           ImmutableSortedSet.copyOf(
               union(expectedFactsInFile.keySet(), reportedFactsInFile.keySet()))) {
         // Report all expected facts on this line and whether they're reported or not.
-        for (ExpectedFactAssertion expectedFact : expectedFactsInFile.get(lineNumber)) {
+        for (ExpectedFact expectedFact : expectedFactsInFile.get(lineNumber)) {
           writeFact(report, expectedFact, matchesReportedFact(expectedFact) ? "PASS" : "FAIL");
         }
         if (details) {
@@ -146,7 +147,7 @@ public final class ConformanceTestReport {
     return reportedFacts.stream().anyMatch(rf -> rf.mustBeExpected() && isUnexpected(rf));
   }
 
-  private boolean matchesReportedFact(ExpectedFactAssertion expectedFact) {
+  private boolean matchesReportedFact(ExpectedFact expectedFact) {
     return matchingFacts.containsKey(expectedFact);
   }
 
