@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.joining;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.expressionType;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.irrelevantAnnotation;
+import static tests.conformance.AbstractConformanceTest.ExpectedFact.isNullnessMismatch;
 import static tests.conformance.AbstractConformanceTest.ExpectedFact.sinkType;
 
 import com.google.common.base.Splitter;
@@ -106,8 +107,8 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    protected boolean matches(ExpectedFact expectedFact) {
-      if (expectedFact.isNullnessMismatch()) {
+    protected boolean matches(String expectedFact) {
+      if (isNullnessMismatch(expectedFact)) {
         return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
       }
       return super.matches(expectedFact);
@@ -119,7 +120,7 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    protected @Nullable ExpectedFact expectedFact() {
+    protected @Nullable String expectedFact() {
       if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
