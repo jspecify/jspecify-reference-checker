@@ -28,12 +28,11 @@ import com.google.common.collect.Multimap;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Formatter;
-import tests.ConformanceTest;
 import tests.conformance.AbstractConformanceTest.ExpectedFact;
 import tests.conformance.AbstractConformanceTest.Fact;
 import tests.conformance.AbstractConformanceTest.ReportedFact;
 
-/** Represents the results of running {@link ConformanceTest} on a set of files. */
+/** Represents the results of running an {@link AbstractConformanceTest} on a set of files. */
 public final class ConformanceTestReport {
   /** An empty report. */
   static final ConformanceTestReport EMPTY =
