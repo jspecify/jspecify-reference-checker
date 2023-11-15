@@ -47,6 +47,7 @@ dependencies {
     testImplementation 'org.plumelib:plume-util:1.5.5'
     testImplementation "org.checkerframework:framework-test:${cfVersion}"
     testImplementation "com.google.truth:truth:1.1.3"
+    testImplementation project(":conformance")
 
     errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
     errorprone "com.google.errorprone:error_prone_core:2.18.0"
