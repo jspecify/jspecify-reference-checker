@@ -1,4 +1,4 @@
-package tests.conformance;
+package org.jspecify.conformance;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.partition;
@@ -13,7 +13,7 @@ import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toList;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.Strings;

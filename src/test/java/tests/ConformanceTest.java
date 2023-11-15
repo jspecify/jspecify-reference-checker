@@ -19,11 +19,11 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.expressionType;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.irrelevantAnnotation;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.isNullnessMismatch;
-import static tests.conformance.AbstractConformanceTest.ExpectedFact.sinkType;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.expressionType;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.irrelevantAnnotation;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.isNullnessMismatch;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.sinkType;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -40,9 +40,9 @@ import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.jspecify.annotations.Nullable;
+import org.jspecify.conformance.AbstractConformanceTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import tests.conformance.AbstractConformanceTest;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
 @RunWith(JUnit4.class)

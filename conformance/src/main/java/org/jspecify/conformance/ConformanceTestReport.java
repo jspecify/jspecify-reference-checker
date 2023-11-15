@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tests.conformance;
+package org.jspecify.conformance;
 
 import static com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
 import static com.google.common.collect.Iterables.concat;
@@ -28,9 +28,9 @@ import com.google.common.collect.Multimap;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Formatter;
-import tests.conformance.AbstractConformanceTest.ExpectedFact;
-import tests.conformance.AbstractConformanceTest.Fact;
-import tests.conformance.AbstractConformanceTest.ReportedFact;
+import org.jspecify.conformance.AbstractConformanceTest.ExpectedFact;
+import org.jspecify.conformance.AbstractConformanceTest.Fact;
+import org.jspecify.conformance.AbstractConformanceTest.ReportedFact;
 
 /** Represents the results of running an {@link AbstractConformanceTest} on a set of files. */
 public final class ConformanceTestReport {
