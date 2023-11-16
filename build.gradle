@@ -34,12 +34,9 @@ dependencies {
 
     implementation libs.jspecify
 
-    // Testing
     testImplementation libs.junit
-    // The jsr305 dep lets us use its annotations in some of the sample inputs we test against.
-    testImplementation libs.jsr305
+    testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
     testImplementation libs.guava
-    testImplementation libs.plume.util
     testImplementation libs.checkerFramework.framework.test
     testImplementation "org.jspecify:conformance"
 
