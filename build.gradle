@@ -34,11 +34,11 @@ dependencies {
 
     implementation libs.jspecify
 
-    testImplementation libs.junit
-    testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
-    testImplementation libs.guava
     testImplementation libs.checkerFramework.framework.test
-    testImplementation "org.jspecify:conformance"
+    testImplementation libs.guava
+    testImplementation libs.junit
+    testImplementation libs.jspecify.conformance
+    testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
