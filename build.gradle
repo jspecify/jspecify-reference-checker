@@ -56,19 +56,10 @@ tasks.withType(JavaCompile).configureEach {
     options.errorprone.disable("BadImport")
 
     options.compilerArgs.addAll(
-            [
-                "api",
-                "code",
-                "comp",
-                "file",
-                "main",
-                "model",
-                "parser",
-                "processing",
-                "resources",
-                "tree",
-                "util",
-            ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
+            ["api", "code", "comp", "file", "main", "model", "parser", "processing", "resources", "tree", "util"]
+                    .collect {
+                        "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED"
+                    })
 }
 
 tasks.withType(Test).configureEach {
@@ -77,16 +68,10 @@ tasks.withType(Test).configureEach {
     }
 
     // Required because checker-framework uses APIs from these modules.
-    jvmArgs(
-            [
-                    "code",
-                    "comp",
-                    "main",
-                    "processing",
-                    "tree",
-                    "util"
-            ]
-                    .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
+    jvmArgs(["code", "comp", "main", "processing", "tree", "util"]
+            .collect {
+                "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED"
+            })
 
     testLogging {
         showStackTraces = false
@@ -146,11 +131,8 @@ if (!cfQualJar.toFile().exists()) {
     mkdir(cfQualJar.parent)
     exec {
         executable 'jar'
-        args = [
-            'cf',
-            cfQualJar,
-            buildFile.path // Use this build script file!
-        ]
+        // Include just this build script file!
+        args = ['cf', cfQualJar, buildFile.path]
     }
 }
 
