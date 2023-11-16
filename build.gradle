@@ -57,9 +57,7 @@ tasks.withType(JavaCompile).configureEach {
 
     options.compilerArgs.addAll(
             ["api", "code", "comp", "file", "main", "model", "parser", "processing", "resources", "tree", "util"]
-                    .collect {
-                        "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED"
-                    })
+                    .collect { "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 }
 
 tasks.withType(Test).configureEach {
@@ -69,9 +67,7 @@ tasks.withType(Test).configureEach {
 
     // Required because checker-framework uses APIs from these modules.
     jvmArgs(["code", "comp", "main", "processing", "tree", "util"]
-            .collect {
-                "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED"
-            })
+            .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 
     testLogging {
         showStackTraces = false
