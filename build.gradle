@@ -51,7 +51,7 @@ dependencies {
 assemble.dependsOn(checkerFramework.task(":assemble"))
 assemble.dependsOn(jspecify.task(":assemble"))
 
-tasks.withType(JavaCompile).all {
+tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
     options.compilerArgs.add("-Xlint:-fallthrough")
@@ -74,7 +74,7 @@ tasks.withType(JavaCompile).all {
             ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     if (!JavaVersion.current().java9Compatible) {
         jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
     }
@@ -105,7 +105,7 @@ test {
     inputs.files("${rootDir}/tests/minimal")
 }
 
-task jspecifySamplesTest(type: Test) {
+tasks.register('jspecifySamplesTest', Test) {
     description = 'Run the checker against the JSpecify samples.'
     group = 'verification'
     include '**/NullSpecTest$Lenient.class'
