@@ -40,7 +40,6 @@ dependencyResolutionManagement {
             library("junit","junit:junit:4.12")
             library("jsr305", "com.google.code.findbugs:jsr305:3.0.2")
             library("guava", "com.google.guava:guava:31.1-jre")
-            library("plume-util", "org.plumelib:plume-util:1.5.5")
 
             library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
             library("errorProne-core", "com.google.errorprone:error_prone_core:2.18.0")
