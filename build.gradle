@@ -31,24 +31,24 @@ java {
 }
 
 dependencies {
-    implementation "org.checkerframework:checker:${cfVersion}"
-    implementation "org.checkerframework:checker-qual:${cfVersion}"
-    implementation "org.checkerframework:framework:${cfVersion}"
-    implementation "org.checkerframework:javacutil:${cfVersion}"
+    implementation libs.checkerFramework.checker
+    implementation libs.checkerFramework.checker.qual
+    implementation libs.checkerFramework.framework
+    implementation libs.checkerFramework.javacutil
 
-    implementation "org.jspecify:jspecify:0.0.0-SNAPSHOT"
+    implementation libs.jspecify
 
     // Testing
-    testImplementation 'junit:junit:4.12'
+    testImplementation libs.junit
     // The jsr305 dep lets us use its annotations in some of the sample inputs we test against.
-    testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
-    testImplementation 'com.google.guava:guava:31.1-jre'
-    testImplementation 'org.plumelib:plume-util:1.5.5'
-    testImplementation "org.checkerframework:framework-test:${cfVersion}"
+    testImplementation libs.jsr305
+    testImplementation libs.guava
+    testImplementation libs.plume.util
+    testImplementation libs.checkerFramework.framework.test
     testImplementation "org.jspecify:conformance"
 
-    errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
-    errorprone "com.google.errorprone:error_prone_core:2.18.0"
+    errorproneJavac libs.errorProne.javac
+    errorprone libs.errorProne.core
 }
 
 // Assemble checker-framework when assembling the reference checker.
@@ -86,14 +86,14 @@ tasks.withType(Test) {
     // Required because checker-framework uses APIs from these modules.
     jvmArgs(
             [
-                "code",
-                "comp",
-                "main",
-                "processing",
-                "tree",
-                "util"
+                    "code",
+                    "comp",
+                    "main",
+                    "processing",
+                    "tree",
+                    "util"
             ]
-            .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
+                    .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 
     testLogging {
         showStackTraces = false
