@@ -15,8 +15,8 @@ java {
 
 dependencies {
     api libs.guava
-    implementation libs.truth
     implementation libs.jspecify
+    implementation libs.truth
 }
 
 test {
