@@ -18,12 +18,8 @@ configurations {
 }
 
 ext {
-    parentDir = file("${rootDir}/../").absolutePath
-
-    cfHome = "${parentDir}/checker-framework"
-    cfVersion = "3.21.5-SNAPSHOT"
-
-    jspecifyHome = "${parentDir}/jspecify"
+    checkerFramework = gradle.includedBuild("checker-framework")
+    jspecify = gradle.includedBuild("jspecify")
 }
 
 java {
@@ -52,8 +48,8 @@ dependencies {
 }
 
 // Assemble checker-framework when assembling the reference checker.
-assemble.dependsOn(gradle.includedBuild("checker-framework").task(":assemble"))
-assemble.dependsOn(gradle.includedBuild("jspecify").task(":assemble"))
+assemble.dependsOn(checkerFramework.task(":assemble"))
+assemble.dependsOn(jspecify.task(":assemble"))
 
 tasks.withType(JavaCompile).all {
     options.compilerArgs.add("-Xlint:all")
@@ -115,7 +111,7 @@ task jspecifySamplesTest(type: Test) {
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    inputs.files("${jspecifyHome}/samples")
+    inputs.files("${jspecify.projectDir}/samples")
 }
 
 TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
@@ -128,9 +124,9 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
     }
 }
 
-conformanceTest('conformanceTest', "${jspecifyHome}/conformance", 'tests/ConformanceTest-report.txt')
+conformanceTest('conformanceTest', "${jspecify.projectDir}/conformance", 'tests/ConformanceTest-report.txt')
 
-conformanceTest('conformanceTestOnSamples', "${jspecifyHome}/samples", 'tests/ConformanceTestOnSamples-report.txt')
+conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
@@ -145,15 +141,17 @@ clean.doFirst {
  See https://github.com/jspecify/jspecify-reference-checker/issues/81
  */
 
-def cfQualJar = file("${cfHome}/checker-qual/build/libs/checker-qual-${cfVersion}.jar")
+def cfQualJar =
+        checkerFramework.projectDir.toPath()
+                .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
-if (!cfQualJar.exists()) {
+if (!cfQualJar.toFile().exists()) {
     mkdir(cfQualJar.parent)
     exec {
         executable 'jar'
         args = [
             'cf',
-            cfQualJar.path,
+            cfQualJar,
             buildFile.path // Use this build script file!
         ]
     }
