@@ -15,6 +15,7 @@ repositories {
 
 configurations {
     errorproneJavac
+    testData
 }
 
 ext {
@@ -37,7 +38,7 @@ dependencies {
     testImplementation libs.checkerFramework.framework.test
     testImplementation libs.guava
     testImplementation libs.junit
-    testImplementation libs.jspecify.conformance
+    testImplementation libs.jspecify.conformance.framework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
     errorproneJavac libs.errorProne.javac
