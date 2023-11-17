@@ -18,12 +18,8 @@ configurations {
 }
 
 ext {
-    parentDir = file("${rootDir}/../").absolutePath
-
-    cfHome = "${parentDir}/checker-framework"
-    cfVersion = "3.21.5-SNAPSHOT"
-
-    jspecifyHome = "${parentDir}/jspecify"
+    checkerFramework = gradle.includedBuild("checker-framework")
+    jspecify = gradle.includedBuild("jspecify")
 }
 
 java {
@@ -31,31 +27,28 @@ java {
 }
 
 dependencies {
-    implementation "org.checkerframework:checker:${cfVersion}"
-    implementation "org.checkerframework:checker-qual:${cfVersion}"
-    implementation "org.checkerframework:framework:${cfVersion}"
-    implementation "org.checkerframework:javacutil:${cfVersion}"
+    implementation libs.checkerFramework.checker
+    implementation libs.checkerFramework.checker.qual
+    implementation libs.checkerFramework.framework
+    implementation libs.checkerFramework.javacutil
 
-    implementation "org.jspecify:jspecify:0.0.0-SNAPSHOT"
+    implementation libs.jspecify
 
-    // Testing
-    testImplementation 'junit:junit:4.12'
-    // The jsr305 dep lets us use its annotations in some of the sample inputs we test against.
-    testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
-    testImplementation 'com.google.guava:guava:31.1-jre'
-    testImplementation 'org.plumelib:plume-util:1.5.5'
-    testImplementation "org.checkerframework:framework-test:${cfVersion}"
-    testImplementation project(":conformance")
+    testImplementation libs.checkerFramework.framework.test
+    testImplementation libs.guava
+    testImplementation libs.junit
+    testImplementation libs.jspecify.conformance
+    testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
-    errorprone "com.google.errorprone:error_prone_core:2.18.0"
+    errorproneJavac libs.errorProne.javac
+    errorprone libs.errorProne.core
 }
 
 // Assemble checker-framework when assembling the reference checker.
-assemble.dependsOn(gradle.includedBuild("checker-framework").task(":assemble"))
-assemble.dependsOn(gradle.includedBuild("jspecify").task(":assemble"))
+assemble.dependsOn(checkerFramework.task(":assemble"))
+assemble.dependsOn(jspecify.task(":assemble"))
 
-tasks.withType(JavaCompile).all {
+tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
     options.compilerArgs.add("-Xlint:-fallthrough")
@@ -75,10 +68,11 @@ tasks.withType(JavaCompile).all {
                 "resources",
                 "tree",
                 "util",
-            ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
+            ]
+            .collect { "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     if (!JavaVersion.current().java9Compatible) {
         jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
     }
@@ -91,7 +85,7 @@ tasks.withType(Test) {
                 "main",
                 "processing",
                 "tree",
-                "util"
+                "util",
             ]
             .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 
@@ -109,13 +103,13 @@ test {
     inputs.files("${rootDir}/tests/minimal")
 }
 
-task jspecifySamplesTest(type: Test) {
+tasks.register('jspecifySamplesTest', Test) {
     description = 'Run the checker against the JSpecify samples.'
     group = 'verification'
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    inputs.files("${jspecifyHome}/samples")
+    inputs.files("${jspecify.projectDir}/samples")
 }
 
 TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
@@ -128,9 +122,9 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
     }
 }
 
-conformanceTest('conformanceTest', "${jspecifyHome}/conformance", 'tests/ConformanceTest-report.txt')
+conformanceTest('conformanceTest', "${jspecify.projectDir}/conformance", 'tests/ConformanceTest-report.txt')
 
-conformanceTest('conformanceTestOnSamples', "${jspecifyHome}/samples", 'tests/ConformanceTestOnSamples-report.txt')
+conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
@@ -145,15 +139,17 @@ clean.doFirst {
  See https://github.com/jspecify/jspecify-reference-checker/issues/81
  */
 
-def cfQualJar = file("${cfHome}/checker-qual/build/libs/checker-qual-${cfVersion}.jar")
+def cfQualJar =
+        checkerFramework.projectDir.toPath()
+        .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
-if (!cfQualJar.exists()) {
+if (!cfQualJar.toFile().exists()) {
     mkdir(cfQualJar.parent)
     exec {
         executable 'jar'
         args = [
             'cf',
-            cfQualJar.path,
+            cfQualJar,
             buildFile.path // Use this build script file!
         ]
     }
