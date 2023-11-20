@@ -1,8 +1,9 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
-`group 'org.jspecify.conformance'
+group 'org.jspecify.conformance'
 version '0.0.0-SNAPSHOT'
 
 repositories {
@@ -21,4 +22,35 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            pom {
+                name = 'JSpecify conformance test framework'
+                description = 'A framwork that allows static analysis tools to test their conformance to JSpecify specifications'
+                url = 'http://jspecify.org/'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:jspecify/jspecify.git'
+                    developerConnection = 'scm:git:git@github.com:jspecify/jspecify.git'
+                    url = 'https://github.com/jspecify/jspecify-reference-checker/tree/main/conformance-test-framework'
+                }
+                developers {
+                    developer {
+                        id = 'netdpb'
+                        name = 'David P. Baker'
+                        email = 'dpb@google.com'
+                    }
+                }
+            }
+        }
+    }
 }
