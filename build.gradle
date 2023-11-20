@@ -38,7 +38,7 @@ dependencies {
     testImplementation libs.checkerFramework.framework.test
     testImplementation libs.guava
     testImplementation libs.junit
-    testImplementation libs.jspecify.conformance.framework
+    testImplementation libs.jspecify.conformance.test.framework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
     errorproneJavac libs.errorProne.javac
@@ -114,7 +114,9 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
+    check.dependsOn(name)
     return tasks.register(name, Test) {
+        group = 'verification'
         include '**/ConformanceTest.class'
         inputs.dir(testDirectory)
         inputs.files(reportFile)
