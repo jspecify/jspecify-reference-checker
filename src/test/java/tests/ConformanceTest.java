@@ -15,8 +15,8 @@
 package tests;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
 import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
@@ -59,12 +59,13 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-AshowTypes");
 
   @Override
-  protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
+  protected Iterable<ReportedFact> analyze(
+      ImmutableList<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,
             files.stream().map(Path::toFile).collect(toImmutableSet()),
-            emptyList(),
+            testDeps.stream().map(Path::toString).collect(toImmutableList()),
             ImmutableList.of(NullSpecChecker.class.getName()),
             OPTIONS,
             TestUtilities.getShouldEmitDebugInfo());

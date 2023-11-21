@@ -30,6 +30,7 @@ import static java.util.stream.Collectors.toList;
 import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
@@ -81,11 +82,14 @@ import org.junit.Test;
 public abstract class AbstractConformanceTest {
 
   private final Path testDirectory;
+  private final ImmutableList<Path> testDeps;
   private final CharSource testReportSource;
   private final CharSink testReportSink;
 
-  protected AbstractConformanceTest(Path testDirectory, Path testReport) {
+  protected AbstractConformanceTest(
+      Path testDirectory, ImmutableList<Path> testDeps, Path testReport) {
     this.testDirectory = testDirectory;
+    this.testDeps = testDeps;
     this.testReportSource = asCharSource(testReport, UTF_8);
     this.testReportSink = asCharSink(testReport, UTF_8);
   }
@@ -95,10 +99,16 @@ public abstract class AbstractConformanceTest {
         systemPropertyPath(
             "JSpecifyConformanceTest.sourceDirectory",
             "the location of the JSpecify conformance test sources"),
+        Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.testDeps"))
+            .flatMap(COLON::splitToStream)
+            .map(Paths::get)
+            .collect(toImmutableList()),
         systemPropertyPath(
             "JSpecifyConformanceTest.report",
             "the location of the JSpecify conformance test report"));
   }
+
+  private static final Splitter COLON = Splitter.on(':');
 
   /** Returns the directory that is the root of all test inputs. */
   protected final Path getTestDirectory() {
@@ -117,7 +127,7 @@ public abstract class AbstractConformanceTest {
 
   private Stream<ConformanceTestReport> analyzeFiles(List<Path> files) {
     ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
-        index(analyze(ImmutableList.copyOf(files)), ReportedFact::getFile);
+        index(analyze(ImmutableList.copyOf(files), testDeps), ReportedFact::getFile);
     return files.stream()
         .map(testDirectory::relativize)
         .map(
@@ -127,11 +137,13 @@ public abstract class AbstractConformanceTest {
   }
 
   /**
-   * Analyzes a nonempty set of Java source {@code files} that may refer to each other.
+   * Analyzes a nonempty set of Java source {@code files} that may refer to each other, along with a
+   * classpath containing symbols the files may depend on.
    *
    * @return the facts reported by the analysis
    */
-  protected abstract Iterable<ReportedFact> analyze(ImmutableList<Path> files);
+  protected abstract Iterable<ReportedFact> analyze(
+      ImmutableList<Path> files, ImmutableList<Path> testDeps);
 
   /** Reads {@link ExpectedFact}s from comments in a file. */
   private ImmutableList<ExpectedFact> readExpectedFacts(Path file) {
