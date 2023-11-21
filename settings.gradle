@@ -1,9 +1,8 @@
 // Project name is read-only in build scripts, and defaults to directory name.
 rootProject.name = "jspecify-reference-checker"
 include 'conformance-test-framework'
-includeBuild(".")
 
-// Lets the main build depend on the conformance subproject as org.jspecify:conformance.
+// Lets the main build depend on the conformance subproject as org.jspecify:conformance-test-framework.
 // See https://docs.gradle.org/current/userguide/composite_builds.html#included_build_declaring_substitutions
 includeBuild(".")
 
@@ -39,7 +38,7 @@ dependencyResolutionManagement {
             library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
             library("guava", "com.google.guava:guava:31.1-jre")
             library("jspecify", "org.jspecify:jspecify:0.0.0-SNAPSHOT")
-            library("jspecify-conformanceTest-framework", "org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT")
+            library("jspecify-conformanceTestFramework", "org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT")
             library("jsr305", "com.google.code.findbugs:jsr305:3.0.2")
             library("junit", "junit:junit:4.12")
             library("truth", "com.google.truth:truth:1.1.3")

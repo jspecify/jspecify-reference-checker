@@ -15,12 +15,12 @@ repositories {
 
 configurations {
     errorproneJavac
-    testAssertions {
+    conformanceTestAssertions {
         attributes {
             attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
         }
     }
-    testDeps
+    conformanceTestDeps
 }
 
 ext {
@@ -43,17 +43,19 @@ dependencies {
     testImplementation libs.checkerFramework.framework.test
     testImplementation libs.guava
     testImplementation libs.junit
-    testImplementation libs.jspecify.conformanceTest.framework
+    testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    testAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
         capabilities {
+            // Depend on the assertion sources
             requireCapability "org.jspecify.conformance:conformance-tests-assertions"
         }
     }
 
-    testDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
         capabilities {
+            // Depend on the assertion dependencies
             requireCapability "org.jspecify.conformance:conformance-tests-deps"
         }
     }
@@ -143,16 +145,16 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
 }
 
 tasks.register('unzipConformanceTestAssertions', Copy) {
-    dependsOn configurations.testAssertions
-    from zipTree(configurations.testAssertions.singleFile)
+    dependsOn configurations.conformanceTestAssertions
+    from zipTree(configurations.conformanceTestAssertions.singleFile)
     exclude 'META-INF/'
     into "${buildDir}/conformanceTests"
 }
 
 conformanceTest('conformanceTest', "${buildDir}/conformanceTests/org/jspecify/conformance/tests", 'tests/ConformanceTest-report.txt').configure {
-    dependsOn 'unzipConformanceTestAssertions', configurations.testDeps
-    inputs.files(configurations.testDeps)
-    systemProperty("JSpecifyConformanceTest.testDeps", configurations.testDeps.join(":"))
+    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
+    inputs.files(configurations.conformanceTestDeps)
+    systemProperty("JSpecifyConformanceTest.testDeps", configurations.conformanceTestDeps.join(":"))
 }
 
 conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
