@@ -14,6 +14,7 @@
 
 package org.jspecify.conformance;
 
+import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.partition;
 import static com.google.common.collect.Multimaps.index;
@@ -24,23 +25,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.readAllLines;
 import static java.nio.file.Files.walk;
 import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toList;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.readExpectedFact;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.io.CharSink;
-import com.google.common.io.CharSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -50,103 +45,59 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
-import org.junit.Test;
 
-/**
- * A test that analyzes source files and compares reported facts to expected facts declared in each
- * file.
- *
- * <p>To configure:
- *
- * <ul>
- *   <li>Set the system property {@code JSpecifyConformanceTest.sourceDirectory} to the location of
- *       the JSpecify conformance test sources.
- *   <li>Set the sytem property {@code JSpecifyConformanceTest.report} to the location of the stored
- *       test report.
- * </ul>
- *
- * <p>The test can run in one of three modes, depending on the value of the {@code
- * JSPECIFY_CONFORMANCE_TEST_MODE} environment variable:
- *
- * <dl>
- *   <dt>{@code compare} or empty
- *   <dd>Compare the analysis to the stored report, and fail if anything has changed. Note that
- *       failure isn't always bad! If an assertion used to fail and now passes, this test will
- *       "fail".
- *   <dt>{@code write}
- *   <dd>Write the analysis to the report file. Always passes.
- *   <dt>{@code details}
- *   <dd>Fail if any assertion fails. Report details of unexpected facts.
- * </dl>
- */
-public abstract class AbstractConformanceTest {
-
-  private final Path testDirectory;
-  private final ImmutableList<Path> testDeps;
-  private final CharSource testReportSource;
-  private final CharSink testReportSink;
-
-  protected AbstractConformanceTest(
-      Path testDirectory, ImmutableList<Path> testDeps, Path testReport) {
-    this.testDirectory = testDirectory;
-    this.testDeps = testDeps;
-    this.testReportSource = asCharSource(testReport, UTF_8);
-    this.testReportSink = asCharSink(testReport, UTF_8);
+/** An object that runs JSpecify conformance tests. */
+public final class ConformanceTestRunner {
+  public interface Analyzer {
+    /**
+     * Analyzes a nonempty set of Java source {@code files} that may refer to each other, along with
+     * a classpath containing symbols the files may depend on.
+     *
+     * @return the facts reported by the analysis
+     */
+    Iterable<ReportedFact> analyze(
+        ImmutableList<Path> files, ImmutableList<Path> testDeps, Path testDirectory);
   }
 
-  protected AbstractConformanceTest() {
-    this(
-        systemPropertyPath(
-            "JSpecifyConformanceTest.sourceDirectory",
-            "the location of the JSpecify conformance test sources"),
-        Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.testDeps"))
-            .flatMap(COLON::splitToStream)
-            .map(Paths::get)
-            .collect(toImmutableList()),
-        systemPropertyPath(
-            "JSpecifyConformanceTest.report",
-            "the location of the JSpecify conformance test report"));
+  private final Analyzer analyzer;
+
+  public ConformanceTestRunner(Analyzer analyzer) {
+    this.analyzer = analyzer;
   }
 
-  private static final Splitter COLON = Splitter.on(':');
-
-  /** Returns the directory that is the root of all test inputs. */
-  protected final Path getTestDirectory() {
-    return testDirectory;
-  }
-
-  private ConformanceTestReport runTests() throws IOException {
+  private ConformanceTestReport runTests(Path testDirectory, ImmutableList<Path> testDeps)
+      throws IOException {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
           .filter(path -> path.toFile().isDirectory())
-          .flatMap(this::javaFileGroups)
-          .flatMap(this::analyzeFiles)
+          .flatMap(
+              directory -> {
+                Stream<List<Path>> groups = javaFileGroups(directory);
+                return directory.equals(testDirectory)
+                    ? groups.flatMap(files -> partition(files, 1).stream())
+                    : groups;
+              })
+          .flatMap(files -> analyzeFiles(files, testDeps, testDirectory))
           .reduce(ConformanceTestReport.EMPTY, ConformanceTestReport::combine);
     }
   }
 
-  private Stream<ConformanceTestReport> analyzeFiles(List<Path> files) {
+  private Stream<ConformanceTestReport> analyzeFiles(
+      List<Path> files, ImmutableList<Path> testDeps, Path testDirectory) {
     ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
-        index(analyze(ImmutableList.copyOf(files), testDeps), ReportedFact::getFile);
+        index(
+            analyzer.analyze(ImmutableList.copyOf(files), testDeps, testDirectory),
+            ReportedFact::getFile);
     return files.stream()
         .map(testDirectory::relativize)
         .map(
             file ->
                 ConformanceTestReport.forFile(
-                    file, reportedFactsByFile.get(file), readExpectedFacts(file)));
+                    file, reportedFactsByFile.get(file), readExpectedFacts(file, testDirectory)));
   }
 
-  /**
-   * Analyzes a nonempty set of Java source {@code files} that may refer to each other, along with a
-   * classpath containing symbols the files may depend on.
-   *
-   * @return the facts reported by the analysis
-   */
-  protected abstract Iterable<ReportedFact> analyze(
-      ImmutableList<Path> files, ImmutableList<Path> testDeps);
-
   /** Reads {@link ExpectedFact}s from comments in a file. */
-  private ImmutableList<ExpectedFact> readExpectedFacts(Path file) {
+  private static ImmutableList<ExpectedFact> readExpectedFacts(Path file, Path testDirectory) {
     try {
       ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
       Map<Long, String> facts = new HashMap<>();
@@ -174,18 +125,9 @@ public abstract class AbstractConformanceTest {
 
   private static final Pattern EXPECTATION_COMMENT = Pattern.compile("\\s*// (?<expectation>.*)");
 
-  private Stream<List<Path>> javaFileGroups(Path directory) {
+  private static Stream<List<Path>> javaFileGroups(Path directory) {
     ImmutableList<Path> files = javaFilesInDirectory(directory);
-    if (files.isEmpty()) {
-      return Stream.empty();
-    }
-    if (directory.equals(testDirectory)) {
-      // Each file in the top-level directory is in a group by itself.
-      return partition(files, 1).stream();
-    } else {
-      // Group files in other directories.
-      return Stream.of(files);
-    }
+    return files.isEmpty() ? Stream.empty() : Stream.of(files);
   }
 
   private static ImmutableList<Path> javaFilesInDirectory(Path directory) {
@@ -196,27 +138,41 @@ public abstract class AbstractConformanceTest {
     }
   }
 
-  private static Path systemPropertyPath(String key, String description) {
-    return Paths.get(
-        requireNonNull(
-            System.getProperty(key),
-            String.format("Set system property %s to %s.", key, description)));
-  }
-
-  @Test
-  public void checkConformance() throws IOException {
-    ConformanceTestReport testResults = runTests();
+  /**
+   * Analyzes source files and compares reported facts to expected facts declared in each file.
+   *
+   * <p>The analysis runs in one of three modes, depending on the value of the {@code
+   * JSPECIFY_CONFORMANCE_TEST_MODE} environment variable:
+   *
+   * <dl>
+   *   <dt>{@code compare} or empty
+   *   <dd>Compare the analysis to the stored report, and fail if anything has changed. Note that
+   *       failure isn't always bad! If an assertion used to fail and now passes, this test will
+   *       "fail".
+   *   <dt>{@code write}
+   *   <dd>Write the analysis to the report file. Always passes.
+   *   <dt>{@code details}
+   *   <dd>Fail if any assertion fails. Report details of unexpected facts.
+   * </dl>
+   *
+   * @param testDirectory the directory containing the test input files to analyze
+   * @param testDeps a list of paths to JAR files that must be on the classpath when analyzing
+   * @param testReport the file to read or write
+   */
+  public void checkConformance(Path testDirectory, ImmutableList<Path> testDeps, Path testReport)
+      throws IOException {
+    ConformanceTestReport testResults = runTests(testDirectory, testDeps);
     switch (Mode.fromEnvironment()) {
       case DETAILS:
         System.out.print(testResults.report(true));
         // fall-through
 
       case COMPARE:
-        assertThat(testResults.report(false)).isEqualTo(testReportSource.read());
+        assertThat(testResults.report(false)).isEqualTo(asCharSource(testReport, UTF_8).read());
         break;
 
       case WRITE:
-        testReportSink.write(testResults.report(false));
+        asCharSink(testReport, UTF_8).write(testResults.report(false));
         break;
 
       default:
@@ -233,7 +189,7 @@ public abstract class AbstractConformanceTest {
     private static final String ENV_VARIABLE = "JSPECIFY_CONFORMANCE_TEST_MODE";
 
     static Mode fromEnvironment() {
-      String mode = Strings.nullToEmpty(System.getenv(ENV_VARIABLE));
+      String mode = nullToEmpty(System.getenv(ENV_VARIABLE));
       try {
         return mode.isEmpty() ? COMPARE : valueOf(Ascii.toUpperCase(mode));
       } catch (IllegalArgumentException e) {
