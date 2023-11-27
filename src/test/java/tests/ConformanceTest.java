@@ -120,7 +120,7 @@ public final class ConformanceTest implements ConformanceTestRunner.Analyzer {
   private static Path testDirectory(@Nullable String prefix) {
     return systemPropertyPath(
         PROPERTY_JOINER.join("JSpecifyConformanceTest", prefix, "inputs"),
-        "the location of the JSpecify conformance test sources");
+        "the location of the JSpecify conformance test inputs");
   }
 
   private static Path testReport(@Nullable String prefix) {

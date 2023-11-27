@@ -32,7 +32,7 @@ import org.jspecify.conformance.ConformanceTestRunner.ExpectedFact;
 import org.jspecify.conformance.ConformanceTestRunner.Fact;
 import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
 
-/** Represents the results of running an {@link ConformanceTestRunner} on a set of files. */
+/** Represents the results of running {@link ConformanceTestRunner#runTests(Path, ImmutableList)} on a set of files. */
 public final class ConformanceTestReport {
   /** An empty report. */
   static final ConformanceTestReport EMPTY =

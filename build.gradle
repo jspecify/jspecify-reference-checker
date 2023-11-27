@@ -146,7 +146,7 @@ tasks.register('conformanceTests', Test) {
 
     // Conformance tests
     inputs.dir("${buildDir}/conformanceTests")
-    inputs.files("${testReportDir}/ConformanceTest-report.txt")
+    inputs.files("tests/ConformanceTest-report.txt")
     inputs.files(configurations.conformanceTestDeps)
     systemProperty("JSpecifyConformanceTest.inputs", "${buildDir}/conformanceTests/org/jspecify/conformance/tests")
     systemProperty("JSpecifyConformanceTest.report", "tests/ConformanceTest-report.txt")
@@ -154,7 +154,7 @@ tasks.register('conformanceTests', Test) {
 
     // Conformance tests run on the samples directory
     inputs.dir("${jspecify.projectDir}/samples")
-    inputs.files("${testReportDir}/ConformanceTestOnSamples-report.txt")
+    inputs.files("tests/ConformanceTestOnSamples-report.txt")
     systemProperty("JSpecifyConformanceTest.samples.inputs", "${jspecify.projectDir}/samples")
     systemProperty("JSpecifyConformanceTest.samples.report", "tests/ConformanceTestOnSamples-report.txt")
 }

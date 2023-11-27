@@ -72,7 +72,7 @@ public final class ConformanceTestRunner {
           .filter(path -> path.toFile().isDirectory())
           .flatMap(
               directory -> {
-                Stream<List<Path>> groups = javaFileGroups(directory);
+                Stream<ImmutableList<Path>> groups = javaFileGroups(directory);
                 return directory.equals(testDirectory)
                     ? groups.flatMap(files -> partition(files, 1).stream())
                     : groups;
@@ -125,7 +125,7 @@ public final class ConformanceTestRunner {
 
   private static final Pattern EXPECTATION_COMMENT = Pattern.compile("\\s*// (?<expectation>.*)");
 
-  private static Stream<List<Path>> javaFileGroups(Path directory) {
+  private static Stream<ImmutableList<Path>> javaFileGroups(Path directory) {
     ImmutableList<Path> files = javaFilesInDirectory(directory);
     return files.isEmpty() ? Stream.empty() : Stream.of(files);
   }
