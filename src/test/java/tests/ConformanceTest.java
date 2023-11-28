@@ -83,7 +83,7 @@ import org.junit.runners.JUnit4;
  * </dl>
  */
 @RunWith(JUnit4.class)
-public final class ConformanceTest implements ConformanceTestRunner.Analyzer {
+public final class ConformanceTest {
 
   private static final ImmutableList<String> OPTIONS =
       ImmutableList.of(
@@ -95,7 +95,8 @@ public final class ConformanceTest implements ConformanceTestRunner.Analyzer {
           "-AajavaChecks",
           "-AshowTypes");
 
-  private final ConformanceTestRunner conformanceTestRunner = new ConformanceTestRunner(this);
+  private final ConformanceTestRunner conformanceTestRunner =
+      new ConformanceTestRunner(ConformanceTest::analyze);
 
   @Test
   public void conformanceTests() throws IOException {
@@ -138,8 +139,7 @@ public final class ConformanceTest implements ConformanceTestRunner.Analyzer {
             String.format("Set system property %s to %s.", key, description)));
   }
 
-  @Override
-  public Iterable<ReportedFact> analyze(
+  private static ImmutableSet<ReportedFact> analyze(
       ImmutableList<Path> files, ImmutableList<Path> testDeps, Path testDirectory) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
