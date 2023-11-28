@@ -54,6 +54,8 @@ tasks.withType(JavaCompile).configureEach {
 
     options.errorprone.disable("BadImport")
 
+    options.fork = true
+
     options.compilerArgs.addAll(
             [
                 "api",
