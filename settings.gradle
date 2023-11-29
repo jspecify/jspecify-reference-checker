@@ -1,5 +1,10 @@
 // Project name is read-only in build scripts, and defaults to directory name.
 rootProject.name = "jspecify-reference-checker"
+include 'conformance'
+
+// Lets the main build depend on the conformance subproject as org.jspecify:conformance.
+// See https://docs.gradle.org/current/userguide/composite_builds.html#included_build_declaring_substitutions
+includeBuild(".")
 
 def initializeProject() {
     exec {
@@ -17,4 +22,26 @@ includeBuild("../jdk") {
 
 includeBuild("../checker-framework") {
     initializeProject()
+}
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            version("checkerFramework", "3.21.5-SNAPSHOT")
+
+            library("checkerFramework-checker", "org.checkerframework", "checker").versionRef("checkerFramework")
+            library("checkerFramework-checker-qual", "org.checkerframework", "checker-qual").versionRef("checkerFramework")
+            library("checkerFramework-framework", "org.checkerframework", "framework").versionRef("checkerFramework")
+            library("checkerFramework-framework-test", "org.checkerframework", "framework-test").versionRef("checkerFramework")
+            library("checkerFramework-javacutil", "org.checkerframework", "javacutil").versionRef("checkerFramework")
+            library("errorProne-core", "com.google.errorprone:error_prone_core:2.18.0")
+            library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
+            library("guava", "com.google.guava:guava:31.1-jre")
+            library("jspecify", "org.jspecify:jspecify:0.0.0-SNAPSHOT")
+            library("jspecify-conformance", "org.jspecify:conformance:0.0.0-SNAPSHOT")
+            library("jsr305", "com.google.code.findbugs:jsr305:3.0.2")
+            library("junit", "junit:junit:4.12")
+            library("truth", "com.google.truth:truth:1.1.3")
+        }
+    }
 }

@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+}
+
+group 'org.jspecify'
+version '0.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = 1.9
+}
+
+dependencies {
+    api libs.guava
+    implementation libs.jspecify
+    implementation libs.truth
+}
+
+test {
+    useJUnitPlatform()
+}
