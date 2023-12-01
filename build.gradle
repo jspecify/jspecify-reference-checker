@@ -16,9 +16,9 @@ repositories {
 configurations {
     errorproneJavac
     conformanceTestAssertions {
-        attributes {
-            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
-        }
+//        attributes {
+//            attribute(org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE, "test-suite")
+//        }
     }
     conformanceTestDeps
 }
@@ -46,11 +46,11 @@ dependencies {
     testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
-        capabilities {
-            // Depend on the assertion sources
-            requireCapability "org.jspecify.conformance:conformance-tests-assertions"
-        }
+    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT@zip") {
+//        capabilities {
+//            // Depend on the assertion sources
+//            requireCapability "org.jspecify.conformance:conformance-test-suite"
+//        }
     }
 
     conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
