@@ -5,7 +5,8 @@ plugins {
     id 'java'
     id 'com.diffplug.spotless' version '6.14.0'
     id 'eclipse'
-    id 'net.ltgt.errorprone' version '3.1.0' // https://github.com/tbroyer/gradle-errorprone-plugin
+    // https://github.com/tbroyer/gradle-errorprone-plugin
+    id 'net.ltgt.errorprone' version '3.0.1'
 }
 
 repositories {
