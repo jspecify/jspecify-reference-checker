@@ -30,6 +30,8 @@ import static java.util.stream.Collectors.toList;
 import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import java.io.IOException;
