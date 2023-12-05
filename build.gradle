@@ -16,7 +16,6 @@ repositories {
 configurations {
     errorproneJavac
     conformanceTestSuite
-    conformanceTestDeps
 }
 
 ext {
@@ -131,7 +130,7 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
 
 tasks.register('unzipConformanceTestSuite', Copy) {
     // TODO: Don't explicitly depend on an included build's task.
-    dependsOn jspecify.task(':conformance-tests:assemble')
+    dependsOn jspecify.task(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
