@@ -15,6 +15,12 @@ repositories {
 
 configurations {
     errorproneJavac
+    conformanceTestAssertions {
+        attributes {
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
+        }
+    }
+    conformanceTestDeps
 }
 
 ext {
@@ -37,8 +43,22 @@ dependencies {
     testImplementation libs.checkerFramework.framework.test
     testImplementation libs.guava
     testImplementation libs.junit
-    testImplementation libs.jspecify.conformance
+    testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
+
+    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion sources
+            requireCapability "org.jspecify.conformance:conformance-tests-assertions"
+        }
+    }
+
+    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion dependencies
+            requireCapability "org.jspecify.conformance:conformance-tests-deps"
+        }
+    }
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
@@ -113,7 +133,9 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
+    check.dependsOn(name)
     return tasks.register(name, Test) {
+        group = 'verification'
         include '**/ConformanceTest.class'
         inputs.dir(testDirectory)
         inputs.files(reportFile)
@@ -122,7 +144,18 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
     }
 }
 
-conformanceTest('conformanceTest', "${jspecify.projectDir}/conformance", 'tests/ConformanceTest-report.txt')
+tasks.register('unzipConformanceTestAssertions', Copy) {
+    dependsOn configurations.conformanceTestAssertions
+    from zipTree(configurations.conformanceTestAssertions.singleFile)
+    exclude 'META-INF/'
+    into "${buildDir}/conformanceTests"
+}
+
+conformanceTest('conformanceTest', "${buildDir}/conformanceTests/org/jspecify/conformance/tests", 'tests/ConformanceTest-report.txt').configure {
+    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
+    inputs.files(configurations.conformanceTestDeps)
+    systemProperty("JSpecifyConformanceTest.testDeps", configurations.conformanceTestDeps.join(":"))
+}
 
 conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 

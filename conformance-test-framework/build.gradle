@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
 }
 
-group 'org.jspecify'
+group 'org.jspecify.conformance'
 version '0.0.0-SNAPSHOT'
 
 repositories {
@@ -17,8 +17,4 @@ dependencies {
     api libs.guava
     implementation libs.jspecify
     implementation libs.truth
-}
-
-test {
-    useJUnitPlatform()
 }
