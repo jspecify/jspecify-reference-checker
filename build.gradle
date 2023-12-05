@@ -15,11 +15,7 @@ repositories {
 
 configurations {
     errorproneJavac
-    conformanceTestAssertions {
-//        attributes {
-//            attribute(org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE, "test-suite")
-//        }
-    }
+    conformanceTestSuite
     conformanceTestDeps
 }
 
@@ -46,19 +42,8 @@ dependencies {
     testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT@zip") {
-//        capabilities {
-//            // Depend on the assertion sources
-//            requireCapability "org.jspecify.conformance:conformance-test-suite"
-//        }
-    }
-
-    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
-        capabilities {
-            // Depend on the assertion dependencies
-            requireCapability "org.jspecify.conformance:conformance-tests-deps"
-        }
-    }
+    // TODO: Depend on a group:artifact:version rather than a file.
+    conformanceTestSuite files("${jspecify.projectDir}/conformance-tests/build/distributions/conformance-tests-0.0.0-SNAPSHOT.zip")
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
@@ -144,18 +129,23 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
     }
 }
 
-tasks.register('unzipConformanceTestAssertions', Copy) {
-    dependsOn configurations.conformanceTestAssertions
-    from zipTree(configurations.conformanceTestAssertions.singleFile)
-    exclude 'META-INF/'
-    into "${buildDir}/conformanceTests"
+tasks.register('unzipConformanceTestSuite', Copy) {
+    // TODO: Don't explicitly depend on an included build's task.
+    dependsOn jspecify.task(':conformance-tests:assemble')
+    dependsOn configurations.conformanceTestSuite
+    from zipTree(configurations.conformanceTestSuite.singleFile)
+    into layout.buildDirectory.dir("conformanceTests")
 }
 
-conformanceTest('conformanceTest', "${buildDir}/conformanceTests/org/jspecify/conformance/tests", 'tests/ConformanceTest-report.txt').configure {
-    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
-    inputs.files(configurations.conformanceTestDeps)
-    systemProperty("JSpecifyConformanceTest.testDeps", configurations.conformanceTestDeps.join(":"))
-}
+conformanceTest('conformanceTest',
+        "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
+        'tests/ConformanceTest-report.txt')
+        .configure {
+            dependsOn unzipConformanceTestSuite
+            inputs.dir(unzipConformanceTestSuite.destinationDir)
+            systemProperty("JSpecifyConformanceTest.testDeps",
+                    fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":"))
+        }
 
 conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
