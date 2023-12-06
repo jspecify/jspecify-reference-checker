@@ -27,13 +27,13 @@ includeBuild("../checker-framework") {
 dependencyResolutionManagement {
     versionCatalogs {
         libs {
-            version("checkerFramework", "3.21.5-SNAPSHOT")
+            version("checkerFramework", "3.41.1-eisop1-SNAPSHOT")
 
-            library("checkerFramework-checker", "org.checkerframework", "checker").versionRef("checkerFramework")
-            library("checkerFramework-checker-qual", "org.checkerframework", "checker-qual").versionRef("checkerFramework")
-            library("checkerFramework-framework", "org.checkerframework", "framework").versionRef("checkerFramework")
-            library("checkerFramework-framework-test", "org.checkerframework", "framework-test").versionRef("checkerFramework")
-            library("checkerFramework-javacutil", "org.checkerframework", "javacutil").versionRef("checkerFramework")
+            library("checkerFramework-checker", "io.github.eisop", "checker").versionRef("checkerFramework")
+            library("checkerFramework-checker-qual", "io.github.eisop", "checker-qual").versionRef("checkerFramework")
+            library("checkerFramework-framework", "io.github.eisop", "framework").versionRef("checkerFramework")
+            library("checkerFramework-framework-test", "io.github.eisop", "framework-test").versionRef("checkerFramework")
+            library("checkerFramework-javacutil", "io.github.eisop", "javacutil").versionRef("checkerFramework")
             library("errorProne-core", "com.google.errorprone:error_prone_core:2.18.0")
             library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
             library("guava", "com.google.guava:guava:31.1-jre")

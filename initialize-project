@@ -60,7 +60,11 @@ git_clone() {
       return
     fi
   fi
-  run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
+  if [ "${repo}" = "checker-framework" ] ; then
+    run "${git[@]}" "https://github.com/eisop/${repo}.git" "../${repo}"
+  else
+    run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
+  fi
 }
 
 # Fetch all branches even when $SHALLOW is set so we can check out
@@ -69,4 +73,4 @@ git_clone jspecify --no-single-branch
 
 git_clone jdk --depth 1 --single-branch
 
-git_clone checker-framework
+git_clone checker-framework --depth 1 --single-branch
