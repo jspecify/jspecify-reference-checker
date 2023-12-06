@@ -48,6 +48,8 @@ import org.jspecify.annotations.Nullable;
 
 /** An object that runs JSpecify conformance tests. */
 public final class ConformanceTestRunner {
+
+  /** A delegate object used by {@link ConformanceTestRunner} to analyze test input files. */
   public interface Analyzer {
     /**
      * Analyzes a nonempty set of Java source {@code files} that may refer to each other, along with
