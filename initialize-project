@@ -55,7 +55,7 @@ git_clone() {
 
   local forking_org
   forking_org="$(forking_org)"
-  if [[ -n "${forking_org}" && "${forking_org}" != "jspecify" ]]; then
+  if [[ -n "${forking_org}" ]] && [[ "${forking_org}" != "jspecify" ]]; then
     if run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"; then
       return
     fi
