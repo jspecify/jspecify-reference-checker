@@ -15,15 +15,17 @@ repositories {
 
 configurations {
     errorproneJavac
+    conformanceTestAssertions {
+        attributes {
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
+        }
+    }
+    conformanceTestDeps
 }
 
 ext {
-    parentDir = file("${rootDir}/../").absolutePath
-
-    cfHome = "${parentDir}/checker-framework"
-    cfVersion = '3.31.0'
-
-    jspecifyHome = "${parentDir}/jspecify"
+    checkerFramework = gradle.includedBuild("checker-framework")
+    jspecify = gradle.includedBuild("jspecify")
 }
 
 java {
@@ -31,28 +33,42 @@ java {
 }
 
 dependencies {
-    implementation "io.github.eisop:checker:${cfVersion}"
-    implementation "io.github.eisop:checker-qual:${cfVersion}"
-    implementation "io.github.eisop:framework:${cfVersion}"
-    implementation "io.github.eisop:javacutil:${cfVersion}"
+    implementation libs.checkerFramework.checker
+    implementation libs.checkerFramework.checker.qual
+    implementation libs.checkerFramework.framework
+    implementation libs.checkerFramework.javacutil
 
-    implementation "org.jspecify:jspecify:0.0.0-SNAPSHOT"
+    implementation libs.jspecify
 
-    // Testing
-    testImplementation 'junit:junit:4.12'
-    // The jsr305 dep lets us use its annotations in some of the sample inputs we test against.
-    testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
-    // The Guava dep lets us test our special handling of some Guava classes.
-    testImplementation 'com.google.guava:guava:31.1-jre'
-    testImplementation 'org.plumelib:plume-util:1.5.5'
-    testImplementation "io.github.eisop:framework-test:${cfVersion}"
-    testImplementation "com.google.truth:truth:1.1.3"
+    testImplementation libs.checkerFramework.framework.test
+    testImplementation libs.guava
+    testImplementation libs.junit
+    testImplementation libs.jspecify.conformanceTestFramework
+    testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    errorproneJavac "com.google.errorprone:javac:9+181-r4173-1"
-    errorprone "com.google.errorprone:error_prone_core:2.18.0"
+    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion sources
+            requireCapability "org.jspecify.conformance:conformance-tests-assertions"
+        }
+    }
+
+    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion dependencies
+            requireCapability "org.jspecify.conformance:conformance-tests-deps"
+        }
+    }
+
+    errorproneJavac libs.errorProne.javac
+    errorprone libs.errorProne.core
 }
 
-tasks.withType(JavaCompile).all {
+// Assemble checker-framework when assembling the reference checker.
+assemble.dependsOn(checkerFramework.task(":assemble"))
+assemble.dependsOn(jspecify.task(":assemble"))
+
+tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
     options.compilerArgs.add("-Xlint:-fallthrough")
@@ -72,10 +88,11 @@ tasks.withType(JavaCompile).all {
                 "resources",
                 "tree",
                 "util",
-            ].collect { """--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED""" })
+            ]
+            .collect { "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     if (!JavaVersion.current().java9Compatible) {
         jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
     }
@@ -88,7 +105,7 @@ tasks.withType(Test) {
                 "main",
                 "processing",
                 "tree",
-                "util"
+                "util",
             ]
             .collect { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 
@@ -106,17 +123,19 @@ test {
     inputs.files("${rootDir}/tests/minimal")
 }
 
-task jspecifySamplesTest(type: Test) {
+tasks.register('jspecifySamplesTest', Test) {
     description = 'Run the checker against the JSpecify samples.'
     group = 'verification'
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    inputs.files("${jspecifyHome}/samples")
+    inputs.files("${jspecify.projectDir}/samples")
 }
 
 TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
+    check.dependsOn(name)
     return tasks.register(name, Test) {
+        group = 'verification'
         include '**/ConformanceTest.class'
         inputs.dir(testDirectory)
         inputs.files(reportFile)
@@ -125,9 +144,20 @@ TaskProvider<Test> conformanceTest(String name, String testDirectory, String rep
     }
 }
 
-conformanceTest('conformanceTest', "${jspecifyHome}/conformance", 'tests/ConformanceTest-report.txt')
+tasks.register('unzipConformanceTestAssertions', Copy) {
+    dependsOn configurations.conformanceTestAssertions
+    from zipTree(configurations.conformanceTestAssertions.singleFile)
+    exclude 'META-INF/'
+    into "${buildDir}/conformanceTests"
+}
 
-conformanceTest('conformanceTestOnSamples', "${jspecifyHome}/samples", 'tests/ConformanceTestOnSamples-report.txt')
+conformanceTest('conformanceTest', "${buildDir}/conformanceTests/org/jspecify/conformance/tests", 'tests/ConformanceTest-report.txt').configure {
+    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
+    inputs.files(configurations.conformanceTestDeps)
+    systemProperty("JSpecifyConformanceTest.testDeps", configurations.conformanceTestDeps.join(":"))
+}
+
+conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
@@ -142,15 +172,17 @@ clean.doFirst {
  See https://github.com/jspecify/jspecify-reference-checker/issues/81
  */
 
-def cfQualJar = file("${cfHome}/checker-qual/build/libs/checker-qual-${cfVersion}.jar")
+def cfQualJar =
+        checkerFramework.projectDir.toPath()
+        .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
-if (!cfQualJar.exists()) {
+if (!cfQualJar.toFile().exists()) {
     mkdir(cfQualJar.parent)
     exec {
         executable 'jar'
         args = [
             'cf',
-            cfQualJar.path,
+            cfQualJar,
             buildFile.path // Use this build script file!
         ]
     }

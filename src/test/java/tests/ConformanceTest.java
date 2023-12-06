@@ -15,10 +15,15 @@
 package tests;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.expressionType;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.irrelevantAnnotation;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.isNullnessMismatch;
+import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.sinkType;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -35,11 +40,9 @@ import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.jspecify.annotations.Nullable;
+import org.jspecify.conformance.AbstractConformanceTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import tests.conformance.AbstractConformanceTest;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.CannotConvert;
-import tests.conformance.AbstractConformanceTest.ConformanceTestAssertion.ExpectedFact;
 
 /** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
 @RunWith(JUnit4.class)
@@ -52,15 +55,17 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-AcheckImpl",
           "-AsuppressWarnings=conditional",
           "-Astrict",
-          "-AajavaChecks");
+          "-AajavaChecks",
+          "-AshowTypes");
 
   @Override
-  protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
+  protected Iterable<ReportedFact> analyze(
+      ImmutableList<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,
             files.stream().map(Path::toFile).collect(toImmutableSet()),
-            emptyList(),
+            testDeps.stream().map(Path::toString).collect(toImmutableList()),
             ImmutableList.of(NullSpecChecker.class.getName()),
             OPTIONS,
             TestUtilities.getShouldEmitDebugInfo());
@@ -92,6 +97,9 @@ public final class ConformanceTest extends AbstractConformanceTest {
             "threadlocal.must.include.null",
             "type.argument.type.incompatible");
 
+    private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
+        ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
+
     private final DetailMessage detailMessage;
 
     DetailMessageReportedFact(DetailMessage detailMessage) {
@@ -100,14 +108,11 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    protected boolean matches(ExpectedFact expectedFact) {
-      switch (expectedFact.kind()) {
-        case NULLNESS_MISMATCH:
-          return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
-
-        default:
-          return super.matches(expectedFact);
+    protected boolean matches(String expectedFact) {
+      if (isNullnessMismatch(expectedFact)) {
+        return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
       }
+      return super.matches(expectedFact);
     }
 
     @Override
@@ -116,12 +121,30 @@ public final class ConformanceTest extends AbstractConformanceTest {
     }
 
     @Override
-    protected @Nullable ExpectedFact expectedFact() {
+    protected @Nullable String expectedFact() {
       if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
-        return CannotConvert.create(sourceType, sinkType);
+        return cannotConvert(sourceType, sinkType);
+      }
+      if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
+        return irrelevantAnnotation("Nullable"); // TODO(dpb): Support other annotations.
+      }
+      switch (detailMessage.messageKey) {
+        case "sourceType":
+          {
+            String expressionType = fixType(detailMessage.messageArguments.get(0));
+            String expression = detailMessage.messageArguments.get(1);
+            return expressionType(expressionType, expression);
+          }
+        case "sinkType":
+          {
+            String sinkType = fixType(detailMessage.messageArguments.get(0));
+            // Remove the simple name of the class and the dot before the method name.
+            String sink = detailMessage.messageArguments.get(1).replaceFirst("^[^.]+\\.", "");
+            return sinkType(sinkType, sink);
+          }
       }
       return null;
     }

@@ -4,7 +4,9 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getLast;
 import static java.lang.Integer.parseInt;
+import static java.util.Arrays.stream;
 import static java.util.regex.Pattern.DOTALL;
+import static java.util.stream.Collectors.joining;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -34,7 +36,11 @@ final class DetailMessage extends TestDiagnostic {
       Pattern.compile(
           Joiner.on(" \\$\\$ ")
               .join(
-                  "(?<file>\\S+):(?<lineNumber>\\d+): error: \\((?<messageKey>[^)]+)\\)",
+                  "(?<file>\\S+):(?<lineNumber>\\d+): (?<kind>"
+                      + stream(DiagnosticKind.values())
+                          .map(k -> k.parseString)
+                          .collect(joining("|"))
+                      + "): \\((?<messageKey>[^)]+)\\)",
                   "(?<messagePartCount>\\d+)",
                   "(?<messageParts>.*)"),
           DOTALL);
@@ -93,6 +99,7 @@ final class DetailMessage extends TestDiagnostic {
     return new DetailMessage(
         (rootDirectory != null) ? rootDirectory.relativize(file) : file,
         parseInt(matcher.group("lineNumber")),
+        DiagnosticKind.fromParseString(matcher.group("kind")),
         matcher.group("messageKey"),
         messageArguments,
         intOrNull(offsets.group("start")),
@@ -107,12 +114,13 @@ final class DetailMessage extends TestDiagnostic {
   DetailMessage(
       Path file,
       int lineNumber,
+      DiagnosticKind diagnosticKind,
       String messageKey,
       ImmutableList<String> messageArguments,
       Integer offsetStart,
       Integer offsetEnd,
       String message) {
-    super(file.toString(), lineNumber, DiagnosticKind.Error, message, false, true);
+    super(file.toString(), lineNumber, diagnosticKind, message, false, true);
     this.file = file;
     this.lineNumber = lineNumber;
     this.messageKey = messageKey;

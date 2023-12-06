@@ -37,8 +37,8 @@ jobs:
           path: reference-checker
       - name: Create or update the Reference Checker ${{ env.branch }} branch
         run: |
-          git config user.name 'update-conformance-test-reports[bot]'
-          git config user.email 'update-conformance-test-reports[bot]@users.noreply.github.com'
+          git config user.name 'jspecify-bot'
+          git config user.email 'jspecify-bot@google.com'
           if git checkout "${branch}"; then
             git merge -X theirs origin/main
             git push
