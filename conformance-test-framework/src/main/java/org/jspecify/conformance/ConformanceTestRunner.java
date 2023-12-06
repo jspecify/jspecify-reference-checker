@@ -30,8 +30,6 @@ import static java.util.stream.Collectors.toList;
 import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.readExpectedFact;
 
 import com.google.common.base.Ascii;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import java.io.IOException;
@@ -67,7 +65,14 @@ public final class ConformanceTestRunner {
     this.analyzer = analyzer;
   }
 
-  private ConformanceTestReport runTests(Path testDirectory, ImmutableList<Path> testDeps)
+  /**
+   * Analyzes source files and compares reported facts to expected facts declared in each file.
+   *
+   * @param testDirectory the directory containing the test input files to analyze
+   * @param testDeps a list of paths to JAR files that must be on the classpath when analyzing
+   * @return a report of the results
+   */
+  public ConformanceTestReport runTests(Path testDirectory, ImmutableList<Path> testDeps)
       throws IOException {
     try (Stream<Path> paths = walk(testDirectory)) {
       return paths
