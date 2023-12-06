@@ -1019,7 +1019,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     if (target == null) {
       return false;
     }
-    return atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
+    return atypeFactory.getQualifierHierarchy().greatestLowerBoundQualifiersOnly(existing, target)
+        == existing;
   }
 
   private static boolean isNullLiteral(Node node) {

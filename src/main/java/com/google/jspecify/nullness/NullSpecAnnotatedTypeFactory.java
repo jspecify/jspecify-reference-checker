@@ -16,7 +16,6 @@ package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArray.IS_DECLARED_OR_ARRAY;
 import static com.google.jspecify.nullness.Util.nameMatches;
-import static com.sun.source.tree.Tree.Kind.CONDITIONAL_EXPRESSION;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
@@ -142,7 +141,8 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
-        TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TypeUseLocation.OTHERWISE
+        // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TODO
+        TypeUseLocation.OTHERWISE
       };
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
@@ -198,9 +198,8 @@ final class NullSpecAnnotatedTypeFactory
             .setValue(
                 "locations",
                 new TypeUseLocation[] {
-                  TypeUseLocation.LOCAL_VARIABLE,
-                  TypeUseLocation.RESOURCE_VARIABLE,
-                  TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND
+                  TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
+                  // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND TODO
                 })
             .setValue("applyToSubpackages", false)
             .build();
@@ -366,11 +365,11 @@ final class NullSpecAnnotatedTypeFactory
   private final class NullSpecQualifierHierarchy extends NoElementQualifierHierarchy {
     NullSpecQualifierHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-      super(qualifierClasses, elements);
+      super(qualifierClasses, elements, NullSpecAnnotatedTypeFactory.this);
     }
 
     @Override
-    public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
       if (subAnno == null || superAnno == null) {
         /*
          * The stock CF never passes null to this method: It always expose *some* annotation
@@ -1730,7 +1729,7 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
-    if (!type.isAnnotatedInHierarchy(unionNull)) {
+    if (!type.hasAnnotationInHierarchy(unionNull)) {
       type.addAnnotation(annotation);
     }
   }
