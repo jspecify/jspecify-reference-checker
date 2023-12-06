@@ -95,12 +95,18 @@ public final class ConformanceTest {
           "-AajavaChecks",
           "-AshowTypes");
 
+  private static final ImmutableList<Path> TEST_DEPS =
+      Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.deps"))
+          .flatMap(Splitter.on(':')::splitToStream)
+          .map(Paths::get)
+          .collect(toImmutableList());
+
   private final ConformanceTestRunner conformanceTestRunner =
       new ConformanceTestRunner(ConformanceTest::analyze);
 
   @Test
   public void conformanceTests() throws IOException {
-    conformanceTestRunner.checkConformance(testDirectory(null), testDeps(), testReport(null));
+    conformanceTestRunner.checkConformance(testDirectory(null), TEST_DEPS, testReport(null));
   }
 
   @Test
@@ -108,15 +114,6 @@ public final class ConformanceTest {
     conformanceTestRunner.checkConformance(
         testDirectory("samples"), ImmutableList.of(), testReport("samples"));
   }
-
-  private static ImmutableList<Path> testDeps() {
-    return Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.deps"))
-        .flatMap(COLON::splitToStream)
-        .map(Paths::get)
-        .collect(toImmutableList());
-  }
-
-  private static final Splitter COLON = Splitter.on(':');
 
   private static Path testDirectory(@Nullable String prefix) {
     return systemPropertyPath(
