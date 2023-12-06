@@ -55,10 +55,13 @@ public final class ConformanceTestRunner {
      * Analyzes a nonempty set of Java source {@code files} that may refer to each other, along with
      * a classpath containing symbols the files may depend on.
      *
+     * @param testDirectory the directory containing the test input files to analyze
+     * @param files the source files to analyze
+     * @param testDeps paths to JAR files that must be on the classpath when analyzing
      * @return the facts reported by the analysis
      */
     Iterable<ReportedFact> analyze(
-        ImmutableList<Path> files, ImmutableList<Path> testDeps, Path testDirectory);
+        Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps);
   }
 
   private final Analyzer analyzer;
@@ -95,7 +98,7 @@ public final class ConformanceTestRunner {
       List<Path> files, ImmutableList<Path> testDeps, Path testDirectory) {
     ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
         index(
-            analyzer.analyze(ImmutableList.copyOf(files), testDeps, testDirectory),
+            analyzer.analyze(testDirectory, ImmutableList.copyOf(files), testDeps),
             ReportedFact::getFile);
     return files.stream()
         .map(testDirectory::relativize)
@@ -165,7 +168,7 @@ public final class ConformanceTestRunner {
    * </dl>
    *
    * @param testDirectory the directory containing the test input files to analyze
-   * @param testDeps a list of paths to JAR files that must be on the classpath when analyzing
+   * @param testDeps paths to JAR files that must be on the classpath when analyzing
    * @param testReport the file to read or write
    */
   public void checkConformance(Path testDirectory, ImmutableList<Path> testDeps, Path testReport)

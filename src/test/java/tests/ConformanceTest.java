@@ -137,7 +137,7 @@ public final class ConformanceTest {
   }
 
   private static ImmutableSet<ReportedFact> analyze(
-      ImmutableList<Path> files, ImmutableList<Path> testDeps, Path testDirectory) {
+      Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,
