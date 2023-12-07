@@ -22,11 +22,11 @@ jobs:
           SHALLOW: 1
       - name: Run Conformance Tests
         uses: gradle/gradle-build-action@v2
-        continue-on-error: true
         with:
           arguments: conformanceTest conformanceTestOnSamples
       - name: Check out jspecify/samples-google-prototype
         run: git -C ../jspecify checkout samples-google-prototype
+        if: always()
       - name: Run Samples Tests
         uses: gradle/gradle-build-action@v2
         with:
