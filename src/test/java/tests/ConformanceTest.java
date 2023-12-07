@@ -15,24 +15,29 @@
 package tests;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.cannotConvert;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.expressionType;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.irrelevantAnnotation;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.isNullnessMismatch;
-import static org.jspecify.conformance.AbstractConformanceTest.ExpectedFact.sinkType;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.cannotConvert;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.expressionType;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.irrelevantAnnotation;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.isNullnessMismatch;
+import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.sinkType;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.jspecify.nullness.NullSpecChecker;
+import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
 import org.checkerframework.framework.test.TestUtilities;
@@ -40,13 +45,45 @@ import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.jspecify.annotations.Nullable;
-import org.jspecify.conformance.AbstractConformanceTest;
+import org.jspecify.conformance.ConformanceTestRunner;
+import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** An {@link AbstractConformanceTest} for the JSpecify reference checker. */
+/**
+ * Conformance tests for the JSpecify reference checker.
+ *
+ * <p>To configure:
+ *
+ * <ul>
+ *   <li>Set the system property {@code JSpecifyConformanceTest.tests} to the location of the
+ *       JSpecify conformance test sources.
+ *   <li>Set the system property {@code JSpecifyConformanceTest.deps} to a colon-separated list of
+ *       JARs that must be on the classpath when analyzing the JSpecify conformance test sources.
+ *   <li>Set the sytem property {@code JSpecifyConformanceTest.report} to the location of the stored
+ *       test report.
+ *   <li>Do the same, but for {@code JSpecifyConformanceTest.samples.tests} and {@code
+ *       JSpecifyConformanceTest.samples.report}, for running the conformance tests on the JSpecify
+ *       samples directory.
+ * </ul>
+ *
+ * <p>The test can run in one of three modes, depending on the value of the {@code
+ * JSPECIFY_CONFORMANCE_TEST_MODE} environment variable:
+ *
+ * <dl>
+ *   <dt>{@code compare} or empty
+ *   <dd>Compare the analysis to the stored report, and fail if anything has changed. Note that
+ *       failure isn't always bad! If an assertion used to fail and now passes, this test will
+ *       "fail".
+ *   <dt>{@code write}
+ *   <dd>Write the analysis to the report file. Always passes.
+ *   <dt>{@code details}
+ *   <dd>Fail if any assertion fails. Report details of unexpected facts.
+ * </dl>
+ */
 @RunWith(JUnit4.class)
-public final class ConformanceTest extends AbstractConformanceTest {
+public final class ConformanceTest {
 
   private static final ImmutableList<String> OPTIONS =
       ImmutableList.of(
@@ -58,19 +95,60 @@ public final class ConformanceTest extends AbstractConformanceTest {
           "-AajavaChecks",
           "-AshowTypes");
 
-  @Override
-  protected Iterable<ReportedFact> analyze(ImmutableList<Path> files) {
+  private static final ImmutableList<Path> TEST_DEPS =
+      Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.deps"))
+          .flatMap(Splitter.on(':')::splitToStream)
+          .map(Paths::get)
+          .collect(toImmutableList());
+
+  private final ConformanceTestRunner conformanceTestRunner =
+      new ConformanceTestRunner(ConformanceTest::analyze);
+
+  @Test
+  public void conformanceTests() throws IOException {
+    conformanceTestRunner.checkConformance(testDirectory(null), TEST_DEPS, testReport(null));
+  }
+
+  @Test
+  public void conformanceTestsOnSamples() throws IOException {
+    conformanceTestRunner.checkConformance(
+        testDirectory("samples"), ImmutableList.of(), testReport("samples"));
+  }
+
+  private static Path testDirectory(@Nullable String prefix) {
+    return systemPropertyPath(
+        PROPERTY_JOINER.join("JSpecifyConformanceTest", prefix, "inputs"),
+        "the location of the JSpecify conformance test inputs");
+  }
+
+  private static Path testReport(@Nullable String prefix) {
+    return systemPropertyPath(
+        PROPERTY_JOINER.join("JSpecifyConformanceTest", prefix, "report"),
+        "the location of the JSpecify conformance test report");
+  }
+
+  private static final Joiner PROPERTY_JOINER = Joiner.on('.').skipNulls();
+
+  private static Path systemPropertyPath(String key, String description) {
+    return Paths.get(
+        requireNonNull(
+            System.getProperty(key),
+            String.format("Set system property %s to %s.", key, description)));
+  }
+
+  private static ImmutableSet<ReportedFact> analyze(
+      Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,
             files.stream().map(Path::toFile).collect(toImmutableSet()),
-            emptyList(),
+            testDeps.stream().map(Path::toString).collect(toImmutableList()),
             ImmutableList.of(NullSpecChecker.class.getName()),
             OPTIONS,
             TestUtilities.getShouldEmitDebugInfo());
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
-        .map(d -> DetailMessage.parse(d.getMessage(), getTestDirectory()))
+        .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
         .filter(Objects::nonNull)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());

@@ -15,6 +15,12 @@ repositories {
 
 configurations {
     errorproneJavac
+    conformanceTestAssertions {
+        attributes {
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
+        }
+    }
+    conformanceTestDeps
 }
 
 ext {
@@ -37,8 +43,22 @@ dependencies {
     testImplementation libs.checkerFramework.framework.test
     testImplementation libs.guava
     testImplementation libs.junit
-    testImplementation libs.jspecify.conformance
+    testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
+
+    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion sources
+            requireCapability "org.jspecify.conformance:conformance-tests-assertions"
+        }
+    }
+
+    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
+        capabilities {
+            // Depend on the assertion dependencies
+            requireCapability "org.jspecify.conformance:conformance-tests-deps"
+        }
+    }
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
@@ -112,19 +132,36 @@ tasks.register('jspecifySamplesTest', Test) {
     inputs.files("${jspecify.projectDir}/samples")
 }
 
-TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
-    return tasks.register(name, Test) {
-        include '**/ConformanceTest.class'
-        inputs.dir(testDirectory)
-        inputs.files(reportFile)
-        systemProperty("JSpecifyConformanceTest.sourceDirectory", testDirectory)
-        systemProperty("JSpecifyConformanceTest.report", reportFile)
-    }
+tasks.register('unzipConformanceTestAssertions', Copy) {
+    dependsOn configurations.conformanceTestAssertions
+    from zipTree(configurations.conformanceTestAssertions.singleFile)
+    into layout.buildDirectory.dir("conformanceTests")
 }
 
-conformanceTest('conformanceTest', "${jspecify.projectDir}/conformance", 'tests/ConformanceTest-report.txt')
+tasks.register('conformanceTests', Test) {
+    group = 'verification'
+    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
+    include '**/ConformanceTest.class'
 
-conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
+    // Conformance tests
+    def conformanceTestsDir = tasks.named('unzipConformanceTestAssertions', Copy).get().destinationDir
+    inputs.dir(conformanceTestsDir)
+    inputs.files("tests/ConformanceTest-report.txt")
+    inputs.files(configurations.conformanceTestDeps)
+    systemProperty("JSpecifyConformanceTest.inputs", "$conformanceTestsDir/org/jspecify/conformance/tests")
+    systemProperty("JSpecifyConformanceTest.report", "tests/ConformanceTest-report.txt")
+    systemProperty("JSpecifyConformanceTest.deps", configurations.conformanceTestDeps.join(":"))
+
+    // Conformance tests run on the samples directory
+    inputs.dir("${jspecify.projectDir}/samples")
+    inputs.files("tests/ConformanceTestOnSamples-report.txt")
+    systemProperty("JSpecifyConformanceTest.samples.inputs", "${jspecify.projectDir}/samples")
+    systemProperty("JSpecifyConformanceTest.samples.report", "tests/ConformanceTestOnSamples-report.txt")
+}
+
+tasks.named('check').configure {
+    dependsOn('conformanceTests')
+}
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
