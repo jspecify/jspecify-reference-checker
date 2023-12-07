@@ -135,8 +135,7 @@ tasks.register('jspecifySamplesTest', Test) {
 tasks.register('unzipConformanceTestAssertions', Copy) {
     dependsOn configurations.conformanceTestAssertions
     from zipTree(configurations.conformanceTestAssertions.singleFile)
-    exclude 'META-INF/'
-    into "${buildDir}/conformanceTests"
+    into layout.buildDirectory.dir("conformanceTests")
 }
 
 tasks.register('conformanceTests', Test) {
@@ -145,10 +144,11 @@ tasks.register('conformanceTests', Test) {
     include '**/ConformanceTest.class'
 
     // Conformance tests
-    inputs.dir("${buildDir}/conformanceTests")
+    def conformanceTestsDir = tasks.named('unzipConformanceTestAssertions', Copy).get().destinationDir
+    inputs.dir(conformanceTestsDir)
     inputs.files("tests/ConformanceTest-report.txt")
     inputs.files(configurations.conformanceTestDeps)
-    systemProperty("JSpecifyConformanceTest.inputs", "${buildDir}/conformanceTests/org/jspecify/conformance/tests")
+    systemProperty("JSpecifyConformanceTest.inputs", "$conformanceTestsDir/org/jspecify/conformance/tests")
     systemProperty("JSpecifyConformanceTest.report", "tests/ConformanceTest-report.txt")
     systemProperty("JSpecifyConformanceTest.deps", configurations.conformanceTestDeps.join(":"))
 
