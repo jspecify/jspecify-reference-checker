@@ -23,7 +23,7 @@ jobs:
       - name: Run Conformance Tests
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: conformanceTest conformanceTestOnSamples
+          arguments: conformanceTests
       - name: Check out jspecify/samples-google-prototype
         run: git -C ../jspecify checkout samples-google-prototype
       - name: Run Samples Tests
