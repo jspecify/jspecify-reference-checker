@@ -49,7 +49,7 @@ jobs:
       - name: Run the Reference Checker conformance tests
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: conformanceTest conformanceTestOnSamples
+          arguments: conformanceTests
           build-root-directory: reference-checker
         env:
           JSPECIFY_CONFORMANCE_TEST_MODE: write
