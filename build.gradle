@@ -116,18 +116,6 @@ tasks.register('jspecifySamplesTest', Test) {
     inputs.files("${jspecify.projectDir}/samples")
 }
 
-TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
-    check.dependsOn(name)
-    return tasks.register(name, Test) {
-        group = 'verification'
-        include '**/ConformanceTest.class'
-        inputs.dir(testDirectory)
-        inputs.files(reportFile)
-        systemProperty("JSpecifyConformanceTest.sourceDirectory", testDirectory)
-        systemProperty("JSpecifyConformanceTest.report", reportFile)
-    }
-}
-
 tasks.register('unzipConformanceTestSuite', Copy) {
     // TODO: Don't explicitly depend on an included build's task.
     dependsOn jspecify.task(':conformance-tests:build')
@@ -136,17 +124,32 @@ tasks.register('unzipConformanceTestSuite', Copy) {
     into layout.buildDirectory.dir("conformanceTests")
 }
 
-conformanceTest('conformanceTest',
-        "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
-        'tests/ConformanceTest-report.txt')
-        .configure {
-            dependsOn unzipConformanceTestSuite
-            inputs.dir(unzipConformanceTestSuite.destinationDir)
-            systemProperty("JSpecifyConformanceTest.testDeps",
-                    fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":"))
-        }
+tasks.register('conformanceTests', Test) {
+    group = 'verification'
+    dependsOn unzipConformanceTestSuite
+    include '**/ConformanceTest.class'
 
-conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
+    // Conformance tests
+    inputs.dir(unzipConformanceTestSuite.destinationDir)
+    inputs.files("tests/ConformanceTest-report.txt")
+    systemProperties([
+        "JSpecifyConformanceTest.inputs": "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
+        "JSpecifyConformanceTest.report": "tests/ConformanceTest-report.txt",
+        "JSpecifyConformanceTest.deps": fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":")
+    ])
+
+    // Conformance tests run on the samples directory
+    inputs.dir("${jspecify.projectDir}/samples")
+    inputs.files("tests/ConformanceTestOnSamples-report.txt")
+    systemProperties([
+        "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
+        "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
+    ])
+}
+
+tasks.named('check').configure {
+    dependsOn('conformanceTests')
+}
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
