@@ -127,7 +127,6 @@ tasks.register('unzipConformanceTestSuite', Copy) {
 
 tasks.register('conformanceTests', Test) {
     group = 'verification'
-    dependsOn unzipConformanceTestSuite
     include '**/ConformanceTest.class'
 
     // Conformance tests
@@ -137,19 +136,23 @@ tasks.register('conformanceTests', Test) {
     }
     inputs.dir(unzipConformanceTestSuite.destinationDir)
     inputs.files("tests/ConformanceTest-report.txt")
-    systemProperties([
-        "JSpecifyConformanceTest.inputs": "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
-        "JSpecifyConformanceTest.report": "tests/ConformanceTest-report.txt",
-        "JSpecifyConformanceTest.deps"  : fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":")
-    ])
+    doFirst {
+        systemProperties([
+            "JSpecifyConformanceTest.inputs": "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
+            "JSpecifyConformanceTest.report": "tests/ConformanceTest-report.txt",
+            "JSpecifyConformanceTest.deps"  : fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":")
+        ])
+    }
 
     // Conformance tests run on the samples directory
     inputs.dir("${jspecify.projectDir}/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
-    systemProperties([
-        "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
-        "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
-    ])
+    doFirst {
+        systemProperties([
+            "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
+            "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
+        ])
+    }
 }
 
 tasks.named('check').configure {
