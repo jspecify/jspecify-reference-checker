@@ -97,7 +97,7 @@ public final class ConformanceTest {
 
   private static final ImmutableList<Path> TEST_DEPS =
       Stream.ofNullable(System.getProperty("JSpecifyConformanceTest.deps"))
-          .flatMap(Splitter.on(':')::splitToStream)
+          .flatMap(Splitter.on(':').trimResults().omitEmptyStrings()::splitToStream)
           .map(Paths::get)
           .collect(toImmutableList());
 
