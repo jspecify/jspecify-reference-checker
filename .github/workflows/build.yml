@@ -20,6 +20,7 @@ jobs:
           arguments: build
         env:
           SHALLOW: 1
+          JSPECIFY_CONFORMANCE_TEST_MODE: details # DO NOT MERGE
       - name: Run Conformance Tests
         uses: gradle/gradle-build-action@v2
         with:
