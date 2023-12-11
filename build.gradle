@@ -120,7 +120,6 @@ tasks.register('unzipConformanceTestSuite', Copy) {
     // TODO: Don't explicitly depend on an included build's task.
     dependsOn jspecify.task(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
-    println("unzipping ${configurations.conformanceTestSuite.singleFile} to ${layout.buildDirectory.dir("conformanceTests").get()}")
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
 }
@@ -130,10 +129,6 @@ tasks.register('conformanceTests', Test) {
     include '**/ConformanceTest.class'
 
     // Conformance tests
-    println("using conformance tests from ${unzipConformanceTestSuite.destinationDir}")
-    unzipConformanceTestSuite.outputs.files.asFileTree.forEach {
-        println("output: $it")
-    }
     inputs.files(unzipConformanceTestSuite)
     inputs.files("tests/ConformanceTest-report.txt")
     doFirst {
