@@ -1,4 +1,4 @@
-# 10 pass; 6 fail; 16 total; 62.5% score
+# 12 pass; 6 fail; 18 total; 66.7% score
 PASS: Basic.java:26 test:expression-type:Object?:nullable
 PASS: Basic.java:26 test:sink-type:Object!:return
 PASS: Basic.java:26 test:cannot-convert:Object? to Object!
@@ -15,3 +15,5 @@ FAIL: Irrelevant.java:43 test:irrelevant-annotation:Nullable
 FAIL: Irrelevant.java:47 test:irrelevant-annotation:NullMarked
 FAIL: Irrelevant.java:49 test:irrelevant-annotation:NullUnmarked
 FAIL: Irrelevant.java: no unexpected facts
+PASS: UsesDep.java:24 test:cannot-convert:null? to Dep*
+PASS: UsesDep.java: no unexpected facts
