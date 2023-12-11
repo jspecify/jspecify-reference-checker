@@ -107,8 +107,9 @@ public final class ConformanceTest {
 
   @Test
   public void conformanceTests() throws IOException {
+    System.err.println("testDeps: " + TEST_DEPS);
     for (Path testDep : TEST_DEPS) {
-      System.err.println("testDep:" + testDep);
+      System.err.println("testDep: " + testDep);
       try (ZipFile zip = new ZipFile(testDep.toFile())) {
         zip.stream()
             .forEach(
