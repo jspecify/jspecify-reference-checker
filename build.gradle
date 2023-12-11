@@ -134,7 +134,7 @@ tasks.register('conformanceTests', Test) {
     unzipConformanceTestSuite.outputs.files.asFileTree.forEach {
         println("output: $it")
     }
-    inputs.dir(unzipConformanceTestSuite.destinationDir)
+    inputs.files(unzipConformanceTestSuite)
     inputs.files("tests/ConformanceTest-report.txt")
     doFirst {
         systemProperties([
