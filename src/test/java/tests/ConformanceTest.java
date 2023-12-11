@@ -109,7 +109,9 @@ public final class ConformanceTest {
   public void conformanceTests() throws IOException {
     for (Path testDep : TEST_DEPS) {
       try (ZipFile zip = new ZipFile(testDep.toFile())) {
-        zip.stream().forEach(entry -> System.out.format("%s: %s%n", testDep.getFileName(), entry.getName()));
+        zip.stream()
+            .forEach(
+                entry -> System.out.format("%s: %s%n", testDep.getFileName(), entry.getName()));
       }
     }
     conformanceTestRunner.checkConformance(testDirectory(null), TEST_DEPS, testReport(null));
