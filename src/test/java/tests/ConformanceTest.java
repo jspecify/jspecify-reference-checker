@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import java.util.zip.ZipFile;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
 import org.checkerframework.framework.test.TestUtilities;
@@ -106,6 +107,11 @@ public final class ConformanceTest {
 
   @Test
   public void conformanceTests() throws IOException {
+    for (Path testDep : TEST_DEPS) {
+      try (ZipFile zip = new ZipFile(testDep.toFile())) {
+        zip.stream().forEach(entry -> System.out.format("%s: %s%n", testDep.getFileName(), entry.getName()));
+      }
+    }
     conformanceTestRunner.checkConformance(testDirectory(null), TEST_DEPS, testReport(null));
   }
 

@@ -138,15 +138,6 @@ tasks.register('conformanceTests', Test) {
         "JSpecifyConformanceTest.deps"  : fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":")
     ])
 
-    // DO NOT MERGE
-    def dir =unzipConformanceTestSuite.destinationDir.toPath()
-    fileTree(dir).forEach {
-        println("conformanceTests: ${dir.relativize(it.toPath())}")
-        if (it.path.endsWith(".jar")) {
-            zipTree(it).forEach { zipEntry -> println("${dir.relativize(it.toPath())}: $zipEntry") }
-        }
-    }
-
     // Conformance tests run on the samples directory
     inputs.dir("${jspecify.projectDir}/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
