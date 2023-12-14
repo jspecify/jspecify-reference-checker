@@ -116,7 +116,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
      * the possibly null value (possibly both!). However, this gets tricky: If the branches return
      * `Foo?` and `Foo*`, then we ideally want to emphasize the `Foo?` branch *but*, at least in
      * "strict mode," not altogether ignore the `Foo*` branch.
-     *
+      /
     String origin = originStringIfTernary(tree);
     return origin.isEmpty() ? "" : (origin + "\n");
   }
