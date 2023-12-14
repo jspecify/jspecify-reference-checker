@@ -14,16 +14,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Build
+      - name: Build and Test
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build
+          arguments: build conformanceTests
         env:
           SHALLOW: 1
-      - name: Run Conformance Tests
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: conformanceTest conformanceTestOnSamples
       - name: Check out jspecify/samples-google-prototype
         run: git -C ../jspecify checkout samples-google-prototype
         if: always()

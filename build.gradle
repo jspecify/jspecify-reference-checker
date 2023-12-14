@@ -15,12 +15,7 @@ repositories {
 
 configurations {
     errorproneJavac
-    conformanceTestAssertions {
-        attributes {
-            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
-        }
-    }
-    conformanceTestDeps
+    conformanceTestSuite
 }
 
 ext {
@@ -46,19 +41,8 @@ dependencies {
     testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    conformanceTestAssertions("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
-        capabilities {
-            // Depend on the assertion sources
-            requireCapability "org.jspecify.conformance:conformance-tests-assertions"
-        }
-    }
-
-    conformanceTestDeps("org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT") {
-        capabilities {
-            // Depend on the assertion dependencies
-            requireCapability "org.jspecify.conformance:conformance-tests-deps"
-        }
-    }
+    // TODO: Depend on a group:artifact:version rather than a file.
+    conformanceTestSuite files("${jspecify.projectDir}/conformance-tests/build/distributions/conformance-tests-0.0.0-SNAPSHOT.zip")
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
@@ -132,32 +116,43 @@ tasks.register('jspecifySamplesTest', Test) {
     inputs.files("${jspecify.projectDir}/samples")
 }
 
-TaskProvider<Test> conformanceTest(String name, String testDirectory, String reportFile) {
-    check.dependsOn(name)
-    return tasks.register(name, Test) {
-        group = 'verification'
-        include '**/ConformanceTest.class'
-        inputs.dir(testDirectory)
-        inputs.files(reportFile)
-        systemProperty("JSpecifyConformanceTest.sourceDirectory", testDirectory)
-        systemProperty("JSpecifyConformanceTest.report", reportFile)
+tasks.register('unzipConformanceTestSuite', Copy) {
+    // TODO: Don't explicitly depend on an included build's task.
+    dependsOn jspecify.task(':conformance-tests:build')
+    dependsOn configurations.conformanceTestSuite
+    from zipTree(configurations.conformanceTestSuite.singleFile)
+    into layout.buildDirectory.dir("conformanceTests")
+}
+
+tasks.register('conformanceTests', Test) {
+    group = 'verification'
+    include '**/ConformanceTest.class'
+
+    // Conformance tests
+    inputs.files(unzipConformanceTestSuite)
+    inputs.files("tests/ConformanceTest-report.txt")
+    doFirst {
+        systemProperties([
+            "JSpecifyConformanceTest.inputs": "${unzipConformanceTestSuite.destinationDir}/assertions/org/jspecify/conformance/tests",
+            "JSpecifyConformanceTest.report": "tests/ConformanceTest-report.txt",
+            "JSpecifyConformanceTest.deps"  : fileTree("${unzipConformanceTestSuite.destinationDir}/deps").join(":")
+        ])
+    }
+
+    // Conformance tests run on the samples directory
+    inputs.dir("${jspecify.projectDir}/samples")
+    inputs.files("tests/ConformanceTestOnSamples-report.txt")
+    doFirst {
+        systemProperties([
+            "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
+            "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
+        ])
     }
 }
 
-tasks.register('unzipConformanceTestAssertions', Copy) {
-    dependsOn configurations.conformanceTestAssertions
-    from zipTree(configurations.conformanceTestAssertions.singleFile)
-    exclude 'META-INF/'
-    into "${buildDir}/conformanceTests"
+tasks.named('check').configure {
+    dependsOn('conformanceTests')
 }
-
-conformanceTest('conformanceTest', "${buildDir}/conformanceTests/org/jspecify/conformance/tests", 'tests/ConformanceTest-report.txt').configure {
-    dependsOn 'unzipConformanceTestAssertions', configurations.conformanceTestDeps
-    inputs.files(configurations.conformanceTestDeps)
-    systemProperty("JSpecifyConformanceTest.testDeps", configurations.conformanceTestDeps.join(":"))
-}
-
-conformanceTest('conformanceTestOnSamples', "${jspecify.projectDir}/samples", 'tests/ConformanceTestOnSamples-report.txt')
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
