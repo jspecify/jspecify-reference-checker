@@ -74,4 +74,4 @@ git_clone jspecify --no-single-branch
 
 git_clone jdk --depth 1 --single-branch
 
-git_clone checker-framework --depth 1 --single-branch
+git_clone checker-framework
