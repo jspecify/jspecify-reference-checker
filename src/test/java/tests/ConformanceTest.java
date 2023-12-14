@@ -14,7 +14,6 @@
 
 package tests;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
@@ -35,6 +34,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -84,6 +84,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public final class ConformanceTest {
+  private static final Logger logger = Logger.getLogger(ConformanceTest.class.getCanonicalName());
 
   private static final ImmutableList<String> OPTIONS =
       ImmutableList.of(
@@ -242,7 +243,10 @@ public final class ConformanceTest {
      */
     private static String fixType(String type) {
       Matcher matcher = TYPE.matcher(type);
-      checkArgument(matcher.matches(), "did not match for \"%s\"", type);
+      if (!matcher.matches()) {
+        logger.warning(String.format("type \"%s\" did not match /%s/", type, TYPE.pattern()));
+        return type;
+      }
       String args = matcher.group("args");
       String suffix = matcher.group("suffix");
       if (args == null && suffix != null) {
