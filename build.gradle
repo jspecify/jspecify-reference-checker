@@ -10,12 +10,21 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
+    maven {
+        // Nexus snapshot repository
+        url = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    }
     mavenCentral()
 }
 
 configurations {
     errorproneJavac
-    conformanceTestSuite
+    conformanceTestSuite {
+        // Only download from Maven; don't try to use the included build.
+        // Composite build dependencies don't work for nonstandard artifacts like ZIP files.
+        resolutionStrategy.useGlobalDependencySubstitutionRules = false
+    }
 }
 
 ext {
@@ -41,8 +50,7 @@ dependencies {
     testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    // TODO: Depend on a group:artifact:version rather than a file.
-    conformanceTestSuite files("${jspecify.projectDir}/conformance-tests/build/distributions/conformance-tests-0.0.0-SNAPSHOT.zip")
+    conformanceTestSuite libs.jspecify.conformanceTests
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
