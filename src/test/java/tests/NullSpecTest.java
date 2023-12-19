@@ -14,9 +14,12 @@
 
 package tests;
 
+import static java.nio.file.Files.isDirectory;
+
 import com.google.common.collect.ImmutableList;
 import com.google.jspecify.nullness.NullSpecChecker;
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
@@ -29,6 +32,22 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for the {@link NullSpecChecker} that look at expected diagnostics in source files. */
 abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
+  // TODO: Remove the old location of the samples once the ZIP file has them even on the
+  // samples-google-prototype branch.
+  private static final ImmutableList<String> SAMPLES_DIRECTORIES =
+      ImmutableList.of("../build/conformanceTests/samples", "../../jspecify/samples");
+
+  private static String[] getSamplesDirs() {
+    return new String[] {
+      SAMPLES_DIRECTORIES.stream()
+          .filter(d -> isDirectory(Paths.get(d)))
+          .findFirst()
+          .orElseThrow(
+              () ->
+                  new IllegalStateException("Cannot find samples in any of " + SAMPLES_DIRECTORIES))
+    };
+  }
+
   /** A minimal smoke test that looks at one simple file. */
   public static class Minimal extends NullSpecTest {
     public Minimal(List<File> testFiles) {
@@ -49,7 +68,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     @Parameters
     public static String[] getTestDirs() {
-      return new String[] {"../../jspecify/samples"};
+      return getSamplesDirs();
     }
   }
 
@@ -61,7 +80,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     @Parameters
     public static String[] getTestDirs() {
-      return new String[] {"../../jspecify/samples"};
+      return getSamplesDirs();
     }
   }
 

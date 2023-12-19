@@ -113,7 +113,7 @@ tasks.register('jspecifySamplesTest', Test) {
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    inputs.files("${jspecify.projectDir}/samples")
+    inputs.files(unzipConformanceTestSuite)
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
@@ -140,11 +140,11 @@ tasks.register('conformanceTests', Test) {
     }
 
     // Conformance tests run on the samples directory
-    inputs.dir("${jspecify.projectDir}/samples")
+    inputs.dir("${unzipConformanceTestSuite.destinationDir}/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
     doFirst {
         systemProperties([
-            "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
+            "JSpecifyConformanceTest.samples.inputs": "${unzipConformanceTestSuite.destinationDir}/samples",
             "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
         ])
     }
