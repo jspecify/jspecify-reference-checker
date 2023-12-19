@@ -29,7 +29,6 @@ configurations {
 
 ext {
     checkerFramework = gradle.includedBuild("checker-framework")
-    jspecify = gradle.includedBuild("jspecify")
 }
 
 java {
@@ -58,7 +57,6 @@ dependencies {
 
 // Assemble checker-framework when assembling the reference checker.
 assemble.dependsOn(checkerFramework.task(":assemble"))
-assemble.dependsOn(jspecify.task(":assemble"))
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
@@ -125,8 +123,6 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
-    // TODO: Don't explicitly depend on an included build's task.
-    dependsOn jspecify.task(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
@@ -148,11 +144,11 @@ tasks.register('conformanceTests', Test) {
     }
 
     // Conformance tests run on the samples directory
-    inputs.dir("${jspecify.projectDir}/samples")
+    inputs.dir("../jspecify/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
     doFirst {
         systemProperties([
-            "JSpecifyConformanceTest.samples.inputs": "${jspecify.projectDir}/samples",
+            "JSpecifyConformanceTest.samples.inputs": "../jspecify//samples",
             "JSpecifyConformanceTest.samples.report": "tests/ConformanceTestOnSamples-report.txt"
         ])
     }
