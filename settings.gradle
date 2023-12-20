@@ -12,10 +12,6 @@ def initializeProject() {
     }
 }
 
-includeBuild("../checker-framework") {
-    initializeProject()
-}
-
 dependencyResolutionManagement {
     versionCatalogs {
         libs {

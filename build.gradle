@@ -27,10 +27,6 @@ configurations {
     }
 }
 
-ext {
-    checkerFramework = gradle.includedBuild("checker-framework")
-}
-
 java {
     sourceCompatibility = 1.9
 }
@@ -54,9 +50,6 @@ dependencies {
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
 }
-
-// Assemble checker-framework when assembling the reference checker.
-assemble.dependsOn(checkerFramework.task(":assemble"))
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
@@ -160,31 +153,6 @@ tasks.named('check').configure {
 
 clean.doFirst {
     delete "${rootDir}/tests/build/"
-}
-
-/*
- Spotless validates its formatters' dependencies eagerly, on project configuration.
- google-java-format depends on checker-qual, which is built by a subproject.
- On a clean build, the checker-qual JAR file doesn't exist yet, so Spotless throws an error.
- The file doesn't have to be correct; it just has to be a JAR file.
- So here, before the spotless block,  we create a meaningless JAR file at that location if it doesn't already exist.
- See https://github.com/jspecify/jspecify-reference-checker/issues/81
- */
-
-def cfQualJar =
-        checkerFramework.projectDir.toPath()
-        .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
-
-if (!cfQualJar.toFile().exists()) {
-    mkdir(cfQualJar.parent)
-    exec {
-        executable 'jar'
-        args = [
-            'cf',
-            cfQualJar,
-            buildFile.path // Use this build script file!
-        ]
-    }
 }
 
 spotless {
