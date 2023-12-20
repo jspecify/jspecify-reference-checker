@@ -19,7 +19,7 @@ includeBuild("../checker-framework") {
 dependencyResolutionManagement {
     versionCatalogs {
         libs {
-            version("checkerFramework", "3.21.5-SNAPSHOT")
+            version("checkerFramework", "3.21.5-jspecify-SNAPSHOT")
 
             library("checkerFramework-checker", "org.checkerframework", "checker").versionRef("checkerFramework")
             library("checkerFramework-checker-qual", "org.checkerframework", "checker-qual").versionRef("checkerFramework")
