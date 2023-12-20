@@ -113,11 +113,7 @@ tasks.register('jspecifySamplesTest', Test) {
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    if (findProject(':conformance-tests') != null) {
-        inputs.files(unzipConformanceTestSuite)
-    } else {
-        inputs.dir('../jspecify/samples')
-    }
+    inputs.files(unzipConformanceTestSuite)
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
