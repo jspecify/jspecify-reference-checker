@@ -113,12 +113,16 @@ tasks.register('jspecifySamplesTest', Test) {
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
-    inputs.files(unzipConformanceTestSuite)
+    if (findProject(':conformance-tests') != null) {
+        inputs.files(unzipConformanceTestSuite)
+    } else {
+        inputs.dir('../jspecify/samples')
+    }
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
     // TODO: Don't explicitly depend on an included build's task.
-    dependsOn jspecify.task(':conformance-tests:build')
+    dependsOn jspecify.tasks.findByPath(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
