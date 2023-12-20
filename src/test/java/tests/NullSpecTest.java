@@ -40,7 +40,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
   private static String[] getSamplesDirs() {
     return new String[] {
       SAMPLES_DIRECTORIES.stream()
-          .filter(d -> isDirectory(Paths.get(d)))
+          .filter(d -> isDirectory(Paths.get("tests", d)))
           .findFirst()
           .orElseThrow(
               () ->
