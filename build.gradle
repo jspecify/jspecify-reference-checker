@@ -122,7 +122,7 @@ tasks.register('jspecifySamplesTest', Test) {
 
 tasks.register('unzipConformanceTestSuite', Copy) {
     // TODO: Don't explicitly depend on an included build's task.
-    dependsOn jspecify.tasks.findByPath(':conformance-tests:build')
+    dependsOn jspecify.task(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
