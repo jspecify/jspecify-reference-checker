@@ -137,7 +137,6 @@ tasks.register('conformanceTests', Test) {
     }
 
     // Conformance tests run on the samples directory
-    inputs.dir("${unzipConformanceTestSuite.destinationDir}/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
     doFirst {
         systemProperties([
