@@ -158,6 +158,22 @@ clean.doFirst {
     delete "${rootDir}/tests/build/"
 }
 
+tasks.register('demoTest', Exec)  {
+    group = 'verification'
+    shouldRunAfter 'conformanceTests'
+    dependsOn assemble
+    inputs.files('demo', 'SimpleSample.java')
+    executable '/bin/sh'
+    args 'demo', 'SimpleSample.java'
+    ignoreExitValue = true
+    errorOutput = new ByteArrayOutputStream()
+    doLast {
+        if (!errorOutput.toString().startsWith("SimpleSample.java:7: error:")) {
+            throw new AssertionError("`./demo SimpleSample.java` did not run correctly. Error output:\n$errorOutput")
+        }
+    }
+}
+
 /*
  Spotless validates its formatters' dependencies eagerly, on project configuration.
  google-java-format depends on checker-qual, which is built by a subproject.
