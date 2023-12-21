@@ -117,6 +117,10 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
+    IncludedBuild jspecify = gradle.includedBuilds.find {it.name == 'jspecify' }
+    if (jspecify != null) {
+        dependsOn jspecify.task(':publishConformanceTestsPublicationToMavenLocal')
+    }
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
