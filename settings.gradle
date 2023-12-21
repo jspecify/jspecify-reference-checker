@@ -16,7 +16,6 @@ void includeBuildIfExists(String path) {
     }
 }
 
-includeBuildIfExists('../jspecify')
 includeBuildIfExists('../checker-framework')
 
 dependencyResolutionManagement {
