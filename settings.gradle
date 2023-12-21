@@ -6,11 +6,18 @@ include 'conformance-test-framework'
 // See https://docs.gradle.org/current/userguide/composite_builds.html#included_build_declaring_substitutions
 includeBuild(".")
 
-def initializeProject() {
-    exec {
-        executable './initialize-project'
+exec {
+    executable './initialize-project'
+}
+
+void includeBuildIfExists(String path) {
+    if (new File(path).isDirectory()) {
+        includeBuild(path)
     }
 }
+
+includeBuildIfExists('../jspecify')
+includeBuildIfExists('../checker-framework')
 
 dependencyResolutionManagement {
     versionCatalogs {
