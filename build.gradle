@@ -160,7 +160,7 @@ clean.doFirst {
 
 tasks.register('demoTest', Exec)  {
     group = 'verification'
-    shouldRunAfter conformanceTests
+    shouldRunAfter 'conformanceTests'
     dependsOn assemble
     inputs.files('demo', 'SimpleSample.java')
     executable '/bin/sh'
