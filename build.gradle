@@ -109,6 +109,7 @@ test {
 tasks.register('jspecifySamplesTest', Test) {
     description = 'Run the checker against the JSpecify samples.'
     group = 'verification'
+    shouldRunAfter test
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
@@ -124,6 +125,7 @@ tasks.register('unzipConformanceTestSuite', Copy) {
 tasks.register('conformanceTests', Test) {
     group = 'verification'
     include '**/ConformanceTest.class'
+    shouldRunAfter test
 
     // Conformance tests
     inputs.files(unzipConformanceTestSuite)
