@@ -4,7 +4,13 @@
 # To integrate the checker into a more complex build, reading the below should give you what you need to know.
 
 dir=$(dirname $0)
-ourclasspath="$dir/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar:$dir/build/libs/jspecify-reference-checker.jar"
+jspecify="${dir}/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"
+if [ ! -e "${jspecify}" ]; then
+  echo "Downloading JSpecify from Maven Central."
+  jspecify="${dir}/build/jspecify.jar"
+  curl -s 'https://repo.maven.apache.org/maven2/org/jspecify/jspecify/0.3.0/jspecify-0.3.0.jar' -o "${jspecify}"
+fi
+ourclasspath="${jspecify}:${dir}/build/libs/jspecify-reference-checker.jar"
 
 export CLASSPATH="$ourclasspath:$CLASSPATH"
 
