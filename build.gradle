@@ -186,8 +186,8 @@ tasks.register('demoTest', Exec)  {
  */
 
 def cfQualJar =
-        checkerFramework.projectDir.toPath()
-        .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
+        gradle.includedBuild('checker-framework').projectDir.toPath()
+                .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
 if (!cfQualJar.toFile().exists()) {
     mkdir(cfQualJar.parent)

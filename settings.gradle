@@ -10,13 +10,7 @@ exec {
     executable './initialize-project'
 }
 
-void includeBuildIfExists(String path) {
-    if (new File(path).isDirectory()) {
-        includeBuild(path)
-    }
-}
-
-includeBuildIfExists('../checker-framework')
+includeBuild('../checker-framework')
 
 dependencyResolutionManagement {
     versionCatalogs {
