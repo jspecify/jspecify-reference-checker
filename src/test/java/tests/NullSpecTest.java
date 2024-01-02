@@ -49,7 +49,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     @Parameters
     public static String[] getTestDirs() {
-      return new String[] {"../../jspecify/samples"};
+      return getSamplesDirs();
     }
   }
 
@@ -61,8 +61,12 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     @Parameters
     public static String[] getTestDirs() {
-      return new String[] {"../../jspecify/samples"};
+      return getSamplesDirs();
     }
+  }
+
+  private static String[] getSamplesDirs() {
+    return new String[] {"../build/conformanceTests/samples"};
   }
 
   private final boolean strict;
