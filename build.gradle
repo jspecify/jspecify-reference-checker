@@ -63,7 +63,7 @@ dependencies {
 // Assemble checker-framework when assembling the reference checker.
 assemble.dependsOn(checkerFramework.task(":assemble"))
 if (jspecify != null) {
-    assemble.dependsOn(jspecify.task('assemble'))
+    assemble.dependsOn(jspecify.task(':assemble'))
 }
 
 tasks.withType(JavaCompile).configureEach {
