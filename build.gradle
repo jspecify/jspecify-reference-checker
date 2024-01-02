@@ -31,6 +31,10 @@ configurations {
     }
 }
 
+ext {
+    checkerFramework = gradle.includedBuild("checker-framework")
+}
+
 java {
     sourceCompatibility = 1.9
 }
@@ -54,6 +58,9 @@ dependencies {
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
 }
+
+// Assemble checker-framework when assembling the reference checker.
+assemble.dependsOn(checkerFramework.task(":assemble"))
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
@@ -186,7 +193,7 @@ tasks.register('demoTest', Exec)  {
  */
 
 def cfQualJar =
-        gradle.includedBuild('checker-framework').projectDir.toPath()
+        checkerFramework.projectDir.toPath()
         .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
 if (!cfQualJar.toFile().exists()) {
