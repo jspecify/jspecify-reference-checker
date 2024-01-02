@@ -21,9 +21,13 @@ repositories {
 configurations {
     errorproneJavac
     conformanceTestSuite {
-        // Only download from Maven; don't try to use the included build.
-        // Composite build dependencies don't work for nonstandard artifacts like ZIP files.
-        resolutionStrategy.useGlobalDependencySubstitutionRules = false
+        // When including a local JSpecify build, depend on the local test suite.
+        // See https://docs.gradle.org/current/userguide/cross_project_publications.html#sec:variant-aware-sharing.
+        if (gradle.includedBuilds.find { it.name == 'jspecify' } != null) {
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, 'conformance-tests'))
+            }
+        }
     }
 }
 
@@ -117,10 +121,6 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
-    IncludedBuild jspecify = gradle.includedBuilds.find {it.name == 'jspecify' }
-    if (jspecify != null) {
-        dependsOn jspecify.task(':publishConformanceTestsPublicationToMavenLocal')
-    }
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
