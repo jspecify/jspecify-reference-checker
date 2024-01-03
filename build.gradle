@@ -20,6 +20,8 @@ repositories {
 
 ext {
     checkerFramework = gradle.includedBuild("checker-framework")
+
+    // null if not included with `--include-build path/to/jspecify`
     jspecify = gradle.includedBuilds.find { it.name == 'jspecify' }
 }
 
@@ -62,6 +64,9 @@ dependencies {
 
 // Assemble checker-framework when assembling the reference checker.
 assemble.dependsOn(checkerFramework.task(":assemble"))
+
+// If built with `--include-build path/to/jspecify` then
+// assemble jspecify when assembling the reference checker.
 if (jspecify != null) {
     assemble.dependsOn(jspecify.task(':assemble'))
 }
