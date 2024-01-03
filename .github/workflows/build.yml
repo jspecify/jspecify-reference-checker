@@ -6,25 +6,29 @@ jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jspecify-reference-checker
     steps:
       - name: Check out the code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          path: jspecify-reference-checker
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
-      - name: Build and Test
+      - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
-        with:
-          arguments: build conformanceTests demoTest
+      - name: Build and Test
+        run: ./gradlew build conformanceTests demoTest
         env:
           SHALLOW: 1
       - name: Check out jspecify/samples-google-prototype
         if: always()
-        run: git -C ../jspecify checkout samples-google-prototype
+        run: git checkout samples-google-prototype
+        working-directory: jspecify
       - name: Run Samples Tests
         if: always()
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: jspecifySamplesTest
+        run: ./gradlew jspecifySamplesTest
