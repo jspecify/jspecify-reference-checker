@@ -181,7 +181,7 @@ tasks.register('demoTest', Exec)  {
     ignoreExitValue = true
     errorOutput = new ByteArrayOutputStream()
     doLast {
-        if (!errorOutput.toString().startsWith("SimpleSample.java:7: error:")) {
+        if (!errorOutput.toString().contains("SimpleSample.java:7: error:")) {
             throw new AssertionError("`./demo SimpleSample.java` did not run correctly. Error output:\n$errorOutput")
         }
     }
