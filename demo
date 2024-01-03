@@ -6,16 +6,19 @@
 dir=$(dirname $0)
 jspecify="${dir}/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify}" ]; then
-  echo "Downloading JSpecify from Maven Central."
-  jspecify="${dir}/build/jspecify.jar"
-  curl -s 'https://repo.maven.apache.org/maven2/org/jspecify/jspecify/0.3.0/jspecify-0.3.0.jar' -o "${jspecify}"
+  version=0.3.0
+  jspecify="${dir}/build/jspecify-${version}.jar"
+  echo "Downloading $(basename "${jspecify}") from Maven central"
+  mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+    -Dartifact="org.jspecify:jspecify:${version}" \
+    -DoutputDirectory="$(dirname "${jspecify}")"
 fi
 ourclasspath="${jspecify}:${dir}/build/libs/jspecify-reference-checker.jar"
 
-export CLASSPATH="$ourclasspath:$CLASSPATH"
+export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
 $dir/../checker-framework/checker/bin/javac \
-  -processorpath "$ourclasspath" \
+  -processorpath "${ourclasspath}" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
   -AcheckImpl \
   -AassumePure \
