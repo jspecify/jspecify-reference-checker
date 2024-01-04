@@ -10,10 +10,15 @@ jobs:
       run:
         working-directory: jspecify-reference-checker
     steps:
-      - name: Check out the code
+      - name: Check out jspecify-reference checker
         uses: actions/checkout@v4
         with:
           path: jspecify-reference-checker
+      - name: Check out jspecify
+        uses: actions/checkout@v4
+        with:
+          repository: jspecify/jspecify
+          path: jspecify
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
