@@ -25,12 +25,19 @@ dependencyResolutionManagement {
             library("errorProne-core", "com.google.errorprone:error_prone_core:2.18.0")
             library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
             library("guava", "com.google.guava:guava:31.1-jre")
-            library("jspecify", "org.jspecify:jspecify:0.3.0")
-            library("jspecify-conformanceTestFramework", "org.jspecify.conformance:conformance-test-framework:0.0.0-SNAPSHOT")
-            library("jspecify-conformanceTests", "org.jspecify.conformance:conformance-tests:0.0.0-SNAPSHOT")
+
+            // Related JSpecify project versions are specified in gradle.properties, and can be overridden on the Gradle command line.
+            library("jspecify", libraryVersion('org.jspecify:jspecify'))
+            library("jspecify-conformanceTestFramework", libraryVersion('org.jspecify.conformance:conformance-test-framework'))
+            library("jspecify-conformanceTests", libraryVersion('org.jspecify.conformance:conformance-tests'))
+
             library("jsr305", "com.google.code.findbugs:jsr305:3.0.2")
             library("junit", "junit:junit:4.12")
             library("truth", "com.google.truth:truth:1.1.3")
         }
     }
+}
+
+String libraryVersion(String groupArtifact) {
+    return "$groupArtifact:${settings[groupArtifact]}"
 }
