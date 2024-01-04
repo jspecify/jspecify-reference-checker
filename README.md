@@ -98,7 +98,7 @@ To run the (incomplete) conformance test suite, check out the `main` branch of `
 ```sh
 git -C $root_dir/jspecify checkout main
 cd $root_dir/jspecify-reference-checker
-./gradlew conformanceTest
+./gradlew conformanceTests
 ```
 
 To run the (legacy) "samples" test suite, check out the `samples-google-prototype` branch of `jspecify` and run `jspecifySamplesTest`:
