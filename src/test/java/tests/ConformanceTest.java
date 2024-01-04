@@ -93,7 +93,6 @@ public final class ConformanceTest {
           "-AcheckImpl",
           "-AsuppressWarnings=conditional",
           "-Astrict",
-          "-AajavaChecks",
           "-AshowTypes");
 
   private static final ImmutableList<Path> TEST_DEPS =
