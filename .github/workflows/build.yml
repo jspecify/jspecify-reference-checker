@@ -32,7 +32,9 @@ jobs:
           SHALLOW: 1
       - name: Check out jspecify/samples-google-prototype
         if: always()
-        run: git checkout samples-google-prototype
+        run: |
+          git fetch --depth=1 samples-google-prototype
+          git checkout samples-google-prototype
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
