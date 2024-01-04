@@ -14,12 +14,11 @@
 
 package com.google.jspecify.nullness;
 
-import java.util.Set;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 final class NullSpecAnalysis extends CFAbstractAnalysis<CFValue, NullSpecStore, NullSpecTransfer> {
   NullSpecAnalysis(BaseTypeChecker checker, NullSpecAnnotatedTypeFactory factory) {
@@ -37,7 +36,7 @@ final class NullSpecAnalysis extends CFAbstractAnalysis<CFValue, NullSpecStore, 
   }
 
   @Override
-  public CFValue createAbstractValue(Set<AnnotationMirror> annotations, TypeMirror underlyingType) {
+  public CFValue createAbstractValue(AnnotationMirrorSet annotations, TypeMirror underlyingType) {
     return defaultCreateAbstractValue(this, annotations, underlyingType);
   }
 }

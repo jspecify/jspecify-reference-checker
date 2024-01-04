@@ -11,7 +11,7 @@
 # Set SHALLOW=1 to clone sibling projects at depth 1.
 #
 # This script automatically tries to download your fork of
-# jspecify/checker-framework, jspecify/jspecify, or jspecify/jdk, if they exist.
+# eisop/checker-framework, jspecify/jspecify, or jspecify/jdk, if they exist.
 # It uses the URL of the origin remote (the default remote created when cloning
 # a repo) to determine that.
 #
@@ -55,12 +55,17 @@ git_clone() {
 
   local forking_org
   forking_org="$(forking_org)"
-  if [[ -n "${forking_org}" ]]; then
+  if [[ -n "${forking_org}" ]] && [[ "${forking_org}" != "https://github.com/jspecify" ]]; then
     if run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"; then
       return
     fi
   fi
-  run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
+  if [[ "${repo}" == checker-framework ]]; then
+    forking_org=https://github.com/eisop
+  else
+    forking_org=https://github.com/jspecify
+  fi
+  run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"
 }
 
 # Fetch all branches even when $SHALLOW is set so we can check out

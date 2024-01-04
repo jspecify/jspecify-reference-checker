@@ -15,9 +15,7 @@
 package com.google.jspecify.nullness;
 
 import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArray.IS_DECLARED_OR_ARRAY;
-import static com.google.jspecify.nullness.Util.IMPLEMENTATION_VARIABLE_LOCATIONS;
 import static com.google.jspecify.nullness.Util.nameMatches;
-import static com.sun.source.tree.Tree.Kind.CONDITIONAL_EXPRESSION;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
 import static com.sun.source.tree.Tree.Kind.NOT_EQUAL_TO;
@@ -33,15 +31,8 @@ import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.TYPEVAR;
 import static javax.lang.model.type.TypeKind.WILDCARD;
-import static org.checkerframework.framework.qual.TypeUseLocation.CONSTRUCTOR_RESULT;
-import static org.checkerframework.framework.qual.TypeUseLocation.EXCEPTION_PARAMETER;
-import static org.checkerframework.framework.qual.TypeUseLocation.IMPLICIT_LOWER_BOUND;
-import static org.checkerframework.framework.qual.TypeUseLocation.OTHERWISE;
-import static org.checkerframework.framework.qual.TypeUseLocation.RECEIVER;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
-import static org.checkerframework.framework.util.defaults.QualifierDefaults.AdditionalTypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
-import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreePathUtil.enclosingClass;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
 import static org.checkerframework.javacutil.TreeUtils.elementFromUse;
@@ -71,7 +62,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -83,6 +73,7 @@ import javax.lang.model.util.Types;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
@@ -114,6 +105,7 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
+import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class NullSpecAnnotatedTypeFactory
     extends GenericAnnotatedTypeFactory<
@@ -133,6 +125,25 @@ final class NullSpecAnnotatedTypeFactory
   final AnnotatedDeclaredType javaLangClass;
   final AnnotatedDeclaredType javaLangThreadLocal;
   final AnnotatedDeclaredType javaUtilMap;
+
+  private static final TypeUseLocation[] defaultLocationsMinusNull =
+      new TypeUseLocation[] {
+        TypeUseLocation.CONSTRUCTOR_RESULT,
+        TypeUseLocation.EXCEPTION_PARAMETER,
+        TypeUseLocation.IMPLICIT_LOWER_BOUND,
+        TypeUseLocation.RECEIVER,
+      };
+
+  private static final TypeUseLocation[] defaultLocationsUnionNull =
+      new TypeUseLocation[] {
+        TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
+      };
+
+  private static final TypeUseLocation[] defaultLocationsUnspecified =
+      new TypeUseLocation[] {
+        // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TODO
+        TypeUseLocation.OTHERWISE
+      };
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, Util util) {
@@ -170,6 +181,100 @@ final class NullSpecAnnotatedTypeFactory
      * TODO(cpovirk): If we rework how we read annotations on a deep enough level, consider
      * recognizing annotations by simple class name instead of by fully qualified name.
      */
+
+    AnnotationMirror nullMarkedDefaultQualMinusNull =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", MinusNull.class)
+            .setValue(
+                "locations",
+                new TypeUseLocation[] {
+                  TypeUseLocation.EXCEPTION_PARAMETER, TypeUseLocation.OTHERWISE
+                })
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullMarkedDefaultQualUnionNull =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", Nullable.class)
+            .setValue(
+                "locations",
+                new TypeUseLocation[] {
+                  TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
+                  // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND TODO
+                })
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullMarkedDefaultQual =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.List.class)
+            .setValue(
+                "value",
+                new AnnotationMirror[] {
+                  nullMarkedDefaultQualMinusNull, nullMarkedDefaultQualUnionNull
+                })
+            .build();
+
+    /*
+     * XXX: When adding support for aliases, make sure to support them here. But consider how to
+     * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular, we
+     * have already edited getDeclAnnotations to remove its inheritance logic, and we needed to do so
+     * to work around another problem (though perhaps we could have found alternatives).
+     */
+    addAliasedDeclAnnotation(
+        "org.jspecify.annotations.NullMarked",
+        DefaultQualifier.List.class.getCanonicalName(),
+        nullMarkedDefaultQual);
+    addAliasedDeclAnnotation(
+        "org.jspecify.nullness.NullMarked",
+        DefaultQualifier.List.class.getCanonicalName(),
+        nullMarkedDefaultQual);
+    // TODO: does this work as intended?
+    /*
+     * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
+     * are non-null, even those that would require type annotations to annotate (e.g.,
+     * type-parameter bounds). This is probably a safe assumption, if only because such types
+     * might not arise at all in the generated code where ProtoNonnullApi is used.
+     */
+    addAliasedDeclAnnotation(
+        "com.google.protobuf.Internal.ProtoNonnullApi",
+        DefaultQualifier.List.class.getCanonicalName(),
+        nullMarkedDefaultQual);
+
+    AnnotationMirror nullUnmarkedDefaultQualMinusNull =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", MinusNull.class)
+            .setValue("locations", defaultLocationsMinusNull)
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullUnmarkedDefaultQualUnionNull =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", Nullable.class)
+            .setValue("locations", defaultLocationsUnionNull)
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullUnmarkedDefaultQualUnspecified =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", NullnessUnspecified.class)
+            .setValue("locations", defaultLocationsUnspecified)
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullUnmarkedDefaultQual =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.List.class)
+            .setValue(
+                "value",
+                new AnnotationMirror[] {
+                  nullUnmarkedDefaultQualMinusNull,
+                  nullUnmarkedDefaultQualUnionNull,
+                  nullUnmarkedDefaultQualUnspecified,
+                })
+            .build();
+
+    addAliasedDeclAnnotation(
+        "org.jspecify.annotations.NullUnmarked",
+        DefaultQualifier.List.class.getCanonicalName(),
+        nullUnmarkedDefaultQual);
+    addAliasedDeclAnnotation(
+        "org.jspecify.nullness.NullUnmarked",
+        DefaultQualifier.List.class.getCanonicalName(),
+        nullUnmarkedDefaultQual);
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
@@ -228,6 +333,26 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
+  protected void addCheckedCodeDefaults(QualifierDefaults defs) {
+    // TODO: add false for subpackages once overload is added to CF. Shouldn't really matter.
+    defs.addCheckedCodeDefaults(minusNull, defaultLocationsMinusNull);
+    defs.addCheckedCodeDefaults(unionNull, defaultLocationsUnionNull);
+    defs.addCheckedCodeDefaults(nullnessOperatorUnspecified, defaultLocationsUnspecified);
+  }
+
+  @Override
+  protected void addUncheckedStandardDefaults(QualifierDefaults defs) {
+    // TODO: figure out whether we need different defaults here
+    /*
+    defs.addUncheckedCodeDefaults(minusNull, defaultLocationsMinusNull);
+    defs.addUncheckedCodeDefaults(unionNull, defaultLocationsUnionNull);
+    defs.addUncheckedCodeDefaults(nullnessOperatorUnspecified, defaultLocationsUnspecified);
+    */
+    // defs.addUncheckedCodeDefaults(nullnessOperatorUnspecified, new TypeUseLocation[] {
+    // TypeUseLocation.ALL });
+  }
+
+  @Override
   protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
     return new LinkedHashSet<>(asList(Nullable.class, NullnessUnspecified.class, MinusNull.class));
   }
@@ -240,11 +365,11 @@ final class NullSpecAnnotatedTypeFactory
   private final class NullSpecQualifierHierarchy extends NoElementQualifierHierarchy {
     NullSpecQualifierHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-      super(qualifierClasses, elements);
+      super(qualifierClasses, elements, NullSpecAnnotatedTypeFactory.this);
     }
 
     @Override
-    public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
       if (subAnno == null || superAnno == null) {
         /*
          * The stock CF never passes null to this method: It always expose *some* annotation
@@ -785,128 +910,13 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  protected void checkForDefaultQualifierInHierarchy(QualifierDefaults defs) {
-    /*
-     * We don't set normal checkedCodeDefaults. This method would report that lack of defaults as a
-     * problem. That's because CF wants to ensure that every[*] type usage is annotated.
-     *
-     * However, we *do* ensure that every[*] type usage is annotated. To do so, we always set a
-     * default for OTHERWISE on top-level elements. (We do this in populateNewDefaults.) See further
-     * discussion in addCheckedStandardDefaults.
-     *
-     * So, we override this method to not report a problem.
-     *
-     * [*] There are a few exceptions that we don't need to get into here.
-     */
-  }
-
-  @Override
   protected QualifierDefaults createQualifierDefaults() {
     return new NullSpecQualifierDefaults(elements, this);
   }
 
-  private final class NullSpecQualifierDefaults extends QualifierDefaults {
+  private static final class NullSpecQualifierDefaults extends QualifierDefaults {
     NullSpecQualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
       super(elements, atypeFactory);
-    }
-
-    @Override
-    protected void populateNewDefaults(Element elt, boolean initialDefaultsAreEmpty) {
-      /*
-       * Note: This method does not contain the totality of our defaulting logic. For example, our
-       * TypeAnnotator has special logic for upper bounds _in the case of `super` wildcards
-       * specifically_.
-       *
-       * Note: Setting a default here affects not only this element but also its descendants in the
-       * syntax tree.
-       */
-      if (hasNullMarkedOrEquivalent(elt)) {
-        addElementDefault(elt, unionNull, UNBOUNDED_WILDCARD_UPPER_BOUND);
-        addElementDefault(elt, minusNull, OTHERWISE);
-        addDefaultToTopForLocationsRefinedByDataflow(elt);
-        /*
-         * (For any TypeUseLocation that we don't set an explicit value for, we inherit any value
-         * from the enclosing element, which might be a non-null-aware element. That's fine: While
-         * our non-null-aware setup sets defaults for more locations than just these, it sets those
-         * locations' defaults to minusNull -- matching the value that we want here.)
-         */
-      } else if (hasNullUnmarked(elt) || initialDefaultsAreEmpty) {
-        /*
-         * We need to set defaults appropriate to non-null-aware code. In a normal checker, we would
-         * expect for such "default defaults" to be set in addCheckedStandardDefaults. But we do
-         * not, as discussed in our implementation of that method.
-         */
-
-        // Here's the big default, the "default default":
-        addElementDefault(elt, nullnessOperatorUnspecified, OTHERWISE);
-        /*
-         * OTHERWISE covers anything that does not have a more specific default inherited from an
-         * enclosing element (or, of course, a more specific default that we set below in this
-         * method). If this is a @NullUnmarked element, then it might have a had a @NullMarked
-         * enclosing element, which would have set a default for UNBOUNDED_WILDCARD_UPPER_BOUND. So
-         * we make sure to override that here.
-         */
-        addElementDefault(elt, nullnessOperatorUnspecified, UNBOUNDED_WILDCARD_UPPER_BOUND);
-
-        // Some locations are intrinsically non-nullable:
-        addElementDefault(elt, minusNull, CONSTRUCTOR_RESULT);
-        addElementDefault(elt, minusNull, RECEIVER);
-
-        // We do want *some* of the CLIMB standard defaults:
-        addDefaultToTopForLocationsRefinedByDataflow(elt);
-        addElementDefault(elt, minusNull, IMPLICIT_LOWER_BOUND);
-
-        /*
-         * But note one difference from the CLIMB defaults: We want the default for implicit upper
-         * bounds to match the "default default" of nullnessOperatorUnspecified, not to be
-         * top/unionNull. We accomplished this already simply by not making our
-         * addCheckedStandardDefaults implementation call its supermethod (which would otherwise
-         * call addClimbStandardDefaults, which would override the "default default").
-         */
-      }
-    }
-
-    private void addDefaultToTopForLocationsRefinedByDataflow(Element elt) {
-      for (TypeUseLocation location : IMPLEMENTATION_VARIABLE_LOCATIONS) {
-        /*
-         * Handling exception parameters correctly is hard, so just treat them as if they're
-         * restricted to non-null values. Of course the caught exception is already non-null, so all
-         * this does is forbid users from manually assigning null to an exception parameter.
-         */
-        if (location == EXCEPTION_PARAMETER) {
-          addElementDefault(elt, minusNull, location);
-        } else {
-          addElementDefault(elt, unionNull, location);
-        }
-      }
-    }
-
-    @Override
-    protected boolean shouldAnnotateOtherwiseNonDefaultableTypeVariable(AnnotationMirror qual) {
-      /*
-       * CF usually doesn't apply defaults to type-variable usages. But in non-null-aware code, we
-       * want our default of nullnessOperatorUnspecified to apply even to type variables.
-       *
-       * But there are 2 other things to keep in mind:
-       *
-       * - CF *does* apply defaults to type-variable usages *if* they are local variables. That's
-       * because it will refine their types with dataflow. This CF behavior works fine for us: Since
-       * we want to apply defaults in strictly more cases, we're happy to accept what CF already
-       * does for local variables. (We do need to be sure to apply unionNull (our top type) in that
-       * case, rather than nullnessOperatorUnspecified. We accomplish that in
-       * addDefaultToTopForLocationsRefinedByDataflow.)
-       *
-       * - Non-null-aware code (discussed above) is easy: We apply nullnessOperatorUnspecified to
-       * everything except local variables. But null-aware code more complex. First, set aside local
-       * variables, which we handle as discussed above. After that, we need to apply minusNull to
-       * most types, but we need to *not* apply it to (non-local-variable) type-variable usages.
-       * (For more on this, see isNullExclusiveUnderEveryParameterization.) This need is weird
-       * enough that stock CF doesn't appear to support it. Our solution is to introduce this hook
-       * method into our CF fork and then override it here. Our solution also requires that we set
-       * up defaulting in a non-standard way, as discussed in addCheckedStandardDefaults and other
-       * locations.
-       */
-      return areSame(qual, nullnessOperatorUnspecified);
     }
 
     @Override
@@ -919,51 +929,6 @@ final class NullSpecAnnotatedTypeFactory
        */
       return false;
     }
-  }
-
-  @Override
-  protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-    super.addComputedTypeAnnotations(
-        tree,
-        type,
-        iUseFlow
-            /*
-             * TODO(cpovirk): Eliminate this workaround (which may cause problems of its own). But
-             * currently, it helps in some of our samples and in Guava, though I am unsure why. The
-             * problem it works around may well be caused by our failure to keep wildcards'
-             * annotations in sync with their bounds' annotations (whereas stock CF does).
-             *
-             * Note that the `type.getKind() != WILDCARD` check appears to be necessary before the
-             * CF implementation of capture conversion and unnecessary afterward, while the reverse
-             * is true of the `isCapturedTypeVariable` check.
-             */
-            && type.getKind() != WILDCARD
-            && !isCapturedTypeVariable(type.getUnderlyingType())
-            /*
-             * TODO(cpovirk): See if we can remove this workaround after merging the fix for
-             * https://github.com/typetools/checker-framework/issues/5042.
-             *
-             * The workaround becomes necessary after the CF implementation of capture conversion.
-             * Without it, we see dataflow decide that `b ? null : nullable` has a type of
-             * _non-null_, as in code like the following:
-             *
-             * https://github.com/google/guava/blob/156694066b5198740a820c6eef723fb86c054343/guava/src/com/google/common/base/Throwables.java#L470
-             *
-             * (But I haven't been able to reproduce this in a smaller test.)
-             *
-             * Fortunately, I think the workaround is harmless:
-             * TypeFromExpressionVisitor.visitConditionalExpression calls getAnnotatedType on both
-             * candidate expressions, and getAnnotatedType applies dataflow. So the ternary should
-             * end up with the dataflow-correct result by virtue of applying lub to those types.
-             *
-             * (I think the only exception would be if someone performed a null check _on an entire
-             * ternary_ and then expected _another appearance of that same ternary_ to be recognized
-             * as non-null. That seems implausible.)
-             *
-             * (Still, it would be good to look into what's going on here in case it's a sign of a
-             * deeper problem.)
-             */
-            && tree.getKind() != CONDITIONAL_EXPRESSION);
   }
 
   @Override
@@ -1467,63 +1432,6 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  public void addDefaultAnnotations(AnnotatedTypeMirror type) {
-    super.addDefaultAnnotations(type);
-    /*
-     * TODO(cpovirk): Find a better solution than this.
-     *
-     * The problem I'm working around arises during AnnotatedTypes.leastUpperBound on a
-     * JSpecify-annotated variant of this code:
-     * https://github.com/google/guava/blob/39aa77fa0e8912d6bfb5cb9a0bc1ed5135747b6f/guava/src/com/google/common/collect/ImmutableMultiset.java#L205
-     *
-     * CF is unable to infer the right type for `LinkedHashMultiset.create(elements)`: It should
-     * infer `LinkedHashMultiset<? extends E>`, but instead, it infers `LinkedHashMultiset<? extends
-     * Object>`. As expected, it sets isUninferredTypeArgument. As *not* expected, it gets to
-     * AtmLubVisitor.lubTypeArgument with type2Wildcard.extendsBound.lowerBound (a null type)
-     * missing its annotation.
-     *
-     * The part of CF responsible for copying annotations, including those on the extends bound, is
-     * AsSuperVisitor.visitWildcard_Wildcard. Under stock CF, copyPrimaryAnnos(from, typevar) "also
-     * sets primary annotations _on the bounds_." Under our CF fork, this is not the case, and we
-     * end up with an unannotated lower bound on the type-variable usage E (which, again, is itself
-     * a bound of a wildcard).
-     *
-     * (Aside: I haven't looked into how the _upper_ bound of the type-variable usage gets an
-     * annotation set on it. Could it be happening "accidentally," and if so, might it be wrong
-     * sometimes?)
-     *
-     * The result of an unannotated lower bound is a crash in NullSpecQualifierHierarchy.isSubtype,
-     * which passes null to areSame.
-     *
-     * The workaround: If we see a type-variable usage whose lower bound is a null type that lacks
-     * an annotation, we annotate that bound as non-null. This workaround shouldn't break any
-     * working code, but it may or may not be universally the right solution to a missing
-     * annotation.
-     *
-     * I am trying to ignore other questions here, such as:
-     *
-     * - Would it make more sense to set the lower bound to match the upper bound, as stock CF does?
-     * I suspect not under our approach, but I haven't thought about it.
-     *
-     * - Does trying to pick correct annotations even matter in the context of an uninferred type
-     * argument? Does the very idea of "correct annotations" lose meaning in that context?
-     *
-     * - Should we fix this in AsSuperVisitor instead? Or would it fix itself if we set bounds on
-     * our type-variable usages and wildcards in the same way that stock CF does? (Following stock
-     * CF would likely save us from other problems, too.)
-     *
-     * - What's up with the _upper_ bound, as discussed in a parenthetical above?
-     */
-    if (type instanceof AnnotatedTypeVariable) {
-      AnnotatedTypeMirror lowerBound = ((AnnotatedTypeVariable) type).getLowerBound();
-      if (lowerBound instanceof AnnotatedNullType
-          && !lowerBound.isAnnotatedInHierarchy(unionNull)) {
-        lowerBound.addAnnotation(minusNull);
-      }
-    }
-  }
-
-  @Override
   protected AnnotationFormatter createAnnotationFormatter() {
     return new DefaultAnnotationFormatter() {
       @Override
@@ -1821,46 +1729,9 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   private void addIfNoAnnotationPresent(AnnotatedTypeMirror type, AnnotationMirror annotation) {
-    if (!type.isAnnotatedInHierarchy(unionNull)) {
+    if (!type.hasAnnotationInHierarchy(unionNull)) {
       type.addAnnotation(annotation);
     }
-  }
-
-  /*
-   * XXX: When adding support for aliases, make sure to support them here. But consider how to
-   * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular, we
-   * have already edited getDeclAnnotations to remove its inheritance logic, and we needed to do so
-   * to work around another problem (though perhaps we could have found alternatives).
-   */
-  private boolean hasNullMarkedOrEquivalent(Element elt) {
-    return getDeclAnnotations(elt).stream()
-            .anyMatch(
-                am ->
-                    areSameByName(am, "org.jspecify.annotations.NullMarked")
-                        || areSameByName(am, "org.jspecify.nullness.NullMarked"))
-        /*
-         * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
-         * are non-null, even those that would require type annotations to annotate (e.g.,
-         * type-parameter bounds). This is probably a safe assumption, if only because such types
-         * might not arise at all in the generated code where ProtoNonnullApi is used.
-         */
-        || hasAnnotationInCode(elt, "ProtoNonnullApi");
-  }
-
-  private boolean hasNullUnmarked(Element elt) {
-    return getDeclAnnotations(elt).stream()
-        .anyMatch(
-            am ->
-                areSameByName(am, "org.jspecify.annotations.NullUnmarked")
-                    || areSameByName(am, "org.jspecify.nullness.NullUnmarked"));
-  }
-
-  /**
-   * Returns whether the given element has an annotation with the given simple name. This method
-   * does not consider stub files.
-   */
-  private static boolean hasAnnotationInCode(AnnotatedConstruct construct, String name) {
-    return construct.getAnnotationMirrors().stream().anyMatch(a -> nameMatches(a, name));
   }
 
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
