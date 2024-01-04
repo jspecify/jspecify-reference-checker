@@ -27,7 +27,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
       - name: Build and Test
-        run: ./gradlew build conformanceTests demoTest
+        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
         env:
           SHALLOW: 1
       - name: Check out jspecify/samples-google-prototype
@@ -38,4 +38,4 @@ jobs:
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
-        run: ./gradlew jspecifySamplesTest
+        run: ./gradlew jspecifySamplesTest --include-build ../jspecify
