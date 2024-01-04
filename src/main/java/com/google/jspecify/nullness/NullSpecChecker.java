@@ -23,7 +23,7 @@ import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Log;
-import java.util.SortedSet;
+import java.util.NavigableSet;
 import java.util.TreeSet;
 import javax.lang.model.element.TypeElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -62,8 +62,8 @@ public final class NullSpecChecker extends BaseTypeChecker {
   public NullSpecChecker() {}
 
   @Override
-  public SortedSet<String> getSuppressWarningsPrefixes() {
-    SortedSet<String> prefixes = new TreeSet<>();
+  public NavigableSet<String> getSuppressWarningsPrefixes() {
+    TreeSet<String> prefixes = new TreeSet<>();
     prefixes.add("nullness");
     return prefixes;
   }
