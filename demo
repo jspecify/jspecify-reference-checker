@@ -8,12 +8,20 @@ jspecify="${dir}/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify}" ]; then
   version=0.3.0
   jspecify="${dir}/build/jspecify-${version}.jar"
-  echo "Downloading $(basename "${jspecify}") from Maven central"
-  mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
-    -Dartifact="org.jspecify:jspecify:${version}" \
-    -DoutputDirectory="$(dirname "${jspecify}")"
+  if [ ! -e "${jspecify}" ]; then
+    echo "Downloading $(basename "${jspecify}") from Maven central"
+    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+      -Dartifact="org.jspecify:jspecify:${version}" \
+      -DoutputDirectory="$(dirname "${jspecify}")"
+  fi
 fi
-ourclasspath="${jspecify}:${dir}/build/libs/jspecify-reference-checker.jar"
+jspecifyReferenceChecker="${dir}/build/libs/jspecify-reference-checker.jar"
+if [ ! -e "${jspecifyReferenceChecker}" ]; then
+  echo "Assembling jspecify-reference-checker"
+  ./gradlew assemble
+fi
+
+ourclasspath="${jspecify}:${jspecifyReferenceChecker}"
 
 export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
