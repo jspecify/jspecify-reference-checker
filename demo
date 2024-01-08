@@ -1,6 +1,6 @@
 #!/bin/sh
 # A quick and easy way to run the reference checker on some standalone code.
-# If you set the CLASSPATH environment variable it will ues it, adding its own entries to that list.
+# If you set the CLASSPATH environment variable it will use it, adding its own entries to that list.
 # To integrate the checker into a more complex build, reading the below should give you what you need to know.
 
 dir=$(dirname $0)
