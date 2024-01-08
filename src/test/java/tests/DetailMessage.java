@@ -30,19 +30,20 @@ import org.jspecify.annotations.Nullable;
  */
 final class DetailMessage extends TestDiagnostic {
 
+  private static final Pattern MESSAGE_PATTERN =
+      Pattern.compile(
+          "(?<file>\\S+):(?<lineNumber>\\d+): (?<kind>"
+              + stream(DiagnosticKind.values()).map(k -> k.parseString).collect(joining("|"))
+              + "): (?<message>.*)",
+          DOTALL);
+
   /** Parser for the output for -Adetailedmsgtext. */
   // Implemented here: org.checkerframework.framework.source.SourceChecker#detailedMsgTextPrefix
-  static final Pattern DETAIL_MESSAGE_PATTERN =
+  private static final Pattern DETAIL_MESSAGE_PATTERN =
       Pattern.compile(
           Joiner.on(" \\$\\$ ")
               .join(
-                  "(?<file>\\S+):(?<lineNumber>\\d+): (?<kind>"
-                      + stream(DiagnosticKind.values())
-                          .map(k -> k.parseString)
-                          .collect(joining("|"))
-                      + "): \\((?<messageKey>[^)]+)\\)",
-                  "(?<messagePartCount>\\d+)",
-                  "(?<messageParts>.*)"),
+                  "\\((?<messageKey>[^)]+)\\)", "(?<messagePartCount>\\d+)", "(?<messageParts>.*)"),
           DOTALL);
 
   static final Pattern OFFSETS_PATTERN =
@@ -67,7 +68,43 @@ final class DetailMessage extends TestDiagnostic {
   final Integer offsetEnd;
 
   /** The user-visible message emitted for the diagnostic. */
-  final String message;
+  final String readableMessage;
+
+  private DetailMessage(
+      Path file,
+      int lineNumber,
+      DiagnosticKind diagnosticKind,
+      String messageKey,
+      ImmutableList<String> messageArguments,
+      Integer offsetStart,
+      Integer offsetEnd,
+      String readableMessage) {
+    super(file.toString(), lineNumber, diagnosticKind, readableMessage, false, true);
+    this.file = file;
+    this.lineNumber = lineNumber;
+    this.messageKey = messageKey;
+    this.messageArguments = messageArguments;
+    this.offsetStart = offsetStart;
+    this.offsetEnd = offsetEnd;
+    this.readableMessage = readableMessage;
+  }
+
+  static Integer intOrNull(String input) {
+    return input == null ? null : parseInt(input);
+  }
+
+  private DetailMessage(
+      Path file, int lineNumber, DiagnosticKind diagnosticKind, String readableMessage) {
+    this(
+        file,
+        lineNumber,
+        diagnosticKind,
+        "<none>",
+        ImmutableList.of(),
+        null,
+        null,
+        readableMessage);
+  }
 
   /**
    * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
@@ -77,57 +114,46 @@ final class DetailMessage extends TestDiagnostic {
    *     message
    */
   static @Nullable DetailMessage parse(String input, @Nullable Path rootDirectory) {
-    Matcher matcher = DETAIL_MESSAGE_PATTERN.matcher(input);
-    if (!matcher.matches()) {
+    Matcher messageMatcher = MESSAGE_PATTERN.matcher(input);
+    if (!messageMatcher.matches()) {
       return null;
     }
 
-    int messagePartCount = parseInt(matcher.group("messagePartCount"));
+    Path file = Paths.get(messageMatcher.group("file"));
+    if (rootDirectory != null) {
+      file = rootDirectory.relativize(file);
+    }
+    int lineNumber = parseInt(messageMatcher.group("lineNumber"));
+    DiagnosticKind kind = DiagnosticKind.fromParseString(messageMatcher.group("kind"));
+
+    String message = messageMatcher.group("message");
+    Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(message);
+    if (!detailsMatcher.matches()) {
+      return new DetailMessage(file, lineNumber, kind, message);
+    }
+
+    int messagePartCount = parseInt(detailsMatcher.group("messagePartCount"));
     List<String> messageParts =
         Splitter.on("$$")
             .trimResults()
             .limit(messagePartCount + 2)
-            .splitToList(matcher.group("messageParts"));
+            .splitToList(detailsMatcher.group("messageParts"));
     ImmutableList<String> messageArguments =
         ImmutableList.copyOf(Iterables.limit(messageParts, messagePartCount));
-    String message = getLast(messageParts);
+    String readableMessage = getLast(messageParts);
 
-    Matcher offsets = OFFSETS_PATTERN.matcher(messageParts.get(messagePartCount));
-    checkArgument(offsets.matches(), "unparseable offsets: %s", input);
+    Matcher offsetsMatcher = OFFSETS_PATTERN.matcher(messageParts.get(messagePartCount));
+    checkArgument(offsetsMatcher.matches(), "unparseable offsets: %s", input);
 
-    Path file = Paths.get(matcher.group("file"));
     return new DetailMessage(
-        (rootDirectory != null) ? rootDirectory.relativize(file) : file,
-        parseInt(matcher.group("lineNumber")),
-        DiagnosticKind.fromParseString(matcher.group("kind")),
-        matcher.group("messageKey"),
+        file,
+        lineNumber,
+        kind,
+        detailsMatcher.group("messageKey"),
         messageArguments,
-        intOrNull(offsets.group("start")),
-        intOrNull(offsets.group("end")),
-        message);
-  }
-
-  static Integer intOrNull(String input) {
-    return input == null ? null : parseInt(input);
-  }
-
-  DetailMessage(
-      Path file,
-      int lineNumber,
-      DiagnosticKind diagnosticKind,
-      String messageKey,
-      ImmutableList<String> messageArguments,
-      Integer offsetStart,
-      Integer offsetEnd,
-      String message) {
-    super(file.toString(), lineNumber, diagnosticKind, message, false, true);
-    this.file = file;
-    this.lineNumber = lineNumber;
-    this.messageKey = messageKey;
-    this.messageArguments = messageArguments;
-    this.offsetStart = offsetStart;
-    this.offsetEnd = offsetEnd;
-    this.message = message;
+        intOrNull(offsetsMatcher.group("start")),
+        intOrNull(offsetsMatcher.group("end")),
+        readableMessage);
   }
 
   /** The last part of the {@link #file}. */
@@ -150,18 +176,18 @@ final class DetailMessage extends TestDiagnostic {
         && messageArguments.equals(that.messageArguments)
         && Objects.equals(offsetStart, that.offsetStart)
         && Objects.equals(offsetEnd, that.offsetEnd)
-        && message.equals(that.message);
+        && readableMessage.equals(that.readableMessage);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        file, lineNumber, messageKey, messageArguments, offsetStart, offsetEnd, message);
+        file, lineNumber, messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
   }
 
   @Override
   public String toString() {
-    return String.format("%s:%d: (%s) %s", file, lineNumber, messageKey, message);
+    return String.format("%s:%d: (%s) %s", file, lineNumber, messageKey, readableMessage);
   }
 
   /** String format for debugging use. */
@@ -173,7 +199,7 @@ final class DetailMessage extends TestDiagnostic {
         .add("messageArguments", messageArguments)
         .add("offsetStart", offsetStart)
         .add("offsetEnd", offsetEnd)
-        .add("message", message)
+        .add("readableMessage", readableMessage)
         .toString();
   }
 }
