@@ -94,8 +94,7 @@ final class DetailMessage extends TestDiagnostic {
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(message);
     if (!detailsMatcher.matches()) {
       // Return a message with no key or parts.
-      return new DetailMessage(
-          file, lineNumber, kind, "<none>", ImmutableList.of(), null, null, message);
+      return new DetailMessage(file, lineNumber, kind, "", ImmutableList.of(), null, null, message);
     }
 
     int messagePartCount = parseInt(detailsMatcher.group("messagePartCount"));
@@ -148,6 +147,14 @@ final class DetailMessage extends TestDiagnostic {
   /** The last part of the {@link #file}. */
   String getFileName() {
     return file.getFileName().toString();
+  }
+
+  /**
+   * True if this was parsed from an actual {@code -Adetailedmsgtext} message; false if this was
+   * some other diagnostic.
+   */
+  boolean hasDetails() {
+    return !messageKey.equals("");
   }
 
   @Override
