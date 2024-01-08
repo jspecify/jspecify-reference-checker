@@ -15,13 +15,13 @@ if [ ! -e "${jspecify}" ]; then
       -DoutputDirectory="$(dirname "${jspecify}")"
   fi
 fi
-jspecifyReferenceChecker="${dir}/build/libs/jspecify-reference-checker.jar"
-if [ ! -e "${jspecifyReferenceChecker}" ]; then
+jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker.jar"
+if [ ! -e "${jspecify_reference_checker}" ]; then
   echo "Assembling jspecify-reference-checker"
   ./gradlew assemble
 fi
 
-ourclasspath="${jspecify}:${jspecifyReferenceChecker}"
+ourclasspath="${jspecify}:${jspecify_reference_checker}"
 
 export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
