@@ -46,7 +46,7 @@ final class DetailMessage extends TestDiagnostic {
                   "\\((?<messageKey>[^)]+)\\)", "(?<messagePartCount>\\d+)", "(?<messageParts>.*)"),
           DOTALL);
 
-  static final Pattern OFFSETS_PATTERN =
+  private static final Pattern OFFSETS_PATTERN =
       Pattern.compile("(\\( (?<start>-?\\d+), (?<end>-?\\d+) \\))?");
 
   /** The path to the source file containing the diagnostic. */
@@ -89,23 +89,6 @@ final class DetailMessage extends TestDiagnostic {
     this.readableMessage = readableMessage;
   }
 
-  static Integer intOrNull(String input) {
-    return input == null ? null : parseInt(input);
-  }
-
-  private DetailMessage(
-      Path file, int lineNumber, DiagnosticKind diagnosticKind, String readableMessage) {
-    this(
-        file,
-        lineNumber,
-        diagnosticKind,
-        "<none>",
-        ImmutableList.of(),
-        null,
-        null,
-        readableMessage);
-  }
-
   /**
    * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
    * match the expected format.
@@ -129,7 +112,9 @@ final class DetailMessage extends TestDiagnostic {
     String message = messageMatcher.group("message");
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(message);
     if (!detailsMatcher.matches()) {
-      return new DetailMessage(file, lineNumber, kind, message);
+      // Return a message with no key or parts.
+      return new DetailMessage(
+          file, lineNumber, kind, "<none>", ImmutableList.of(), null, null, message);
     }
 
     int messagePartCount = parseInt(detailsMatcher.group("messagePartCount"));
@@ -154,6 +139,10 @@ final class DetailMessage extends TestDiagnostic {
         intOrNull(offsetsMatcher.group("start")),
         intOrNull(offsetsMatcher.group("end")),
         readableMessage);
+  }
+
+  private static Integer intOrNull(String input) {
+    return input == null ? null : parseInt(input);
   }
 
   /** The last part of the {@link #file}. */
