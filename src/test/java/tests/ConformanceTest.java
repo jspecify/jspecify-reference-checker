@@ -228,7 +228,7 @@ public final class ConformanceTest {
 
     @Override
     public String toString() {
-      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.message);
+      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.readableMessage);
     }
 
     /**
