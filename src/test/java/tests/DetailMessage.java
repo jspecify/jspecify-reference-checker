@@ -70,25 +70,6 @@ final class DetailMessage extends TestDiagnostic {
   /** The user-visible message emitted for the diagnostic. */
   final String readableMessage;
 
-  private DetailMessage(
-      Path file,
-      int lineNumber,
-      DiagnosticKind diagnosticKind,
-      String messageKey,
-      ImmutableList<String> messageArguments,
-      Integer offsetStart,
-      Integer offsetEnd,
-      String readableMessage) {
-    super(file.toString(), lineNumber, diagnosticKind, readableMessage, false, true);
-    this.file = file;
-    this.lineNumber = lineNumber;
-    this.messageKey = messageKey;
-    this.messageArguments = messageArguments;
-    this.offsetStart = offsetStart;
-    this.offsetEnd = offsetEnd;
-    this.readableMessage = readableMessage;
-  }
-
   /**
    * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
    * match the expected format.
@@ -143,6 +124,25 @@ final class DetailMessage extends TestDiagnostic {
 
   private static Integer intOrNull(String input) {
     return input == null ? null : parseInt(input);
+  }
+
+  private DetailMessage(
+      Path file,
+      int lineNumber,
+      DiagnosticKind diagnosticKind,
+      String messageKey,
+      ImmutableList<String> messageArguments,
+      Integer offsetStart,
+      Integer offsetEnd,
+      String readableMessage) {
+    super(file.toString(), lineNumber, diagnosticKind, readableMessage, false, true);
+    this.file = file;
+    this.lineNumber = lineNumber;
+    this.messageKey = messageKey;
+    this.messageArguments = messageArguments;
+    this.offsetStart = offsetStart;
+    this.offsetEnd = offsetEnd;
+    this.readableMessage = readableMessage;
   }
 
   /** The last part of the {@link #file}. */
