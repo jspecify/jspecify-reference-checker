@@ -93,7 +93,6 @@ public final class ConformanceTest {
           "-AcheckImpl",
           "-AsuppressWarnings=conditional",
           "-Astrict",
-          "-AajavaChecks",
           "-AshowTypes");
 
   private static final ImmutableList<Path> TEST_DEPS =
@@ -229,7 +228,7 @@ public final class ConformanceTest {
 
     @Override
     public String toString() {
-      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.message);
+      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.readableMessage);
     }
 
     /**
