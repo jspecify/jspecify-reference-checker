@@ -63,10 +63,6 @@ git_clone() {
   run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
 }
 
-# Fetch all branches even when $SHALLOW is set so we can check out
-# samples-google-prototype to run samples tests.
-git_clone jspecify --no-single-branch
-
 git_clone jdk --depth 1 --single-branch
 
 git_clone checker-framework

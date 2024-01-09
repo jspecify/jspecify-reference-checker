@@ -10,10 +10,15 @@ jobs:
       run:
         working-directory: jspecify-reference-checker
     steps:
-      - name: Check out the code
+      - name: Check out jspecify-reference checker
         uses: actions/checkout@v4
         with:
           path: jspecify-reference-checker
+      - name: Check out jspecify
+        uses: actions/checkout@v4
+        with:
+          repository: jspecify/jspecify
+          path: jspecify
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -22,13 +27,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
       - name: Build and Test
-        run: ./gradlew build conformanceTests demoTest
+        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
         env:
           SHALLOW: 1
       - name: Check out jspecify/samples-google-prototype
         if: always()
-        run: git checkout samples-google-prototype
+        run: |
+          git fetch --depth=1 origin samples-google-prototype
+          git checkout samples-google-prototype
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
-        run: ./gradlew jspecifySamplesTest
+        run: ./gradlew jspecifySamplesTest --include-build ../jspecify
