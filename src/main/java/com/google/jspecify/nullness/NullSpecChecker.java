@@ -41,7 +41,7 @@ import org.checkerframework.framework.source.SupportedOptions;
  *   <li>"checkImpl": Whether implementation code should be checked.
  * </ol>
  */
-@SupportedOptions({"strict", "checkImpl"})
+@SupportedOptions({"strict", "checkImpl", "showTypes"})
 public final class NullSpecChecker extends BaseTypeChecker {
   /*
    * A non-final field is ugly, but we can't create our Util instance in the constructor because the

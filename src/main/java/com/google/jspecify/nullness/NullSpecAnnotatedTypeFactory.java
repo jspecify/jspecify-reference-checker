@@ -105,6 +105,8 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
+import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
+import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class NullSpecAnnotatedTypeFactory
@@ -1707,6 +1709,21 @@ final class NullSpecAnnotatedTypeFactory
      * type.invalid.conflicting.annos error, which I have described more in
      * https://github.com/jspecify/jspecify-reference-checker/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
+
+    if (typeInformationPresenter != null) {
+      typeInformationPresenter.process(tree, getPath(tree));
+    }
+  }
+
+  @Override
+  protected @Nullable TypeInformationPresenter createTypeInformationPresenter() {
+    if (checker.hasOption("lspTypeInfo")) {
+      return new LspTypeInformationPresenter(this);
+    } else if (checker.hasOption("showTypes")) {
+      return new ConformanceTypeInformationPresenter(this);
+    } else {
+      return null;
+    }
   }
 
   @Override
