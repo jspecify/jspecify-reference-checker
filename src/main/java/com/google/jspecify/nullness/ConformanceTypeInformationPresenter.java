@@ -74,11 +74,6 @@ public final class ConformanceTypeInformationPresenter extends AbstractTypeInfor
               "sinkType",
               typeFormatter.format(varType),
               asgn.getVariable().toString());
-          checker.reportWarning(
-              asgn.getExpression(),
-              "sourceType",
-              typeFormatter.format(atypeFactory.getAnnotatedType(asgn.getExpression())),
-              asgn.getExpression().toString());
           break;
         case RETURN:
           checker.reportWarning(tree, "sinkType", typeFormatter.format(type), "return");
@@ -97,11 +92,6 @@ public final class ConformanceTypeInformationPresenter extends AbstractTypeInfor
             String paramLocation = String.format("%s#%s", methodName, paramName);
             checker.reportWarning(
                 tree, "sinkType", typeFormatter.format(params.get(i)), paramLocation);
-            checker.reportWarning(
-                tree,
-                "sourceType",
-                typeFormatter.format(atypeFactory.getAnnotatedType(args.get(i))),
-                args.get(i).toString());
           }
           break;
         default:
