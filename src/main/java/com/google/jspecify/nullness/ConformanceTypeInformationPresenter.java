@@ -14,19 +14,22 @@
 
 package com.google.jspecify.nullness;
 
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import java.util.List;
+import javax.lang.model.element.ExecutableElement;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.visualize.AbstractTypeInformationPresenter;
 import org.checkerframework.framework.util.visualize.TypeOccurrenceKind;
+import org.checkerframework.javacutil.TreeUtils;
 
-public class ConformanceTypeInformationPresenter extends AbstractTypeInformationPresenter {
+public final class ConformanceTypeInformationPresenter extends AbstractTypeInformationPresenter {
 
   /**
    * Constructs a presenter for the given factory.
@@ -57,17 +60,32 @@ public class ConformanceTypeInformationPresenter extends AbstractTypeInformation
     @Override
     protected void reportTreeType(
         Tree tree, AnnotatedTypeMirror type, TypeOccurrenceKind occurrenceKind) {
-
-      String direction = null;
-      String usage = null;
-
       switch (tree.getKind()) {
-        case RETURN:
-          direction = "sinkType";
-          usage = "return";
+        case ASSIGNMENT:
+          AssignmentTree asgn = (AssignmentTree) tree;
+          AnnotatedTypeMirror varType;
+          if (genFactory != null) {
+            varType = genFactory.getAnnotatedTypeLhs(asgn.getVariable());
+          } else {
+            varType = atypeFactory.getAnnotatedType(asgn.getVariable());
+          }
+          checker.reportWarning(
+              asgn.getVariable(),
+              "sinkType",
+              typeFormatter.format(varType),
+              asgn.getVariable().toString());
+          checker.reportWarning(
+              asgn.getExpression(),
+              "sourceType",
+              typeFormatter.format(atypeFactory.getAnnotatedType(asgn.getExpression())),
+              asgn.getExpression().toString());
           break;
-
+        case RETURN:
+          checker.reportWarning(tree, "sinkType", typeFormatter.format(type), "return");
+          break;
         case METHOD_INVOCATION:
+          ExecutableElement calledElem = TreeUtils.elementFromUse((MethodInvocationTree) tree);
+          String methodName = calledElem.getSimpleName().toString();
           AnnotatedExecutableType calledType = (AnnotatedExecutableType) type;
           List<? extends AnnotatedTypeMirror> params = calledType.getParameterTypes();
           MethodInvocationTree mit = (MethodInvocationTree) tree;
@@ -75,32 +93,23 @@ public class ConformanceTypeInformationPresenter extends AbstractTypeInformation
           assert params.size() == args.size();
 
           for (int i = 0; i < params.size(); ++i) {
-            checker.reportError(
-                tree,
-                "sinkType",
-                typeFormatter.format(params.get(i)),
-                // TODO: build up something from method and parameter name?
-                "param");
-
-            checker.reportError(
+            String paramName = calledElem.getParameters().get(i).getSimpleName().toString();
+            String paramLocation = String.format("%s#%s", methodName, paramName);
+            checker.reportWarning(
+                tree, "sinkType", typeFormatter.format(params.get(i)), paramLocation);
+            checker.reportWarning(
                 tree,
                 "sourceType",
                 typeFormatter.format(atypeFactory.getAnnotatedType(args.get(i))),
-                // TODO: build up something from method and parameter name?
-                "arg");
-          }
-          break;
-        case IDENTIFIER:
-          if (occurrenceKind == TypeOccurrenceKind.USE_TYPE) {
-            direction = "sourceType";
-            usage = tree.toString();
+                args.get(i).toString());
           }
           break;
         default:
+          // Nothing special for other trees.
       }
 
-      if (direction != null && usage != null) {
-        checker.reportError(tree, direction, typeFormatter.format(type), usage);
+      if (TreeUtils.isExpressionTree(tree)) {
+        checker.reportWarning(tree, "sourceType", typeFormatter.format(type), tree.toString());
       }
     }
   }
