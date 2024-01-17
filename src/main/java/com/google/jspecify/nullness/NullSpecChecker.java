@@ -39,6 +39,7 @@ import org.checkerframework.framework.source.SupportedOptions;
  *   <li>"strict": Whether the checker should be a sound, strict type system. Does not imply that
  *       implementation code is checked.
  *   <li>"checkImpl": Whether implementation code should be checked.
+ *   <li>"showTypes": Whether to output type information for the conformance test suite.
  * </ol>
  */
 @SupportedOptions({"strict", "checkImpl", "showTypes"})
