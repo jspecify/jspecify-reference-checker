@@ -157,13 +157,14 @@ public final class ConformanceTest {
   /** A {@link ReportedFact} parsed from a Checker Framework {@link DetailMessage}. */
   static final class DetailMessageReportedFact extends ReportedFact {
 
-    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
+    private static final String DEREFERENCE = "dereference";
+
+    private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
         ImmutableSet.of(
             "argument",
             "assignment",
             "atomicreference.must.include.null",
             "cast.unsafe",
-            "dereference",
             "lambda.param",
             "methodref.receiver.bound",
             "methodref.receiver",
@@ -187,7 +188,8 @@ public final class ConformanceTest {
     @Override
     protected boolean matches(String expectedFact) {
       if (isNullnessMismatch(expectedFact)) {
-        return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
+        return DEREFERENCE.equals(detailMessage.messageKey)
+            || CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey);
       }
       return super.matches(expectedFact);
     }
@@ -199,7 +201,10 @@ public final class ConformanceTest {
 
     @Override
     protected @Nullable String expectedFact() {
-      if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
+      if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
+        if (detailMessage.messageArguments.size() < 2) {
+          return null; // The arguments must end with sourceType and sinkType.
+        }
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
