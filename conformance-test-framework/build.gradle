@@ -37,8 +37,8 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:git@github.com:jspecify/jspecify.git'
-                    developerConnection = 'scm:git:git@github.com:jspecify/jspecify.git'
+                    connection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
+                    developerConnection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
                     url = 'https://github.com/jspecify/jspecify-reference-checker/conformance-test-framework'
                 }
                 developers {
