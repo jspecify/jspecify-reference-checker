@@ -43,7 +43,7 @@ jobs:
   publish-snapshot:
     name: Publish Conformance Test Framework Snapshot
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-and-test
     if: github.repository == 'jspecify/jspecify-reference-checker' && github.ref_name == 'main' && github.event_name == 'push'
     steps:
     - name: Check out the code
