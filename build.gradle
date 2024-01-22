@@ -11,8 +11,9 @@ plugins {
     id 'net.ltgt.errorprone' version '3.0.1'
 }
 
-// Nexus Publish plugin requires a group at the root project.
+// Nexus Publish plugin requires a group/version at the root project.
 group = 'org.jspecify.reference'
+version = '0.0.0-SNAPSHOT'
 
 repositories {
     mavenLocal()
