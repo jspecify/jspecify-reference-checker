@@ -41,6 +41,11 @@ import java.util.stream.Stream;
  */
 public final class ConformanceTestReport {
 
+  private final ImmutableSortedSet<Path> files;
+  private final ImmutableListMultimap<Path, ExpectedFact> expectedFactsByFile;
+  private final ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile;
+  private final ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts;
+
   private ConformanceTestReport(
       ImmutableSortedSet<Path> files,
       ImmutableListMultimap<Path, ExpectedFact> expectedFacts,
@@ -51,11 +56,6 @@ public final class ConformanceTestReport {
     this.reportedFactsByFile = reportedFacts;
     this.matchingFacts = matchingFacts;
   }
-
-  private final ImmutableSortedSet<Path> files;
-  private final ImmutableListMultimap<Path, ExpectedFact> expectedFactsByFile;
-  private final ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile;
-  private final ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts;
 
   /**
    * Returns a textual report showing all expected facts, and whether each was reported, and
