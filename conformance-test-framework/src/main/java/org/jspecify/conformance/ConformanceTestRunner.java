@@ -17,33 +17,21 @@ package org.jspecify.conformance;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.partition;
-import static com.google.common.collect.Multimaps.index;
 import static com.google.common.io.MoreFiles.asCharSink;
 import static com.google.common.io.MoreFiles.asCharSource;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.nio.file.Files.readAllLines;
 import static java.nio.file.Files.walk;
 import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import org.jspecify.annotations.Nullable;
 
 /** An object that runs JSpecify conformance tests. */
 public final class ConformanceTestRunner {
@@ -78,8 +66,9 @@ public final class ConformanceTestRunner {
    */
   public ConformanceTestReport runTests(Path testDirectory, ImmutableList<Path> testDeps)
       throws IOException {
+    ConformanceTestReport.Builder report = new ConformanceTestReport.Builder(testDirectory);
     try (Stream<Path> paths = walk(testDirectory)) {
-      return paths
+      paths
           .filter(path -> path.toFile().isDirectory())
           .flatMap(
               directory -> {
@@ -88,53 +77,12 @@ public final class ConformanceTestRunner {
                     ? groups.flatMap(files -> partition(files, 1).stream())
                     : groups;
               })
-          .flatMap(files -> analyzeFiles(files, testDeps, testDirectory))
-          .reduce(ConformanceTestReport.EMPTY, ConformanceTestReport::combine);
+          .map(ImmutableList::copyOf)
+          .forEach(
+              files -> report.addFiles(files, analyzer.analyze(testDirectory, files, testDeps)));
+      return report.build();
     }
   }
-
-  private Stream<ConformanceTestReport> analyzeFiles(
-      List<Path> files, ImmutableList<Path> testDeps, Path testDirectory) {
-    ImmutableListMultimap<Path, ReportedFact> reportedFactsByFile =
-        index(
-            analyzer.analyze(testDirectory, ImmutableList.copyOf(files), testDeps),
-            ReportedFact::getFile);
-    return files.stream()
-        .map(testDirectory::relativize)
-        .map(
-            file ->
-                ConformanceTestReport.forFile(
-                    file, reportedFactsByFile.get(file), readExpectedFacts(file, testDirectory)));
-  }
-
-  /** Reads {@link ExpectedFact}s from comments in a file. */
-  private static ImmutableList<ExpectedFact> readExpectedFacts(Path file, Path testDirectory) {
-    try {
-      ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
-      Map<Long, String> facts = new HashMap<>();
-      for (ListIterator<String> i = readAllLines(testDirectory.resolve(file), UTF_8).listIterator();
-          i.hasNext(); ) {
-        String line = i.next();
-        long lineNumber = i.nextIndex();
-        Matcher matcher = EXPECTATION_COMMENT.matcher(line);
-        String fact = matcher.matches() ? readExpectedFact(matcher.group("expectation")) : null;
-        if (fact != null) {
-          facts.put(lineNumber, fact);
-        } else {
-          facts.forEach(
-              (factLineNumber, expectedFact) ->
-                  expectedFacts.add(
-                      new ExpectedFact(file, lineNumber, expectedFact, factLineNumber)));
-          facts.clear();
-        }
-      }
-      return expectedFacts.build();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  private static final Pattern EXPECTATION_COMMENT = Pattern.compile("\\s*// (?<expectation>.*)");
 
   private static Stream<ImmutableList<Path>> javaFileGroups(Path directory) {
     ImmutableList<Path> files = javaFilesInDirectory(directory);
