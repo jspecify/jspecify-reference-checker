@@ -28,9 +28,6 @@ import com.google.common.collect.Multimap;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Formatter;
-import org.jspecify.conformance.ConformanceTestRunner.ExpectedFact;
-import org.jspecify.conformance.ConformanceTestRunner.Fact;
-import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
 
 /** Represents the results of running {@link ConformanceTestRunner#runTests(Path, ImmutableList)} on a set of files. */
 public final class ConformanceTestReport {

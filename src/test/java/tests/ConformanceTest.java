@@ -19,11 +19,10 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.cannotConvert;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.expressionType;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.irrelevantAnnotation;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.isNullnessMismatch;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.sinkType;
+import static org.jspecify.conformance.ExpectedFact.cannotConvert;
+import static org.jspecify.conformance.ExpectedFact.expressionType;
+import static org.jspecify.conformance.ExpectedFact.irrelevantAnnotation;
+import static org.jspecify.conformance.ExpectedFact.sinkType;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -45,7 +44,8 @@ import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.conformance.ConformanceTestRunner;
-import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
+import org.jspecify.conformance.ExpectedFact;
+import org.jspecify.conformance.ReportedFact;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -183,8 +183,8 @@ public final class ConformanceTest {
     }
 
     @Override
-    protected boolean matches(String expectedFact) {
-      if (isNullnessMismatch(expectedFact)) {
+    protected boolean matches(ExpectedFact expectedFact) {
+      if (expectedFact.isNullnessMismatch()) {
         return DEREFERENCE.equals(detailMessage.messageKey)
             || CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey);
       }

@@ -17,6 +17,13 @@ dependencies {
     api libs.guava
     implementation libs.jspecify
     implementation libs.truth
+
+    testImplementation libs.junit
+    testImplementation libs.truth
+}
+
+tasks.named('test', Test) {
+    useJUnit()
 }
 
 publishing {
