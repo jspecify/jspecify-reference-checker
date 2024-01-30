@@ -114,16 +114,14 @@ public final class ExpectedFact extends Fact {
                     + ")")
                 + "\\s*");
 
-    private final Map<Long, String> facts = new HashMap<>();
-    private long lineNumber;
-
     /** Reads expected facts from lines in a file. */
     ImmutableList<ExpectedFact> readExpectedFacts(Path file, List<String> lines) {
       ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
+      Map<Long, String> facts = new HashMap<>();
       ListIterator<String> i = lines.listIterator();
       while (i.hasNext()) {
         String line = i.next();
-        lineNumber = i.nextIndex();
+        long lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         if (matcher.matches()) {
           String expectation = matcher.group("fact");
@@ -137,6 +135,7 @@ public final class ExpectedFact extends Fact {
           facts.clear();
         }
       }
+      // TODO(netdpb): Report an error if facts is not empty.
       return expectedFacts.build();
     }
   }
