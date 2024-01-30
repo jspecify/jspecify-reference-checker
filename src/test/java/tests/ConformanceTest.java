@@ -147,6 +147,7 @@ public final class ConformanceTest {
     return result.getUnexpectedDiagnostics().stream()
         .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
         .filter(Objects::nonNull)
+        .filter(DetailMessage::hasDetails)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
   }
