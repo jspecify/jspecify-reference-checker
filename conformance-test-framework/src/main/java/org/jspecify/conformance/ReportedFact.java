@@ -28,6 +28,9 @@ public abstract class ReportedFact extends Fact {
     return expectedFact.getFactText().equals(getFactText());
   }
 
+  /** Returns true if this reported fact must match an {@link ExpectedFact}. */
+  protected abstract boolean mustBeExpected();
+
   /**
    * Returns {@linkplain Fact#getFactText() fact text} representing that the source type cannot be
    * converted to the sink type in any world.
@@ -56,7 +59,4 @@ public abstract class ReportedFact extends Fact {
   protected static String sinkType(String sinkType, String sink) {
     return String.format("test:sink-type:%s:%s", sinkType, sink);
   }
-
-  /** Returns true if this reported fact must match an {@link ExpectedFact}. */
-  protected abstract boolean mustBeExpected();
 }

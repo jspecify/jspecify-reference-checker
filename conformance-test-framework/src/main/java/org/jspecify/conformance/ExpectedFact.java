@@ -124,9 +124,9 @@ public final class ExpectedFact extends Fact {
         long lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         if (matcher.matches()) {
-          String expectation = matcher.group("fact");
-          if (expectation != null) {
-            facts.put(lineNumber, expectation.trim());
+          String fact = matcher.group("fact");
+          if (fact != null) {
+            facts.put(lineNumber, fact.trim());
           }
         } else {
           facts.forEach(
