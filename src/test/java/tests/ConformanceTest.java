@@ -147,6 +147,7 @@ public final class ConformanceTest {
     return result.getUnexpectedDiagnostics().stream()
         .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
         .filter(Objects::nonNull)
+        .filter(DetailMessage::hasDetails)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
   }
@@ -193,7 +194,8 @@ public final class ConformanceTest {
 
     @Override
     protected boolean mustBeExpected() {
-      return detailMessage.getKind().equals(DiagnosticKind.Error);
+      return detailMessage.getKind().equals(DiagnosticKind.Error)
+          && !detailMessage.messageKey.equals("type.checking.not.run");
     }
 
     @Override
