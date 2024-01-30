@@ -38,5 +38,5 @@ abstract class Fact {
   }
 
   /** The text form of the fact. */
-  abstract String getFactText();
+  protected abstract String getFactText();
 }

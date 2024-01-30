@@ -64,7 +64,7 @@ public final class ExpectedFact extends Fact {
   }
 
   @Override
-  String getFactText() {
+  protected String getFactText() {
     return factText;
   }
 

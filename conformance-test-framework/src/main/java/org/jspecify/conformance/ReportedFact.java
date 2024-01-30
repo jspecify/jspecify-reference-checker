@@ -14,7 +14,6 @@
 
 package org.jspecify.conformance;
 
-
 import java.nio.file.Path;
 
 /** A fact reported by the analysis under test. */
@@ -24,6 +23,11 @@ public abstract class ReportedFact extends Fact {
     super(file, lineNumber);
   }
 
+  /** Returns true if this reported fact matches the given expected fact. */
+  protected boolean matches(ExpectedFact expectedFact) {
+    return expectedFact.getFactText().equals(getFactText());
+  }
+
   /**
    * Returns {@linkplain Fact#getFactText() fact text} representing that the source type cannot be
    * converted to the sink type in any world.
@@ -31,9 +35,6 @@ public abstract class ReportedFact extends Fact {
   protected static String cannotConvert(String sourceType, String sinkType) {
     return String.format("test:cannot-convert:%s to %s", sourceType, sinkType);
   }
-
-  /** Returns true if this reported fact must match an {@link ExpectedFact}. */
-  protected abstract boolean mustBeExpected();
 
   /** Returns {@linkplain Fact#getFactText() fact text} representing an expected expression type. */
   protected static String expressionType(String expressionType, String expression) {
@@ -56,11 +57,6 @@ public abstract class ReportedFact extends Fact {
     return String.format("test:sink-type:%s:%s", sinkType, sink);
   }
 
-  @Override
-  protected abstract String getFactText();
-
-  /** Returns true if this reported fact matches the given expected fact. */
-  protected boolean matches(ExpectedFact expectedFact) {
-    return expectedFact.getFactText().equals(getFactText());
-  }
+  /** Returns true if this reported fact must match an {@link ExpectedFact}. */
+  protected abstract boolean mustBeExpected();
 }
