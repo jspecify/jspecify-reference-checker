@@ -37,6 +37,6 @@ abstract class Fact {
     return lineNumber;
   }
 
-  /** The fact text. */
+  /** The text form of the fact. */
   abstract String getFactText();
 }

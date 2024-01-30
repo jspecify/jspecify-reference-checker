@@ -14,10 +14,8 @@
 
 package org.jspecify.conformance;
 
-import static java.util.Objects.requireNonNullElse;
 
 import java.nio.file.Path;
-import org.jspecify.annotations.Nullable;
 
 /** A fact reported by the analysis under test. */
 public abstract class ReportedFact extends Fact {
@@ -26,23 +24,43 @@ public abstract class ReportedFact extends Fact {
     super(file, lineNumber);
   }
 
-  @Override
-  final String getFactText() {
-    return requireNonNullElse(expectedFact(), toString());
+  /**
+   * Returns {@linkplain Fact#getFactText() fact text} representing that the source type cannot be
+   * converted to the sink type in any world.
+   */
+  protected static String cannotConvert(String sourceType, String sinkType) {
+    return String.format("test:cannot-convert:%s to %s", sourceType, sinkType);
   }
 
   /** Returns true if this reported fact must match an {@link ExpectedFact}. */
   protected abstract boolean mustBeExpected();
 
-  /** Returns true if this reported fact matches the given expected fact. */
-  protected boolean matches(ExpectedFact expectedFact) {
-    return expectedFact.getFactText().equals(expectedFact());
+  /** Returns {@linkplain Fact#getFactText() fact text} representing an expected expression type. */
+  protected static String expressionType(String expressionType, String expression) {
+    return String.format("test:expression-type:%s:%s", expressionType, expression);
   }
 
-  /** Returns the equivalent expected fact. */
-  protected abstract @Nullable String expectedFact();
+  /**
+   * Returns {@linkplain Fact#getFactText() fact text} representing that an annotation is not
+   * relevant.
+   */
+  protected static String irrelevantAnnotation(String annotationType) {
+    return String.format("test:irrelevant-annotation:%s", annotationType);
+  }
 
-  /** Returns the message reported, without the file name or line number. */
+  /**
+   * Returns {@linkplain Fact#getFactText() fact text} representing that an annotation is not
+   * relevant.
+   */
+  protected static String sinkType(String sinkType, String sink) {
+    return String.format("test:sink-type:%s:%s", sinkType, sink);
+  }
+
   @Override
-  public abstract String toString();
+  protected abstract String getFactText();
+
+  /** Returns true if this reported fact matches the given expected fact. */
+  protected boolean matches(ExpectedFact expectedFact) {
+    return expectedFact.getFactText().equals(getFactText());
+  }
 }

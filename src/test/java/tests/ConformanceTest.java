@@ -19,10 +19,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static org.jspecify.conformance.ExpectedFact.cannotConvert;
-import static org.jspecify.conformance.ExpectedFact.expressionType;
-import static org.jspecify.conformance.ExpectedFact.irrelevantAnnotation;
-import static org.jspecify.conformance.ExpectedFact.sinkType;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -197,10 +193,11 @@ public final class ConformanceTest {
     }
 
     @Override
-    protected @Nullable String expectedFact() {
+    protected String getFactText() {
       if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
         if (detailMessage.messageArguments.size() < 2) {
-          return null; // The arguments must end with sourceType and sinkType.
+          // The arguments must end with sourceType and sinkType.
+          return toString();
         }
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
@@ -225,7 +222,7 @@ public final class ConformanceTest {
             return sinkType(sinkType, sink);
           }
       }
-      return null;
+      return toString();
     }
 
     @Override

@@ -38,7 +38,7 @@ public final class ExpectedFact extends Fact {
   private static final Pattern NULLNESS_MISMATCH =
       Pattern.compile("jspecify_nullness_mismatch\\b.*");
 
-  private static final ImmutableList<Pattern> ASSERTION_PATTERNS =
+  private static final ImmutableList<Pattern> FACT_PATTERNS =
       ImmutableList.of(
           NULLNESS_MISMATCH,
           // TODO: wildcard types have whitespace
@@ -47,36 +47,13 @@ public final class ExpectedFact extends Fact {
           Pattern.compile("test:irrelevant-annotation:\\S+"),
           Pattern.compile("test:sink-type:[^:]+:.*"));
 
-  private final String fact;
+  private final String factText;
   private final long factLineNumber;
 
-  ExpectedFact(Path file, long lineNumber, String fact, long factLineNumber) {
+  ExpectedFact(Path file, long lineNumber, String factText, long factLineNumber) {
     super(file, lineNumber);
-    this.fact = fact;
+    this.factText = factText;
     this.factLineNumber = factLineNumber;
-  }
-
-  /**
-   * Returns an expected fact representing that the source type cannot be converted to the sink type
-   * in any world.
-   */
-  public static String cannotConvert(String sourceType, String sinkType) {
-    return String.format("test:cannot-convert:%s to %s", sourceType, sinkType);
-  }
-
-  /** Returns an expected fact representing an expected expression type. */
-  public static String expressionType(String expressionType, String expression) {
-    return String.format("test:expression-type:%s:%s", expressionType, expression);
-  }
-
-  /** Returns an expected fact representing that an annotation is not relevant. */
-  public static String irrelevantAnnotation(String annotationType) {
-    return String.format("test:irrelevant-annotation:%s", annotationType);
-  }
-
-  /** Returns an expected fact representing that an annotation is not relevant. */
-  public static String sinkType(String sinkType, String sink) {
-    return String.format("test:sink-type:%s:%s", sinkType, sink);
   }
 
   /**
@@ -88,7 +65,7 @@ public final class ExpectedFact extends Fact {
 
   @Override
   String getFactText() {
-    return fact;
+    return factText;
   }
 
   /** Returns the line number in the input file where the expected fact is. */
@@ -107,13 +84,13 @@ public final class ExpectedFact extends Fact {
     ExpectedFact that = (ExpectedFact) o;
     return this.getFile().equals(that.getFile())
         && this.getLineNumber() == that.getLineNumber()
-        && this.fact.equals(that.fact)
+        && this.factText.equals(that.factText)
         && this.factLineNumber == that.factLineNumber;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getFile(), getLineNumber(), fact);
+    return Objects.hash(getFile(), getLineNumber(), factText);
   }
 
   @Override
@@ -121,7 +98,7 @@ public final class ExpectedFact extends Fact {
     return toStringHelper(this)
         .add("file", getFile())
         .add("lineNumber", getLineNumber())
-        .add("fact", fact)
+        .add("factText", factText)
         .add("factLineNumber", factLineNumber)
         .toString();
   }
@@ -132,8 +109,8 @@ public final class ExpectedFact extends Fact {
     private static final Pattern EXPECTATION_COMMENT =
         Pattern.compile(
             "\\s*// "
-                + ("(?<expectation>"
-                    + ASSERTION_PATTERNS.stream().map(Pattern::pattern).collect(joining("|"))
+                + ("(?<fact>"
+                    + FACT_PATTERNS.stream().map(Pattern::pattern).collect(joining("|"))
                     + ")")
                 + "\\s*");
 
@@ -149,15 +126,14 @@ public final class ExpectedFact extends Fact {
         lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         if (matcher.matches()) {
-          String expectation = matcher.group("expectation");
+          String expectation = matcher.group("fact");
           if (expectation != null) {
             facts.put(lineNumber, expectation.trim());
           }
         } else {
           facts.forEach(
-              (factLineNumber, expectedFact) ->
-                  expectedFacts.add(
-                      new ExpectedFact(file, lineNumber, expectedFact, factLineNumber)));
+              (factLineNumber, factText) ->
+                  expectedFacts.add(new ExpectedFact(file, lineNumber, factText, factLineNumber)));
           facts.clear();
         }
       }
