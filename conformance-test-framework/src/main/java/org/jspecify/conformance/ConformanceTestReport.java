@@ -130,7 +130,7 @@ public final class ConformanceTestReport {
 
   private static void writeFact(Formatter report, Fact fact, String status) {
     report.format(
-        "%s: %s:%d %s%n", status, fact.getFile(), fact.getLineNumber(), fact.getFactText());
+        "%s: %s:%s:%s%n", status, fact.getFile(), fact.getIdentifier(), fact.getFactText());
   }
 
   /** A builder for {@link ConformanceTestReport}s. */
@@ -191,6 +191,7 @@ public final class ConformanceTestReport {
 
     /** Builds the report. */
     ConformanceTestReport build() {
+      expectedFactReader.checkErrors();
       return new ConformanceTestReport(
           files.build(),
           index(expectedFacts.build(), Fact::getFile),
