@@ -38,7 +38,7 @@ public class ExpectedFactTest {
   }
 
   @Test
-  public void readExpectedFacts_lineNumber() {
+  public void readExpectedFacts() {
     assertThat(
             readExpectedFacts(
                 "// jspecify_nullness_mismatch ",
@@ -89,7 +89,7 @@ public class ExpectedFactTest {
   }
 
   @Test
-  public void readExpectedFacts_name_lineNumber_throws() {
+  public void readExpectedFacts_name_allDigits_throws() {
     ImmutableList<ExpectedFact> unused = readExpectedFacts("// test:name: 1234 ");
     assertThat(assertThrows(IllegalArgumentException.class, () -> reader.checkErrors()))
         .hasMessageThat()
@@ -142,10 +142,10 @@ public class ExpectedFactTest {
   public void readExpectedFacts_name_notUnique() {
     ImmutableList<ExpectedFact> unused =
         readExpectedFacts(
-            "// test:name:testName", //
+            "// test:name:testName",
             " // test:expression-type:type1:expr1",
             "line 1 under test",
-            "// test:name:testName", //
+            "// test:name:testName",
             " // test:expression-type:type2:expr2",
             "line 2 under test");
     assertThat(assertThrows(IllegalArgumentException.class, () -> reader.checkErrors()))

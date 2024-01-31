@@ -151,14 +151,10 @@ public final class ExpectedFact extends Fact {
         lineNumber = i.nextIndex();
         Matcher matcher = EXPECTATION_COMMENT.matcher(line);
         if (matcher.matches()) {
-          String newTestName = matcher.group("testName");
-          if (newTestName != null) {
-            setTestName(newTestName);
-          } else {
-            String fact = matcher.group("fact");
-            if (fact != null) {
-              facts.put(lineNumber, fact.trim());
-            }
+          setTestName(matcher.group("testName"));
+          String fact = matcher.group("fact");
+          if (fact != null) {
+            facts.put(lineNumber, fact.trim());
           }
         } else {
           if (testName != null) {
@@ -175,20 +171,22 @@ public final class ExpectedFact extends Fact {
       return checkUniqueTestNames(expectedFacts.build());
     }
 
-    private void setTestName(String testName) {
-      testName = testName.trim();
-      check(facts.isEmpty(), "test name must come before assertions for a line");
-      check(
-          !ASCII_DIGIT.matchesAllOf(testName) && !testName.contains(":"),
-          "test name cannot be an integer or contain a colon: %s",
-          testName);
+    private void setTestName(@Nullable String testName) {
+      if (testName == null) {
+        return;
+      }
       check(this.testName == null, "test name already set");
-      this.testName = testName;
+      check(facts.isEmpty(), "test name must come before assertions for a line");
+      this.testName = testName.trim();
+      check(
+          !ASCII_DIGIT.matchesAllOf(this.testName) && !this.testName.contains(":"),
+          "test name cannot be an integer or contain a colon: %s",
+          this.testName);
     }
 
     private void check(boolean test, String format, Object... args) {
       if (!test) {
-        errors.add(String.format("  %s:%d: ", file, lineNumber) + String.format(format, args));
+        errors.add(String.format("  %s:%d: %s", file, lineNumber, String.format(format, args)));
       }
     }
 
