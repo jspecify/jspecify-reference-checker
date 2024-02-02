@@ -29,6 +29,10 @@ import org.checkerframework.framework.util.visualize.AbstractTypeInformationPres
 import org.checkerframework.framework.util.visualize.TypeOccurrenceKind;
 import org.checkerframework.javacutil.TreeUtils;
 
+/**
+ * Output "sinkType" and "sourceType" diagnostic warning messages so the conformance tests can look
+ * for (a subset of) them.
+ */
 public final class ConformanceTypeInformationPresenter extends AbstractTypeInformationPresenter {
 
   /**
