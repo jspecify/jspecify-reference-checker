@@ -105,8 +105,6 @@ import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
-import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
-import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
 final class NullSpecAnnotatedTypeFactory
@@ -123,6 +121,8 @@ final class NullSpecAnnotatedTypeFactory
   private final NullSpecAnnotatedTypeFactory withMostConvenientWorld;
 
   private final AnnotatedDeclaredType javaUtilCollection;
+
+  private final ConformanceTypeInformationPresenter conformanceInformationPresenter;
 
   final AnnotatedDeclaredType javaLangClass;
   final AnnotatedDeclaredType javaLangThreadLocal;
@@ -305,6 +305,12 @@ final class NullSpecAnnotatedTypeFactory
     } else {
       withLeastConvenientWorld = withOtherWorld;
       withMostConvenientWorld = this;
+    }
+
+    if (checker.hasOption("showTypes")) {
+      conformanceInformationPresenter = new ConformanceTypeInformationPresenter(this);
+    } else {
+      conformanceInformationPresenter = null;
     }
 
     if (!givenOtherWorld) {
@@ -1710,19 +1716,8 @@ final class NullSpecAnnotatedTypeFactory
      * https://github.com/jspecify/jspecify-reference-checker/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
 
-    if (typeInformationPresenter != null) {
-      typeInformationPresenter.process(tree, getPath(tree));
-    }
-  }
-
-  @Override
-  protected @Nullable TypeInformationPresenter createTypeInformationPresenter() {
-    if (checker.hasOption("lspTypeInfo")) {
-      return new LspTypeInformationPresenter(this);
-    } else if (checker.hasOption("showTypes")) {
-      return new ConformanceTypeInformationPresenter(this);
-    } else {
-      return null;
+    if (conformanceInformationPresenter != null) {
+      conformanceInformationPresenter.process(tree, getPath(tree));
     }
   }
 
