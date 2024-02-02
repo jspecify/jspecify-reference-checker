@@ -2,12 +2,18 @@ import org.gradle.plugins.ide.eclipse.model.Output
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
 
 plugins {
-    id 'java'
-    id 'com.diffplug.spotless' version '6.14.0'
     id 'eclipse'
-    // https://github.com/tbroyer/gradle-errorprone-plugin
+    id 'java'
+    id 'maven-publish'
+
+    id 'com.diffplug.spotless' version '6.14.0'
+    id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
     id 'net.ltgt.errorprone' version '3.0.1'
 }
+
+// Nexus Publish plugin requires a group/version at the root project.
+group = 'org.jspecify.reference'
+version = '0.0.0-SNAPSHOT'
 
 repositories {
     mavenLocal()
@@ -16,6 +22,16 @@ repositories {
         url = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
     }
     mavenCentral()
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            // For users registered in Sonatype after 24 Feb 2021
+            nexusUrl = uri("https://s01.oss.sonatype.org/service/local/")
+            snapshotRepositoryUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        }
+    }
 }
 
 ext {

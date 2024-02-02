@@ -15,7 +15,7 @@ if [ ! -e "${jspecify}" ]; then
       -DoutputDirectory="$(dirname "${jspecify}")"
   fi
 fi
-jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker.jar"
+jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify_reference_checker}" ]; then
   echo "Assembling jspecify-reference-checker"
   ./gradlew assemble

@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -84,8 +83,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public final class ConformanceTest {
-  private static final Logger logger = Logger.getLogger(ConformanceTest.class.getCanonicalName());
-
   private static final ImmutableList<String> OPTIONS =
       ImmutableList.of(
           "-AassumePure",
@@ -150,6 +147,8 @@ public final class ConformanceTest {
     return result.getUnexpectedDiagnostics().stream()
         .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
         .filter(Objects::nonNull)
+        // Do not filter out messages without details.
+        // .filter(DetailMessage::hasDetails)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
   }
@@ -157,13 +156,14 @@ public final class ConformanceTest {
   /** A {@link ReportedFact} parsed from a Checker Framework {@link DetailMessage}. */
   static final class DetailMessageReportedFact extends ReportedFact {
 
-    private static final ImmutableSet<String> NULLNESS_MISMATCH_KEYS =
+    private static final String DEREFERENCE = "dereference";
+
+    private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
         ImmutableSet.of(
             "argument.type.incompatible",
             "assignment.type.incompatible",
             "atomicreference.must.include.null",
             "cast.unsafe",
-            "dereference",
             "lambda.param",
             "methodref.receiver.bound",
             "methodref.receiver",
@@ -187,7 +187,8 @@ public final class ConformanceTest {
     @Override
     protected boolean matches(String expectedFact) {
       if (isNullnessMismatch(expectedFact)) {
-        return NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey);
+        return DEREFERENCE.equals(detailMessage.messageKey)
+            || CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey);
       }
       return super.matches(expectedFact);
     }
@@ -199,7 +200,10 @@ public final class ConformanceTest {
 
     @Override
     protected @Nullable String expectedFact() {
-      if (NULLNESS_MISMATCH_KEYS.contains(detailMessage.messageKey)) {
+      if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
+        if (detailMessage.messageArguments.size() < 2) {
+          return null; // The arguments must end with sourceType and sinkType.
+        }
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
         String sinkType = fixType(reversedArguments.get(0)); // last
@@ -243,7 +247,6 @@ public final class ConformanceTest {
     private static String fixType(String type) {
       Matcher matcher = TYPE.matcher(type);
       if (!matcher.matches()) {
-        logger.warning(String.format("type \"%s\" did not match /%s/", type, TYPE.pattern()));
         return type;
       }
       String args = matcher.group("args");
