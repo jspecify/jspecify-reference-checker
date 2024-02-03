@@ -10,25 +10,53 @@ jobs:
       run:
         working-directory: jspecify-reference-checker
     steps:
-      - name: Check out the code
+      - name: Check out jspecify-reference checker
         uses: actions/checkout@v4
         with:
           path: jspecify-reference-checker
+      - name: Check out jspecify
+        uses: actions/checkout@v4
+        with:
+          repository: jspecify/jspecify
+          path: jspecify
       - name: Set up Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
       - name: Build and Test
-        run: ./gradlew build conformanceTests demoTest
+        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
         env:
           SHALLOW: 1
       - name: Check out jspecify/samples-google-prototype
         if: always()
-        run: git checkout samples-google-prototype
+        run: |
+          git fetch --depth=1 origin samples-google-prototype
+          git checkout samples-google-prototype
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
-        run: ./gradlew jspecifySamplesTest
+        run: ./gradlew jspecifySamplesTest --include-build ../jspecify
+
+  publish-snapshot:
+    name: Publish Conformance Test Framework Snapshot
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.repository == 'jspecify/jspecify-reference-checker' && github.ref_name == 'main' && github.event_name == 'push'
+    steps:
+    - name: Check out the code
+      uses: actions/checkout@v4
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+    - name: Set up Gradle
+      uses: gradle/gradle-build-action@v3
+    - name: Publish snapshot
+      run: ./gradlew publishConformanceTestFrameworkPublicationToSonatypeRepository
+      env:
+        ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.sonatype_username }}
+        ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.sonatype_password }}

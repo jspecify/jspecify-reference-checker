@@ -58,20 +58,26 @@ git clone https://github.com/jspecify/jspecify-reference-checker
 cd jspecify-reference-checker
 ```
 
-Now build it, which will retrieve a lot of other code too, and will take 10-15 minutes:
+Now build it, which will retrieve a lot of other code too, and will take 10-15
+minutes:
 
 ```sh
 ./gradlew assemble
 ```
 
-Now try the sample file:
+### Demonstration
+
+Run the checker on the sample file:
 
 ```sh
 cd $root_dir/jspecify-reference-checker
 ./demo SimpleSample.java
 ```
 
-After ~10 seconds delay, you should see
+(If you haven't [built the reference checker](#building) yet, this will build it
+the first time you run it.)
+
+After that, you should see:
 
 ```
 SimpleSample.java:7: error: [nullness] incompatible types in return.

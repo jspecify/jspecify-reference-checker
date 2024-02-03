@@ -2,25 +2,56 @@ import org.gradle.plugins.ide.eclipse.model.Output
 import org.gradle.plugins.ide.eclipse.model.SourceFolder
 
 plugins {
-    id 'java'
-    id 'com.diffplug.spotless' version '6.14.0'
     id 'eclipse'
-    // https://github.com/tbroyer/gradle-errorprone-plugin
+    id 'java'
+    id 'maven-publish'
+
+    id 'com.diffplug.spotless' version '6.14.0'
+    id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
     id 'net.ltgt.errorprone' version '3.0.1'
 }
 
+// Nexus Publish plugin requires a group/version at the root project.
+group = 'org.jspecify.reference'
+version = '0.0.0-SNAPSHOT'
+
 repositories {
+    mavenLocal()
+    maven {
+        // Nexus snapshot repository
+        url = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+    }
     mavenCentral()
 }
 
-configurations {
-    errorproneJavac
-    conformanceTestSuite
+nexusPublishing {
+    repositories {
+        sonatype {
+            // For users registered in Sonatype after 24 Feb 2021
+            nexusUrl = uri("https://s01.oss.sonatype.org/service/local/")
+            snapshotRepositoryUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        }
+    }
 }
 
 ext {
     checkerFramework = gradle.includedBuild("checker-framework")
-    jspecify = gradle.includedBuild("jspecify")
+
+    // null if not included with `--include-build path/to/jspecify`
+    jspecify = gradle.includedBuilds.find { it.name == 'jspecify' }
+}
+
+configurations {
+    errorproneJavac
+    conformanceTestSuite {
+        // When including a local JSpecify build, depend on the local test suite.
+        // See https://docs.gradle.org/current/userguide/cross_project_publications.html#sec:variant-aware-sharing.
+        if (jspecify != null) {
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, 'conformance-tests'))
+            }
+        }
+    }
 }
 
 java {
@@ -41,8 +72,7 @@ dependencies {
     testImplementation libs.jspecify.conformanceTestFramework
     testRuntimeOnly libs.jsr305 // jsr305 annotations are in some of the samples
 
-    // TODO: Depend on a group:artifact:version rather than a file.
-    conformanceTestSuite files("${jspecify.projectDir}/conformance-tests/build/distributions/conformance-tests-0.0.0-SNAPSHOT.zip")
+    conformanceTestSuite libs.jspecify.conformanceTests
 
     errorproneJavac libs.errorProne.javac
     errorprone libs.errorProne.core
@@ -50,7 +80,12 @@ dependencies {
 
 // Assemble checker-framework when assembling the reference checker.
 assemble.dependsOn(checkerFramework.task(":assemble"))
-assemble.dependsOn(jspecify.task(":assemble"))
+
+// If built with `--include-build path/to/jspecify` then
+// assemble jspecify when assembling the reference checker.
+if (jspecify != null) {
+    assemble.dependsOn(jspecify.task(':assemble'))
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
@@ -110,6 +145,7 @@ test {
 tasks.register('jspecifySamplesTest', Test) {
     description = 'Run the checker against the JSpecify samples.'
     group = 'verification'
+    shouldRunAfter test
     include '**/NullSpecTest$Lenient.class'
     include '**/NullSpecTest$Strict.class'
 
@@ -117,8 +153,6 @@ tasks.register('jspecifySamplesTest', Test) {
 }
 
 tasks.register('unzipConformanceTestSuite', Copy) {
-    // TODO: Don't explicitly depend on an included build's task.
-    dependsOn jspecify.task(':conformance-tests:build')
     dependsOn configurations.conformanceTestSuite
     from zipTree(configurations.conformanceTestSuite.singleFile)
     into layout.buildDirectory.dir("conformanceTests")
@@ -127,6 +161,7 @@ tasks.register('unzipConformanceTestSuite', Copy) {
 tasks.register('conformanceTests', Test) {
     group = 'verification'
     include '**/ConformanceTest.class'
+    shouldRunAfter test
 
     // Conformance tests
     inputs.files(unzipConformanceTestSuite)
@@ -140,7 +175,6 @@ tasks.register('conformanceTests', Test) {
     }
 
     // Conformance tests run on the samples directory
-    inputs.dir("${unzipConformanceTestSuite.destinationDir}/samples")
     inputs.files("tests/ConformanceTestOnSamples-report.txt")
     doFirst {
         systemProperties([
@@ -168,7 +202,7 @@ tasks.register('demoTest', Exec)  {
     ignoreExitValue = true
     errorOutput = new ByteArrayOutputStream()
     doLast {
-        if (!errorOutput.toString().startsWith("SimpleSample.java:7: error:")) {
+        if (!errorOutput.toString().contains("SimpleSample.java:7: error:")) {
             throw new AssertionError("`./demo SimpleSample.java` did not run correctly. Error output:\n$errorOutput")
         }
     }

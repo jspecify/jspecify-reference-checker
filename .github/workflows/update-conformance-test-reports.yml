@@ -20,18 +20,18 @@ jobs:
         working-directory: reference-checker
     steps:
       - name: Set up Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - name: Check out JSpecify
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: jspecify/jspecify
           ref: main
           path: jspecify
       - name: Check out the Reference Checker
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           path: reference-checker
@@ -47,7 +47,7 @@ jobs:
             git config push.autoSetupRemote true
           fi
       - name: Run the Reference Checker conformance tests
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: conformanceTests
           build-root-directory: reference-checker
