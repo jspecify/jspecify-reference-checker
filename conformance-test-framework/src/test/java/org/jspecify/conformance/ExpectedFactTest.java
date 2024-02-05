@@ -89,11 +89,19 @@ public class ExpectedFactTest {
   }
 
   @Test
+  public void readExpectedFacts_name_empty_throws() {
+    ImmutableList<ExpectedFact> unused = readExpectedFacts("// test:name:  ");
+    assertThat(assertThrows(IllegalArgumentException.class, () -> reader.checkErrors()))
+        .hasMessageThat()
+        .contains("test name cannot be empty");
+  }
+
+  @Test
   public void readExpectedFacts_name_allDigits_throws() {
     ImmutableList<ExpectedFact> unused = readExpectedFacts("// test:name: 1234 ");
     assertThat(assertThrows(IllegalArgumentException.class, () -> reader.checkErrors()))
         .hasMessageThat()
-        .contains("test name cannot be an integer or contain a colon");
+        .contains("test name cannot be an integer");
   }
 
   @Test
@@ -101,7 +109,7 @@ public class ExpectedFactTest {
     ImmutableList<ExpectedFact> unused = readExpectedFacts("// test:name:has a : colon");
     assertThat(assertThrows(IllegalArgumentException.class, () -> reader.checkErrors()))
         .hasMessageThat()
-        .contains("test name cannot be an integer or contain a colon");
+        .contains("test name cannot contain a colon");
   }
 
   @Test

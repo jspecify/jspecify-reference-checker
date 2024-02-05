@@ -177,17 +177,22 @@ public final class ExpectedFact extends Fact {
       }
       check(this.testName == null, "test name already set");
       check(facts.isEmpty(), "test name must come before assertions for a line");
-      this.testName = testName.trim();
-      check(
-          !ASCII_DIGIT.matchesAllOf(this.testName) && !this.testName.contains(":"),
-          "test name cannot be an integer or contain a colon: %s",
-          this.testName);
+      this.testName = checkTestName(testName.trim());
     }
 
-    private void check(boolean test, String format, Object... args) {
+    private boolean check(boolean test, String format, Object... args) {
       if (!test) {
         errors.add(String.format("  %s:%d: %s", file, lineNumber, String.format(format, args)));
       }
+      return test;
+    }
+
+    private String checkTestName(String testName) {
+      if (check(!testName.isEmpty(), "test name cannot be empty")) {
+        check(!testName.contains(":"), "test name cannot contain a colon: %s", testName);
+        check(!ASCII_DIGIT.matchesAllOf(testName), "test name cannot be an integer: %s", testName);
+      }
+      return testName;
     }
 
     private ImmutableList<ExpectedFact> checkUniqueTestNames(
