@@ -307,11 +307,8 @@ final class NullSpecAnnotatedTypeFactory
       withMostConvenientWorld = this;
     }
 
-    if (checker.hasOption("showTypes")) {
-      conformanceInformationPresenter = new ConformanceTypeInformationPresenter(this);
-    } else {
-      conformanceInformationPresenter = null;
-    }
+    conformanceInformationPresenter =
+        checker.hasOption("showTypes") ? new ConformanceTypeInformationPresenter(this) : null;
 
     if (!givenOtherWorld) {
       /*

@@ -67,12 +67,10 @@ public final class ConformanceTypeInformationPresenter extends AbstractTypeInfor
       switch (tree.getKind()) {
         case ASSIGNMENT:
           AssignmentTree asgn = (AssignmentTree) tree;
-          AnnotatedTypeMirror varType;
-          if (genFactory != null) {
-            varType = genFactory.getAnnotatedTypeLhs(asgn.getVariable());
-          } else {
-            varType = atypeFactory.getAnnotatedType(asgn.getVariable());
-          }
+          AnnotatedTypeMirror varType =
+              genFactory != null
+                  ? genFactory.getAnnotatedTypeLhs(asgn.getVariable())
+                  : atypeFactory.getAnnotatedType(asgn.getVariable());
           checker.reportWarning(
               asgn.getVariable(),
               "sinkType",
