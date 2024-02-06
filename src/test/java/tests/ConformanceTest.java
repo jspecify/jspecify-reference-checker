@@ -154,8 +154,8 @@ public final class ConformanceTest {
 
     private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
         ImmutableSet.of(
-            "argument",
-            "assignment",
+            "argument.type.incompatible",
+            "assignment.type.incompatible",
             "atomicreference.must.include.null",
             "cast.unsafe",
             "lambda.param",
@@ -164,9 +164,9 @@ public final class ConformanceTest {
             "methodref.return",
             "override.param",
             "override.return",
-            "return",
+            "return.type.incompatible",
             "threadlocal.must.include.null",
-            "type.argument");
+            "type.argument.type.incompatible");
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
         ImmutableSet.of(
