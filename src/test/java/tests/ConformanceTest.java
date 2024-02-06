@@ -214,6 +214,7 @@ public final class ConformanceTest {
           return toString();
         }
         return irrelevantAnnotation(
+            // Remove the package name (and any enclosing element name); emit just the simple name.
             detailMessage.messageArguments.get(0).replaceFirst(".*\\.", ""));
       }
       switch (detailMessage.messageKey) {
