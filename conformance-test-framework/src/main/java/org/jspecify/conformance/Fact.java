@@ -39,4 +39,9 @@ abstract class Fact {
 
   /** The text form of the fact. */
   protected abstract String getFactText();
+
+  /** Returns an object that helps to identify this fact within a file. */
+  public String getIdentifier() {
+    return String.valueOf(getLineNumber());
+  }
 }
