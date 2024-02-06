@@ -14,60 +14,32 @@
 
 package org.jspecify.conformance;
 
-import static com.google.common.collect.ImmutableListMultimap.flatteningToImmutableListMultimap;
-import static com.google.common.collect.Iterables.concat;
+import static com.google.common.collect.Maps.immutableEntry;
 import static com.google.common.collect.Multimaps.index;
 import static com.google.common.collect.Sets.union;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.Files.readAllLines;
 import static java.util.Comparator.comparingLong;
 import static java.util.function.Predicate.not;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.ListMultimap;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Formatter;
-import org.jspecify.conformance.ConformanceTestRunner.ExpectedFact;
-import org.jspecify.conformance.ConformanceTestRunner.Fact;
-import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
+import java.util.stream.Stream;
 
-/** Represents the results of running {@link ConformanceTestRunner#runTests(Path, ImmutableList)} on a set of files. */
+/**
+ * Represents the result of running {@link ConformanceTestRunner#runTests(Path, ImmutableList)} on a
+ * set of files.
+ */
 public final class ConformanceTestReport {
-  /** An empty report. */
-  static final ConformanceTestReport EMPTY =
-      new ConformanceTestReport(
-          ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableListMultimap.of());
-
-  /** Creates a report for a file. */
-  static ConformanceTestReport forFile(
-      Path file,
-      ImmutableList<ReportedFact> reportedFacts,
-      ImmutableList<ExpectedFact> expectedFacts) {
-    ImmutableListMultimap<Long, ReportedFact> reportedFactsByLine =
-        index(reportedFacts, ReportedFact::getLineNumber);
-    ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts =
-        expectedFacts.stream()
-            .collect(
-                flatteningToImmutableListMultimap(
-                    f -> f,
-                    expectedFact ->
-                        reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
-                            .filter(
-                                reportedFact -> reportedFact.matches(expectedFact.getFactText()))));
-    return new ConformanceTestReport(
-        ImmutableSortedSet.of(file), expectedFacts, reportedFacts, matchingFacts);
-  }
-
-  /** Combines two reports into one. */
-  static ConformanceTestReport combine(ConformanceTestReport left, ConformanceTestReport right) {
-    return new ConformanceTestReport(
-        union(left.files, right.files),
-        concat(left.expectedFactsByFile.values(), right.expectedFactsByFile.values()),
-        concat(left.reportedFactsByFile.values(), right.reportedFactsByFile.values()),
-        ImmutableListMultimap.copyOf(
-            concat(left.matchingFacts.entries(), right.matchingFacts.entries())));
-  }
 
   private final ImmutableSortedSet<Path> files;
   private final ImmutableListMultimap<Path, ExpectedFact> expectedFactsByFile;
@@ -75,14 +47,14 @@ public final class ConformanceTestReport {
   private final ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts;
 
   private ConformanceTestReport(
-      Collection<Path> files, // Path unfortunately implements Iterable<Path>.
-      Iterable<ExpectedFact> expectedFacts,
-      Iterable<ReportedFact> reportedFacts,
-      Multimap<ExpectedFact, ReportedFact> matchingFacts) {
-    this.files = ImmutableSortedSet.copyOf(files);
-    this.expectedFactsByFile = index(expectedFacts, Fact::getFile);
-    this.reportedFactsByFile = index(reportedFacts, Fact::getFile);
-    this.matchingFacts = ImmutableListMultimap.copyOf(matchingFacts);
+      ImmutableSortedSet<Path> files,
+      ImmutableListMultimap<Path, ExpectedFact> expectedFacts,
+      ImmutableListMultimap<Path, ReportedFact> reportedFacts,
+      ImmutableListMultimap<ExpectedFact, ReportedFact> matchingFacts) {
+    this.files = files;
+    this.expectedFactsByFile = expectedFacts;
+    this.reportedFactsByFile = reportedFacts;
+    this.matchingFacts = matchingFacts;
   }
 
   /**
@@ -158,6 +130,73 @@ public final class ConformanceTestReport {
 
   private static void writeFact(Formatter report, Fact fact, String status) {
     report.format(
-        "%s: %s:%d %s%n", status, fact.getFile(), fact.getLineNumber(), fact.getFactText());
+        "%s: %s:%s:%s%n", status, fact.getFile(), fact.getIdentifier(), fact.getFactText());
+  }
+
+  /** A builder for {@link ConformanceTestReport}s. */
+  static class Builder {
+    private final ImmutableSortedSet.Builder<Path> files = ImmutableSortedSet.naturalOrder();
+    private final ListMultimap<Path, ReportedFact> reportedFacts = ArrayListMultimap.create();
+    private final ImmutableList.Builder<ExpectedFact> expectedFacts = ImmutableList.builder();
+    private final ImmutableListMultimap.Builder<ExpectedFact, ReportedFact> matchingFacts =
+        ImmutableListMultimap.builder();
+    private final ExpectedFact.Reader expectedFactReader = new ExpectedFact.Reader();
+    private final Path testDirectory;
+
+    /**
+     * Creates a builder.
+     *
+     * @param testDirectory the directory containing all {@linkplain #addFiles(Iterable, Iterable)
+     *     files} with expected facts
+     */
+    Builder(Path testDirectory) {
+      this.testDirectory = testDirectory;
+    }
+
+    /** Adds test files and the facts reported for them. */
+    void addFiles(Iterable<Path> files, Iterable<ReportedFact> reportedFacts) {
+      for (ReportedFact reportedFact : reportedFacts) {
+        this.reportedFacts.put(reportedFact.getFile(), reportedFact);
+      }
+      for (Path file : files) {
+        Path relativeFile = testDirectory.relativize(file);
+        this.files.add(relativeFile);
+        addExpectedFacts(relativeFile);
+      }
+    }
+
+    private void addExpectedFacts(Path relativeFile) {
+      try {
+        ImmutableList<ExpectedFact> expectedFactsInFile =
+            expectedFactReader.readExpectedFacts(
+                relativeFile, readAllLines(testDirectory.resolve(relativeFile), UTF_8));
+        expectedFacts.addAll(expectedFactsInFile);
+        matchFacts(relativeFile, expectedFactsInFile).forEach(matchingFacts::put);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    private Stream<ImmutableMap.Entry<ExpectedFact, ReportedFact>> matchFacts(
+        Path file, ImmutableList<ExpectedFact> expectedFactsInFile) {
+      ImmutableListMultimap<Long, ReportedFact> reportedFactsByLine =
+          index(reportedFacts.get(file), ReportedFact::getLineNumber);
+      return expectedFactsInFile.stream()
+          .flatMap(
+              expectedFact ->
+                  reportedFactsByLine.get(expectedFact.getLineNumber()).stream()
+                      .filter(reportedFact -> reportedFact.matches(expectedFact))
+                      .map(reportedFact -> immutableEntry(expectedFact, reportedFact)));
+    }
+
+    /** Builds the report. */
+    ConformanceTestReport build() {
+      expectedFactReader.checkErrors();
+      return new ConformanceTestReport(
+          files.build(),
+          index(expectedFacts.build(), Fact::getFile),
+          ImmutableListMultimap.copyOf(reportedFacts),
+          matchingFacts.build());
+    }
   }
 }

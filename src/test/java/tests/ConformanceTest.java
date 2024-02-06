@@ -19,11 +19,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.cannotConvert;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.expressionType;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.irrelevantAnnotation;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.isNullnessMismatch;
-import static org.jspecify.conformance.ConformanceTestRunner.ExpectedFact.sinkType;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -45,7 +40,8 @@ import org.checkerframework.framework.test.TypecheckResult;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.conformance.ConformanceTestRunner;
-import org.jspecify.conformance.ConformanceTestRunner.ReportedFact;
+import org.jspecify.conformance.ExpectedFact;
+import org.jspecify.conformance.ReportedFact;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -175,7 +171,11 @@ public final class ConformanceTest {
             "type.argument.type.incompatible");
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
-        ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
+        ImmutableSet.of(
+            "local.variable.annotated",
+            "primitive.annotated",
+            "type.parameter.annotated",
+            "wildcard.annotated");
 
     private final DetailMessage detailMessage;
 
@@ -185,8 +185,8 @@ public final class ConformanceTest {
     }
 
     @Override
-    protected boolean matches(String expectedFact) {
-      if (isNullnessMismatch(expectedFact)) {
+    protected boolean matches(ExpectedFact expectedFact) {
+      if (expectedFact.isNullnessMismatch()) {
         return DEREFERENCE.equals(detailMessage.messageKey)
             || CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey);
       }
@@ -199,10 +199,11 @@ public final class ConformanceTest {
     }
 
     @Override
-    protected @Nullable String expectedFact() {
+    protected String getFactText() {
       if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
         if (detailMessage.messageArguments.size() < 2) {
-          return null; // The arguments must end with sourceType and sinkType.
+          // The arguments must end with sourceType and sinkType.
+          return toString();
         }
         ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
         String sourceType = fixType(reversedArguments.get(1)); // penultimate
@@ -227,7 +228,7 @@ public final class ConformanceTest {
             return sinkType(sinkType, sink);
           }
       }
-      return null;
+      return toString();
     }
 
     @Override

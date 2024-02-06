@@ -174,7 +174,7 @@ final class Util {
         optionalTypeElement(e, "java.nio.file.DirectoryStream").map(TypeElement::asType);
 
     pathGetFileNameElement =
-        onlyExecutableWithName(optionalTypeElement(e, "java.nio.file.Path"), "getFileName");
+        optionalOnlyExecutableWithName(optionalTypeElement(e, "java.nio.file.Path"), "getFileName");
 
     mapKeySetElement = onlyExecutableWithName(javaUtilMapElement, "keySet");
     mapContainsKeyElement = onlyExecutableWithName(javaUtilMapElement, "containsKey");
