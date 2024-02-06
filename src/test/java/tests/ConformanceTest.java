@@ -169,7 +169,11 @@ public final class ConformanceTest {
             "type.argument");
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
-        ImmutableSet.of("primitive.annotated", "type.parameter.annotated");
+        ImmutableSet.of(
+            "local.variable.annotated",
+            "primitive.annotated",
+            "type.parameter.annotated",
+            "wildcard.annotated");
 
     private final DetailMessage detailMessage;
 
