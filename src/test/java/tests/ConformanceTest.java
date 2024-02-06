@@ -209,7 +209,12 @@ public final class ConformanceTest {
         return cannotConvert(sourceType, sinkType);
       }
       if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
-        return irrelevantAnnotation("Nullable"); // TODO(dpb): Support other annotations.
+        if (detailMessage.messageArguments.isEmpty()) {
+          // arguments must start with the annotation
+          return toString();
+        }
+        return irrelevantAnnotation(
+            detailMessage.messageArguments.get(0).replaceFirst(".*\\.", ""));
       }
       switch (detailMessage.messageKey) {
         case "sourceType":
