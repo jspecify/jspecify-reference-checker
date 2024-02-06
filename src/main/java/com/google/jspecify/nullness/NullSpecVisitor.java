@@ -569,15 +569,6 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     }
   }
 
-  private static final Set<String> NULLNESS_ANNOTATIONS =
-      Set.of(
-          "org.jspecify.annotations.NonNull",
-          "org.jspecify.annotations.Nullable",
-          "org.jspecify.annotations.NullnessUnspecified",
-          "org.jspecify.nullness.NonNull",
-          "org.jspecify.nullness.Nullable",
-          "org.jspecify.nullness.NullnessUnspecified");
-
   private void checkNoNullnessAnnotations(
       Tree treeToReportOn, List<? extends AnnotationTree> annotations, String messageKey) {
     for (AnnotationMirror annotation : annotationsFromTypeAnnotationTrees(annotations)) {
@@ -594,6 +585,15 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
       }
     }
   }
+
+  private static final Set<String> NULLNESS_ANNOTATIONS =
+      Set.of(
+          "org.jspecify.annotations.NonNull",
+          "org.jspecify.annotations.Nullable",
+          "org.jspecify.annotations.NullnessUnspecified",
+          "org.jspecify.nullness.NonNull",
+          "org.jspecify.nullness.Nullable",
+          "org.jspecify.nullness.NullnessUnspecified");
 
   @Override
   protected boolean checkMethodReferenceAsOverride(MemberReferenceTree tree, Void p) {
