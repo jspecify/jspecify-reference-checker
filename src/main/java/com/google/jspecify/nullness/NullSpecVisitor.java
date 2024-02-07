@@ -28,6 +28,7 @@ import static java.util.Arrays.asList;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
+import static org.checkerframework.javacutil.AnnotationUtils.annotationName;
 import static org.checkerframework.javacutil.AnnotationUtils.areSameByName;
 import static org.checkerframework.javacutil.TreeUtils.annotationsFromTypeAnnotationTrees;
 import static org.checkerframework.javacutil.TreeUtils.elementFromDeclaration;
@@ -579,14 +580,20 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
        * represent the types internally in AnnotatedTypeMirror instances. Contrast this to almost
        * all other logic in the checker, which operates on the internal types.
        */
-      if (areSameByName(annotation, "org.jspecify.annotations.Nullable")
-          || areSameByName(annotation, "org.jspecify.annotations.NullnessUnspecified")
-          || areSameByName(annotation, "org.jspecify.nullness.Nullable")
-          || areSameByName(annotation, "org.jspecify.nullness.NullnessUnspecified")) {
-        checker.reportError(treeToReportOn, messageKey);
+      if (NULLNESS_ANNOTATIONS.stream().anyMatch(na -> areSameByName(annotation, na))) {
+        checker.reportError(treeToReportOn, messageKey, annotationName(annotation));
       }
     }
   }
+
+  private static final Set<String> NULLNESS_ANNOTATIONS =
+      Set.of(
+          "org.jspecify.annotations.NonNull",
+          "org.jspecify.annotations.Nullable",
+          "org.jspecify.annotations.NullnessUnspecified",
+          "org.jspecify.nullness.NonNull",
+          "org.jspecify.nullness.Nullable",
+          "org.jspecify.nullness.NullnessUnspecified");
 
   @Override
   protected boolean checkMethodReferenceAsOverride(MemberReferenceTree tree, Void p) {
