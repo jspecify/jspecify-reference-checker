@@ -15,7 +15,7 @@ includeBuild("../checker-framework")
 dependencyResolutionManagement {
     versionCatalogs {
         libs {
-            version("checkerFramework", "3.42.0-eisop2-SNAPSHOT")
+            version("checkerFramework", "3.42.0-eisop3-SNAPSHOT")
 
             library("checkerFramework-checker", "io.github.eisop", "checker").versionRef("checkerFramework")
             library("checkerFramework-checker-qual", "io.github.eisop", "checker-qual").versionRef("checkerFramework")
