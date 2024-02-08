@@ -143,7 +143,7 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
-        // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TODO
+        TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND,
         TypeUseLocation.OTHERWISE
       };
 
@@ -200,8 +200,9 @@ final class NullSpecAnnotatedTypeFactory
             .setValue(
                 "locations",
                 new TypeUseLocation[] {
-                  TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
-                  // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND TODO
+                  TypeUseLocation.LOCAL_VARIABLE,
+                  TypeUseLocation.RESOURCE_VARIABLE,
+                  TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND
                 })
             .setValue("applyToSubpackages", false)
             .build();

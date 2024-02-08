@@ -1,4 +1,4 @@
-# 67 pass; 506 fail; 573 total; 11.7% score
+# 69 pass; 504 fail; 573 total; 12.0% score
 FAIL: AnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: AnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: AnnotatedReceiver.java: no unexpected facts
@@ -14,15 +14,15 @@ FAIL: ArraySubtype.java: no unexpected facts
 PASS: AssignmentAsExpression.java: no unexpected facts
 PASS: AugmentedInferenceAgreesWithBaseInference.java:35:jspecify_nullness_mismatch
 PASS: AugmentedInferenceAgreesWithBaseInference.java: no unexpected facts
-FAIL: BoundedTypeVariableReturn.java:27:jspecify_nullness_mismatch
-FAIL: BoundedTypeVariableReturn.java:32:jspecify_nullness_mismatch
+PASS: BoundedTypeVariableReturn.java:27:jspecify_nullness_mismatch
+PASS: BoundedTypeVariableReturn.java:32:jspecify_nullness_mismatch
 PASS: BoundedTypeVariableReturn.java: no unexpected facts
 FAIL: CaptureAsInferredTypeArgument.java:51:jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:53:jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:61:jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java:63:jspecify_nullness_mismatch
 FAIL: CaptureAsInferredTypeArgument.java: no unexpected facts
-FAIL: CaptureConversionForSubtyping.java: no unexpected facts
+PASS: CaptureConversionForSubtyping.java: no unexpected facts
 FAIL: CaptureConvertedToObject.java:71:jspecify_nullness_mismatch
 FAIL: CaptureConvertedToObject.java: no unexpected facts
 FAIL: CaptureConvertedToObjectUnionNull.java: no unexpected facts
@@ -70,11 +70,11 @@ FAIL: CaptureConvertedUnspecToOther.java: no unexpected facts
 FAIL: CaptureConvertedUnspecToOtherUnionNull.java: no unexpected facts
 FAIL: CaptureConvertedUnspecToOtherUnspec.java: no unexpected facts
 PASS: CastOfCaptureOfNotNullMarkedUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
-PASS: CastOfCaptureOfUnboundedWildcardForNotNullMarkedObjectBoundedTypeParameter.java: no unexpected facts
+FAIL: CastOfCaptureOfUnboundedWildcardForNotNullMarkedObjectBoundedTypeParameter.java: no unexpected facts
 PASS: CastOfCaptureOfUnboundedWildcardForObjectBoundedTypeParameter.java: no unexpected facts
 FAIL: CastToPrimitive.java:33:jspecify_nullness_mismatch
 FAIL: CastToPrimitive.java: no unexpected facts
-FAIL: CastWildcardToTypeVariable.java:23:jspecify_nullness_mismatch
+PASS: CastWildcardToTypeVariable.java:23:jspecify_nullness_mismatch
 PASS: CastWildcardToTypeVariable.java: no unexpected facts
 PASS: Catch.java: no unexpected facts
 PASS: ClassLiteral.java: no unexpected facts
@@ -303,7 +303,7 @@ FAIL: NullLiteralToTypeVariableUnionNull.java: no unexpected facts
 FAIL: NullLiteralToTypeVariableUnspec.java: no unexpected facts
 FAIL: NullMarkedDirectUseOfNotNullMarkedBoundedTypeVariable.java: no unexpected facts
 PASS: NullUnmarkedUndoesNullMarked.java: no unexpected facts
-PASS: NullUnmarkedUndoesNullMarkedForWildcards.java: no unexpected facts
+FAIL: NullUnmarkedUndoesNullMarkedForWildcards.java: no unexpected facts
 PASS: NullnessDoesNotAffectOverloadSelection.java:23:jspecify_nullness_mismatch
 PASS: NullnessDoesNotAffectOverloadSelection.java: no unexpected facts
 PASS: ObjectAsSuperOfTypeVariable.java:35:jspecify_nullness_mismatch
