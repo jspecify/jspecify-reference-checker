@@ -1,4 +1,4 @@
-# 52 pass; 62 fail; 114 total; 45.6% score
+# 53 pass; 61 fail; 114 total; 46.5% score
 PASS: Basic.java:28:test:expression-type:Object?:nullable
 PASS: Basic.java:28:test:sink-type:Object!:return
 PASS: Basic.java:28:test:cannot-convert:Object? to Object!
@@ -7,7 +7,7 @@ PASS: Basic.java:34:test:sink-type:Object?:return
 PASS: Basic.java:41:test:sink-type:Object?:nullableObject
 PASS: Basic.java:43:test:sink-type:String!:testSinkType#nonNullString
 FAIL: Basic.java:49:test:expression-type:List!<capture of ? extends String?>:nullableStrings
-FAIL: Basic.java: no unexpected facts
+PASS: Basic.java: no unexpected facts
 PASS: Irrelevant.java:28:test:irrelevant-annotation:Nullable
 PASS: Irrelevant.java:34:test:irrelevant-annotation:Nullable
 FAIL: Irrelevant.java:38:test:irrelevant-annotation:NonNull
