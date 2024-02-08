@@ -55,12 +55,14 @@ git_clone() {
 
   local forking_org
   forking_org="$(forking_org)"
-  if [[ -n "${forking_org}" ]] && [[ "${forking_org}" != "https://github.com/jspecify" ]]; then
+  if [[ -n "${forking_org}" ]] \
+    && [[ "${forking_org}" != "https://github.com/jspecify" ]] \
+    && [[ "${forking_org}" != "git@github.com:jspecify" ]] ; then
     if run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"; then
       return
     fi
   fi
-  if [[ "${repo}" == checker-framework ]]; then
+  if [[ "${repo}" == "checker-framework" ]]; then
     forking_org=https://github.com/eisop
   else
     forking_org=https://github.com/jspecify
