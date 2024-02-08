@@ -30,11 +30,11 @@ jobs:
         run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
         env:
           SHALLOW: 1
-      - name: Check out jspecify/samples-google-prototype
+      - name: Check out jspecify/samples-google-prototype-eisop
         if: always()
         run: |
-          git fetch --depth=1 origin samples-google-prototype
-          git checkout samples-google-prototype
+          git fetch --depth=1 origin samples-google-prototype-eisop
+          git checkout samples-google-prototype-eisop
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
