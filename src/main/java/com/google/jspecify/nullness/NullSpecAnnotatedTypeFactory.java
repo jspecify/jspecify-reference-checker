@@ -250,7 +250,6 @@ final class NullSpecAnnotatedTypeFactory
                 })
             .build();
 
-    // System.out.println("nullmarkedDefaultQual" + nullMarkedDefaultQual);
     /*
      * XXX: When adding support for aliases, make sure to support them here. But consider how to
      * handle @Inherited aliases (https://github.com/jspecify/jspecify/issues/155). In particular, we
