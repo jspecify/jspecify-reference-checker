@@ -143,6 +143,8 @@ public final class ConformanceTest {
     return result.getUnexpectedDiagnostics().stream()
         .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
         .filter(Objects::nonNull)
+        // Do not filter out messages without details.
+        // .filter(DetailMessage::hasDetails)
         .map(DetailMessageReportedFact::new)
         .collect(toImmutableSet());
   }
@@ -154,8 +156,8 @@ public final class ConformanceTest {
 
     private static final ImmutableSet<String> CANNOT_CONVERT_KEYS =
         ImmutableSet.of(
-            "argument",
-            "assignment",
+            "argument.type.incompatible",
+            "assignment.type.incompatible",
             "atomicreference.must.include.null",
             "cast.unsafe",
             "lambda.param",
@@ -164,9 +166,9 @@ public final class ConformanceTest {
             "methodref.return",
             "override.param",
             "override.return",
-            "return",
+            "return.type.incompatible",
             "threadlocal.must.include.null",
-            "type.argument");
+            "type.argument.type.incompatible");
 
     private static final ImmutableSet<String> IRRELEVANT_ANNOTATION_KEYS =
         ImmutableSet.of(
