@@ -23,5 +23,5 @@ import org.checkerframework.framework.qual.ParametricTypeVariableUseQualifier;
 /** Internal implementation detail; not usable in user code. */
 @Target(TYPE_USE)
 @InvisibleQualifier
-@ParametricTypeVariableUseQualifier
+@ParametricTypeVariableUseQualifier(Nullable.class)
 @interface ParametricNull {}
