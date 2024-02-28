@@ -74,7 +74,6 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.qual.DefaultQualifier;
-import org.checkerframework.framework.qual.ParametricTypeVariableUse;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeFormatter;
@@ -116,6 +115,7 @@ final class NullSpecAnnotatedTypeFactory
   private final AnnotationMirror minusNull;
   private final AnnotationMirror unionNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
+  private final AnnotationMirror parametricNull;
 
   private final boolean isLeastConvenientWorld;
   private final NullSpecAnnotatedTypeFactory withLeastConvenientWorld;
@@ -200,6 +200,7 @@ final class NullSpecAnnotatedTypeFactory
     minusNull = util.minusNull;
     unionNull = util.unionNull;
     nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
+    parametricNull = util.parametricNull;
 
     addAliasedTypeAnnotation(
         "org.jspecify.annotations.NullnessUnspecified", nullnessOperatorUnspecified);
@@ -228,7 +229,7 @@ final class NullSpecAnnotatedTypeFactory
             .build();
     AnnotationMirror nullMarkedDefaultQualParametric =
         new AnnotationBuilder(processingEnv, DefaultQualifier.class)
-            .setValue("value", ParametricTypeVariableUse.class)
+            .setValue("value", ParametricNull.class)
             .setValue("locations", nullMarkedLocationsParametric)
             .setValue("applyToSubpackages", false)
             .build();
@@ -396,11 +397,7 @@ final class NullSpecAnnotatedTypeFactory
   @Override
   protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
     return new LinkedHashSet<>(
-        asList(
-            Nullable.class,
-            NullnessUnspecified.class,
-            MinusNull.class,
-            ParametricTypeVariableUse.class));
+        asList(Nullable.class, NullnessUnspecified.class, MinusNull.class, ParametricNull.class));
   }
 
   @Override
@@ -479,16 +476,16 @@ final class NullSpecAnnotatedTypeFactory
               nameToQualifierKind.get(Nullable.class.getCanonicalName());
           DefaultQualifierKind nullnessOperatorUnspecified =
               nameToQualifierKind.get(NullnessUnspecified.class.getCanonicalName());
-          DefaultQualifierKind parametricTypeVariableUse =
-              nameToQualifierKind.get(ParametricTypeVariableUse.class.getCanonicalName());
+          DefaultQualifierKind parametricNullKind =
+              nameToQualifierKind.get(ParametricNull.class.getCanonicalName());
 
           Map<DefaultQualifierKind, Set<DefaultQualifierKind>> supers = new HashMap<>();
           LinkedHashSet<DefaultQualifierKind> superOfMinusNull = new LinkedHashSet<>();
           superOfMinusNull.add(nullnessOperatorUnspecified);
-          superOfMinusNull.add(parametricTypeVariableUse);
+          superOfMinusNull.add(parametricNullKind);
           supers.put(minusNullKind, superOfMinusNull);
           supers.put(nullnessOperatorUnspecified, singleton(unionNullKind));
-          supers.put(parametricTypeVariableUse, singleton(unionNullKind));
+          supers.put(parametricNullKind, singleton(unionNullKind));
           supers.put(unionNullKind, emptySet());
           return supers;
           /*
@@ -503,6 +500,16 @@ final class NullSpecAnnotatedTypeFactory
            */
         }
       };
+    }
+
+    @Override
+    public AnnotationMirror getParametricQualifier(AnnotationMirror qualifier) {
+      return parametricNull;
+    }
+
+    @Override
+    public boolean isParametricQualifier(AnnotationMirror qualifier) {
+      return areSame(parametricNull, qualifier);
     }
   }
 
