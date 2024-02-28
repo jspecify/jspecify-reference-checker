@@ -892,8 +892,7 @@ final class NullSpecAnnotatedTypeFactory
        */
       if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(use)) {
         substitute.replaceAnnotation(minusNull);
-      } else if (argument.hasAnnotation(unionNull)
-          || use.hasAnnotation(unionNull)) {
+      } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
       } else if (argument.hasEffectiveAnnotation(nullnessOperatorUnspecified)
           || use.hasEffectiveAnnotation(nullnessOperatorUnspecified)) {
