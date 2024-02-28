@@ -72,4 +72,4 @@ git_clone() {
 
 git_clone jdk --depth 1 --single-branch
 
-git_clone checker-framework -b wildcard-defaults
+git_clone checker-framework
