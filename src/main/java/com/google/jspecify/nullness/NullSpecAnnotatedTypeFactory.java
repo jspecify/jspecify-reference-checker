@@ -672,7 +672,7 @@ final class NullSpecAnnotatedTypeFactory
      * redundant with the subsequent check on the intersection's components, but redundancy is
      * harmless.
      */
-    return type.hasEffectiveAnnotation(unionNull)
+    return type.hasAnnotation(unionNull)
         || (!isLeastConvenientWorld && type.hasEffectiveAnnotation(nullnessOperatorUnspecified));
   }
 
@@ -774,7 +774,7 @@ final class NullSpecAnnotatedTypeFactory
    * isNullInclusiveUnderEveryParameterization.
    */
   private boolean isUnionNullOrEquivalent(AnnotatedTypeMirror type) {
-    return type.hasEffectiveAnnotation(unionNull)
+    return type.hasAnnotation(unionNull)
         || (isLeastConvenientWorld && type.hasEffectiveAnnotation(nullnessOperatorUnspecified));
   }
 
@@ -892,8 +892,8 @@ final class NullSpecAnnotatedTypeFactory
        */
       if (withLeastConvenientWorld().isNullExclusiveUnderEveryParameterization(use)) {
         substitute.replaceAnnotation(minusNull);
-      } else if (argument.hasEffectiveAnnotation(unionNull)
-          || use.hasEffectiveAnnotation(unionNull)) {
+      } else if (argument.hasAnnotation(unionNull)
+          || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
       } else if (argument.hasEffectiveAnnotation(nullnessOperatorUnspecified)
           || use.hasEffectiveAnnotation(nullnessOperatorUnspecified)) {
