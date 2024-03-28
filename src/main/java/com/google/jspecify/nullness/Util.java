@@ -51,6 +51,7 @@ final class Util {
   final AnnotationMirror minusNull;
   final AnnotationMirror unionNull;
   final AnnotationMirror nullnessOperatorUnspecified;
+  final AnnotationMirror parametricNull;
 
   final TypeElement javaUtilCollectionElement;
   final ExecutableElement collectionToArrayNoArgElement;
@@ -116,6 +117,7 @@ final class Util {
     minusNull = AnnotationBuilder.fromClass(e, MinusNull.class);
     unionNull = AnnotationBuilder.fromClass(e, Nullable.class);
     nullnessOperatorUnspecified = AnnotationBuilder.fromClass(e, NullnessUnspecified.class);
+    parametricNull = AnnotationBuilder.fromClass(e, ParametricNull.class);
     /*
      * Note that all the above annotations must be on the *classpath*, not just the *processorpath*.
      * That's because, even if we change fromClass to fromName, AnnotationBuilder ultimately calls
