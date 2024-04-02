@@ -24,6 +24,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.jspecify.nullness.NullSpecChecker;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -130,7 +131,7 @@ public final class ConformanceTest {
   }
 
   private static ImmutableSet<ReportedFact> analyze(
-      Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps) {
+      Path testDirectory, ImmutableSortedSet<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,

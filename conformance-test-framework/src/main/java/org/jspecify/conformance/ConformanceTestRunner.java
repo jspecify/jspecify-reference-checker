@@ -15,7 +15,7 @@
 package org.jspecify.conformance;
 
 import static com.google.common.base.Strings.nullToEmpty;
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSortedSet.toImmutableSortedSet;
 import static com.google.common.collect.Lists.partition;
 import static com.google.common.io.MoreFiles.asCharSink;
 import static com.google.common.io.MoreFiles.asCharSource;
@@ -23,10 +23,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.walk;
 import static java.util.Arrays.stream;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toList;
 
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -48,7 +50,7 @@ public final class ConformanceTestRunner {
      * @return the facts reported by the analysis
      */
     Iterable<ReportedFact> analyze(
-        Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps);
+        Path testDirectory, ImmutableSortedSet<Path> files, ImmutableList<Path> testDeps);
   }
 
   private final Analyzer analyzer;
@@ -72,26 +74,28 @@ public final class ConformanceTestRunner {
           .filter(path -> path.toFile().isDirectory())
           .flatMap(
               directory -> {
-                Stream<ImmutableList<Path>> groups = javaFileGroups(directory);
+                Stream<ImmutableSortedSet<Path>> groups = javaFileGroups(directory);
                 return directory.equals(testDirectory)
-                    ? groups.flatMap(files -> partition(files, 1).stream())
+                    ? groups.flatMap(files -> partition(files.asList(), 1).stream())
                     : groups;
               })
-          .map(ImmutableList::copyOf)
+          .map(ImmutableSortedSet::copyOf)
           .forEach(
               files -> report.addFiles(files, analyzer.analyze(testDirectory, files, testDeps)));
       return report.build();
     }
   }
 
-  private static Stream<ImmutableList<Path>> javaFileGroups(Path directory) {
-    ImmutableList<Path> files = javaFilesInDirectory(directory);
+  private static Stream<ImmutableSortedSet<Path>> javaFileGroups(Path directory) {
+    ImmutableSortedSet<Path> files = javaFilesInDirectory(directory);
     return files.isEmpty() ? Stream.empty() : Stream.of(files);
   }
 
-  private static ImmutableList<Path> javaFilesInDirectory(Path directory) {
+  private static ImmutableSortedSet<Path> javaFilesInDirectory(Path directory) {
     try (Stream<Path> files = Files.list(directory)) {
-      return files.filter(f -> f.toString().endsWith(".java")).collect(toImmutableList());
+      return files
+          .filter(f -> f.toString().endsWith(".java"))
+          .collect(toImmutableSortedSet(naturalOrder()));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
