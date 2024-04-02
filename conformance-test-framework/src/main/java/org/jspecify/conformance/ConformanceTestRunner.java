@@ -27,6 +27,7 @@ import static java.util.stream.Collectors.toList;
 
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -48,7 +49,7 @@ public final class ConformanceTestRunner {
      * @return the facts reported by the analysis
      */
     Iterable<ReportedFact> analyze(
-        Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps);
+        Path testDirectory, ImmutableSortedSet<Path> files, ImmutableList<Path> testDeps);
   }
 
   private final Analyzer analyzer;
@@ -77,7 +78,7 @@ public final class ConformanceTestRunner {
                     ? groups.flatMap(files -> partition(files, 1).stream())
                     : groups;
               })
-          .map(ImmutableList::copyOf)
+          .map(ImmutableSortedSet::copyOf)
           .forEach(
               files -> report.addFiles(files, analyzer.analyze(testDirectory, files, testDeps)));
       return report.build();
