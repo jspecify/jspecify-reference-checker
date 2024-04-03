@@ -16,7 +16,6 @@ package org.jspecify.conformance;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.collect.ImmutableSortedSet.toImmutableSortedSet;
-import static com.google.common.collect.Lists.partition;
 import static com.google.common.io.MoreFiles.asCharSink;
 import static com.google.common.io.MoreFiles.asCharSource;
 import static com.google.common.truth.Truth.assertThat;
@@ -76,10 +75,9 @@ public final class ConformanceTestRunner {
               directory -> {
                 Stream<ImmutableSortedSet<Path>> groups = javaFileGroups(directory);
                 return directory.equals(testDirectory)
-                    ? groups.flatMap(files -> partition(files.asList(), 1).stream())
+                    ? groups.flatMap(files -> files.stream().map(ImmutableSortedSet::of))
                     : groups;
               })
-          .map(ImmutableSortedSet::copyOf)
           .forEach(
               files -> report.addFiles(files, analyzer.analyze(testDirectory, files, testDeps)));
       return report.build();
