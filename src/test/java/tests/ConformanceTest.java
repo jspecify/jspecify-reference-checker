@@ -24,6 +24,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.jspecify.nullness.NullSpecChecker;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -130,7 +131,7 @@ public final class ConformanceTest {
   }
 
   private static ImmutableSet<ReportedFact> analyze(
-      Path testDirectory, ImmutableList<Path> files, ImmutableList<Path> testDeps) {
+      Path testDirectory, ImmutableSortedSet<Path> files, ImmutableList<Path> testDeps) {
     TestConfiguration config =
         TestConfigurationBuilder.buildDefaultConfiguration(
             null,
@@ -212,7 +213,13 @@ public final class ConformanceTest {
         return cannotConvert(sourceType, sinkType);
       }
       if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
-        return irrelevantAnnotation("Nullable"); // TODO(dpb): Support other annotations.
+        if (detailMessage.messageArguments.isEmpty()) {
+          // arguments must start with the annotation
+          return toString();
+        }
+        return irrelevantAnnotation(
+            // Remove the package name (and any enclosing element name); emit just the simple name.
+            detailMessage.messageArguments.get(0).replaceFirst(".*\\.", ""));
       }
       switch (detailMessage.messageKey) {
         case "sourceType":
