@@ -746,6 +746,30 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   private List<? extends AnnotatedTypeMirror> getUpperBounds(AnnotatedTypeMirror type) {
+    /*
+     * In the case of a type-variable usage, we ignore the bounds attached to it in favor of the
+     * bounds on the type-parameter declaration. This is necessary in certain cases.
+     *
+     * I won't claim to understand *why* it will be necessary. Maybe the bounds aren't getting
+     * copied from the declaration to the usage correctly. Or maybe they're getting copied but then
+     * CF is mutating/replacing them (since it seems to update *bounds* based on annotations on the
+     * *usage* in some cases -- though we've tried to short-circuit that).
+     *
+     * In any case, in our model for nullness checking, we always want to look at the original
+     * bounds. So whatever the reason we have different bounds here, we don't want them.
+     *
+     * My only worry is that I always worry about making calls to getAnnotatedType, as discussed in
+     * various comments in this file (e.g., in NullSpecTreeAnnotator.visitMethodInvocation).
+     *
+     * This is likely caused by https://github.com/eisop/checker-framework/issues/737.
+     * Revisit this once that issue is fixed.
+     */
+    if (type instanceof AnnotatedTypeVariable
+        && !isCapturedTypeVariable(type.getUnderlyingType())) {
+      AnnotatedTypeVariable variable = (AnnotatedTypeVariable) type;
+      type = getAnnotatedType(variable.getUnderlyingType().asElement());
+    }
+
     switch (type.getKind()) {
       case INTERSECTION:
         return ((AnnotatedIntersectionType) type).getBounds();
