@@ -122,6 +122,8 @@ final class NullSpecAnnotatedTypeFactory
 
   private final AnnotatedDeclaredType javaUtilCollection;
 
+  private final ConformanceTypeInformationPresenter conformanceInformationPresenter;
+
   final AnnotatedDeclaredType javaLangClass;
   final AnnotatedDeclaredType javaLangThreadLocal;
   final AnnotatedDeclaredType javaUtilMap;
@@ -304,6 +306,9 @@ final class NullSpecAnnotatedTypeFactory
       withLeastConvenientWorld = withOtherWorld;
       withMostConvenientWorld = this;
     }
+
+    conformanceInformationPresenter =
+        checker.hasOption("showTypes") ? new ConformanceTypeInformationPresenter(this) : null;
 
     if (!givenOtherWorld) {
       /*
@@ -1707,6 +1712,10 @@ final class NullSpecAnnotatedTypeFactory
      * type.invalid.conflicting.annos error, which I have described more in
      * https://github.com/jspecify/jspecify-reference-checker/commit/d16a0231487e239bc94145177de464b5f77c8b19
      */
+
+    if (conformanceInformationPresenter != null) {
+      conformanceInformationPresenter.process(tree, getPath(tree));
+    }
   }
 
   @Override

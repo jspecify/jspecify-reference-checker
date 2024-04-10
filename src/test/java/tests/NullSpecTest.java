@@ -206,7 +206,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         }
       case "jspecify_conflicting_annotations":
         switch (unexpected.messageKey) {
-          case "conflicting.annos":
+          case "type.invalid.conflicting.annos":
             return true;
           default:
             return false;
