@@ -115,6 +115,7 @@ final class NullSpecAnnotatedTypeFactory
   private final AnnotationMirror minusNull;
   private final AnnotationMirror unionNull;
   private final AnnotationMirror nullnessOperatorUnspecified;
+  private final AnnotationMirror parametricNull;
 
   private final boolean isLeastConvenientWorld;
   private final NullSpecAnnotatedTypeFactory withLeastConvenientWorld;
@@ -128,6 +129,11 @@ final class NullSpecAnnotatedTypeFactory
   final AnnotatedDeclaredType javaLangThreadLocal;
   final AnnotatedDeclaredType javaUtilMap;
 
+  // Ensure that all locations that appear in the `defaultLocations` also appear somewhere in the
+  // `nullMarkedLocations`.
+  // As defaults are added and removed to the same environment, we need to ensure that all values
+  // are correctly changed.
+
   private static final TypeUseLocation[] defaultLocationsMinusNull =
       new TypeUseLocation[] {
         TypeUseLocation.CONSTRUCTOR_RESULT,
@@ -138,14 +144,38 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnionNull =
       new TypeUseLocation[] {
-        TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
+        TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_SUPER,
+        TypeUseLocation.LOCAL_VARIABLE,
+        TypeUseLocation.RESOURCE_VARIABLE,
       };
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
-        // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND, TODO
+        TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER,
+        TypeUseLocation.TYPE_VARIABLE_USE,
         TypeUseLocation.OTHERWISE
       };
+
+  private static final TypeUseLocation[] nullMarkedLocationsMinusNull =
+      new TypeUseLocation[] {
+        TypeUseLocation.CONSTRUCTOR_RESULT,
+        TypeUseLocation.EXCEPTION_PARAMETER,
+        TypeUseLocation.IMPLICIT_LOWER_BOUND,
+        TypeUseLocation.RECEIVER,
+        TypeUseLocation.OTHERWISE
+      };
+  private static final TypeUseLocation[] nullMarkedLocationsUnionNull =
+      new TypeUseLocation[] {
+        TypeUseLocation.LOCAL_VARIABLE,
+        TypeUseLocation.RESOURCE_VARIABLE,
+        TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER,
+        TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_SUPER,
+      };
+
+  private static final TypeUseLocation[] nullMarkedLocationsParametric =
+      new TypeUseLocation[] {TypeUseLocation.TYPE_VARIABLE_USE};
+
+  private static final TypeUseLocation[] nullMarkedLocationsUnspecified = new TypeUseLocation[] {};
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, Util util) {
@@ -170,6 +200,7 @@ final class NullSpecAnnotatedTypeFactory
     minusNull = util.minusNull;
     unionNull = util.unionNull;
     nullnessOperatorUnspecified = util.nullnessOperatorUnspecified;
+    parametricNull = util.parametricNull;
 
     addAliasedTypeAnnotation(
         "org.jspecify.annotations.NullnessUnspecified", nullnessOperatorUnspecified);
@@ -187,22 +218,25 @@ final class NullSpecAnnotatedTypeFactory
     AnnotationMirror nullMarkedDefaultQualMinusNull =
         new AnnotationBuilder(processingEnv, DefaultQualifier.class)
             .setValue("value", MinusNull.class)
-            .setValue(
-                "locations",
-                new TypeUseLocation[] {
-                  TypeUseLocation.EXCEPTION_PARAMETER, TypeUseLocation.OTHERWISE
-                })
+            .setValue("locations", nullMarkedLocationsMinusNull)
             .setValue("applyToSubpackages", false)
             .build();
     AnnotationMirror nullMarkedDefaultQualUnionNull =
         new AnnotationBuilder(processingEnv, DefaultQualifier.class)
             .setValue("value", Nullable.class)
-            .setValue(
-                "locations",
-                new TypeUseLocation[] {
-                  TypeUseLocation.LOCAL_VARIABLE, TypeUseLocation.RESOURCE_VARIABLE,
-                  // TypeUseLocation.UNBOUNDED_WILDCARD_UPPER_BOUND TODO
-                })
+            .setValue("locations", nullMarkedLocationsUnionNull)
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullMarkedDefaultQualParametric =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", ParametricNull.class)
+            .setValue("locations", nullMarkedLocationsParametric)
+            .setValue("applyToSubpackages", false)
+            .build();
+    AnnotationMirror nullMarkedDefaultQualUnspecified =
+        new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+            .setValue("value", NullnessUnspecified.class)
+            .setValue("locations", nullMarkedLocationsUnspecified)
             .setValue("applyToSubpackages", false)
             .build();
     AnnotationMirror nullMarkedDefaultQual =
@@ -210,7 +244,10 @@ final class NullSpecAnnotatedTypeFactory
             .setValue(
                 "value",
                 new AnnotationMirror[] {
-                  nullMarkedDefaultQualMinusNull, nullMarkedDefaultQualUnionNull
+                  nullMarkedDefaultQualMinusNull,
+                  nullMarkedDefaultQualUnionNull,
+                  nullMarkedDefaultQualParametric,
+                  nullMarkedDefaultQualUnspecified
                 })
             .build();
 
@@ -359,7 +396,8 @@ final class NullSpecAnnotatedTypeFactory
 
   @Override
   protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-    return new LinkedHashSet<>(asList(Nullable.class, NullnessUnspecified.class, MinusNull.class));
+    return new LinkedHashSet<>(
+        asList(Nullable.class, NullnessUnspecified.class, MinusNull.class, ParametricNull.class));
   }
 
   @Override
@@ -438,10 +476,16 @@ final class NullSpecAnnotatedTypeFactory
               nameToQualifierKind.get(Nullable.class.getCanonicalName());
           DefaultQualifierKind nullnessOperatorUnspecified =
               nameToQualifierKind.get(NullnessUnspecified.class.getCanonicalName());
+          DefaultQualifierKind parametricNullKind =
+              nameToQualifierKind.get(ParametricNull.class.getCanonicalName());
 
           Map<DefaultQualifierKind, Set<DefaultQualifierKind>> supers = new HashMap<>();
-          supers.put(minusNullKind, singleton(nullnessOperatorUnspecified));
+          LinkedHashSet<DefaultQualifierKind> superOfMinusNull = new LinkedHashSet<>();
+          superOfMinusNull.add(nullnessOperatorUnspecified);
+          superOfMinusNull.add(parametricNullKind);
+          supers.put(minusNullKind, superOfMinusNull);
           supers.put(nullnessOperatorUnspecified, singleton(unionNullKind));
+          supers.put(parametricNullKind, singleton(unionNullKind));
           supers.put(unionNullKind, emptySet());
           return supers;
           /*
@@ -456,6 +500,16 @@ final class NullSpecAnnotatedTypeFactory
            */
         }
       };
+    }
+
+    @Override
+    public AnnotationMirror getParametricQualifier(AnnotationMirror qualifier) {
+      return parametricNull;
+    }
+
+    @Override
+    public boolean isParametricQualifier(AnnotationMirror qualifier) {
+      return areSame(parametricNull, qualifier);
     }
   }
 
@@ -706,6 +760,9 @@ final class NullSpecAnnotatedTypeFactory
      *
      * My only worry is that I always worry about making calls to getAnnotatedType, as discussed in
      * various comments in this file (e.g., in NullSpecTreeAnnotator.visitMethodInvocation).
+     *
+     * This is likely caused by https://github.com/eisop/checker-framework/issues/737.
+     * Revisit this once that issue is fixed.
      */
     if (type instanceof AnnotatedTypeVariable
         && !isCapturedTypeVariable(type.getUnderlyingType())) {
@@ -861,8 +918,8 @@ final class NullSpecAnnotatedTypeFactory
         substitute.replaceAnnotation(minusNull);
       } else if (argument.hasAnnotation(unionNull) || use.hasAnnotation(unionNull)) {
         substitute.replaceAnnotation(unionNull);
-      } else if (argument.hasAnnotation(nullnessOperatorUnspecified)
-          || use.hasAnnotation(nullnessOperatorUnspecified)) {
+      } else if (argument.hasEffectiveAnnotation(nullnessOperatorUnspecified)
+          || use.hasEffectiveAnnotation(nullnessOperatorUnspecified)) {
         substitute.replaceAnnotation(nullnessOperatorUnspecified);
       }
 
