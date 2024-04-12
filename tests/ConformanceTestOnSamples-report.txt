@@ -1,4 +1,4 @@
-# 73 pass; 500 fail; 573 total; 12.7% score
+# 74 pass; 499 fail; 573 total; 12.9% score
 FAIL: AnnotatedInnerOfNonParameterized.java: no unexpected facts
 FAIL: AnnotatedInnerOfParameterized.java: no unexpected facts
 FAIL: AnnotatedReceiver.java: no unexpected facts
@@ -313,7 +313,7 @@ PASS: OutOfBoundsTypeVariable.java: no unexpected facts
 FAIL: OverrideParameters.java:48:jspecify_nullness_mismatch
 FAIL: OverrideParameters.java:68:jspecify_nullness_mismatch
 FAIL: OverrideParameters.java: no unexpected facts
-FAIL: OverrideParametersThatAreTypeVariables.java: no unexpected facts
+PASS: OverrideParametersThatAreTypeVariables.java: no unexpected facts
 FAIL: OverrideReturns.java:57:jspecify_nullness_mismatch
 FAIL: OverrideReturns.java: no unexpected facts
 PASS: ParameterizedWithTypeVariableArgumentToSelf.java: no unexpected facts
