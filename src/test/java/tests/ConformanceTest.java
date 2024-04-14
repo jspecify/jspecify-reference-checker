@@ -142,7 +142,7 @@ public final class ConformanceTest {
             TestUtilities.getShouldEmitDebugInfo());
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
-        .map(d -> DetailMessage.parse(d.getMessage(), testDirectory))
+        .map(d -> DetailMessage.parse(d, testDirectory))
         .filter(Objects::nonNull)
         // Do not filter out messages without details.
         // .filter(DetailMessage::hasDetails)
@@ -182,7 +182,7 @@ public final class ConformanceTest {
     private final DetailMessage detailMessage;
 
     DetailMessageReportedFact(DetailMessage detailMessage) {
-      super(detailMessage.file, detailMessage.lineNumber);
+      super(detailMessage.getFile(), detailMessage.getLineNumber());
       this.detailMessage = detailMessage;
     }
 

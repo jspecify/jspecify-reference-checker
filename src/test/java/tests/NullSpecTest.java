@@ -41,6 +41,18 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     }
   }
 
+  /** A small set of regression tests. */
+  public static class Regression extends NullSpecTest {
+    public Regression(List<File> testFiles) {
+      super(testFiles, false);
+    }
+
+    @Parameters
+    public static String[] getTestDirs() {
+      return new String[] {"regression"};
+    }
+  }
+
   /** A test that ignores cases where there is limited nullness information. */
   public static class Lenient extends NullSpecTest {
     public Lenient(List<File> testFiles) {
@@ -105,7 +117,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     for (ListIterator<TestDiagnostic> i = unexpected.listIterator(); i.hasNext(); ) {
       TestDiagnostic diagnostic = i.next();
-      DetailMessage detailMessage = DetailMessage.parse(diagnostic.getMessage(), null);
+      DetailMessage detailMessage = DetailMessage.parse(diagnostic, null);
       if (detailMessage != null && detailMessage.hasDetails()) {
         // Replace diagnostics that can be parsed with DetailMessage diagnostics.
         i.set(detailMessage);
@@ -145,8 +157,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
    */
   private boolean corresponds(TestDiagnostic missing, DetailMessage unexpected) {
     // First, make sure the two diagnostics are on the same file and line.
-    if (!missing.getFilename().equals(unexpected.getFileName())
-        || missing.getLineNumber() != unexpected.lineNumber) {
+    if (!missing.getFilename().equals(unexpected.getFilename())
+        || missing.getLineNumber() != unexpected.getLineNumber()) {
       return false;
     }
 
