@@ -43,6 +43,7 @@ import static org.checkerframework.javacutil.TypesUtils.isPrimitive;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LambdaExpressionTree;
@@ -372,6 +373,27 @@ final class NullSpecAnnotatedTypeFactory
       withOtherWorld.postInit();
       postInit();
     }
+  }
+
+  /** Too ensure setRoot is called on both worlds exactly once. */
+  private boolean settingRoot = false;
+
+  /**
+   * Ensure setRoot is called on both worlds exactly once whenever it is called on one of the
+   * worlds.
+   */
+  @Override
+  public void setRoot(@Nullable CompilationUnitTree root) {
+    if (!settingRoot) {
+      settingRoot = true;
+      super.setRoot(root);
+      if (withLeastConvenientWorld != this) {
+        withLeastConvenientWorld.setRoot(root);
+      } else {
+        withMostConvenientWorld.setRoot(root);
+      }
+    }
+    settingRoot = false;
   }
 
   @Override
