@@ -62,8 +62,6 @@ final class DetailMessage extends TestDiagnostic {
    *     message
    */
   static @Nullable DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
-    if (input.getFile().toString().contains("CurrentThreadThreadGroup"))
-      System.out.println("looking at: " + input);
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(input.getMessage());
     if (!detailsMatcher.matches()) {
       // Return a message with no key or parts.
@@ -155,18 +153,12 @@ final class DetailMessage extends TestDiagnostic {
   @Override
   public int hashCode() {
     return Objects.hash(
-        filename,
-        lineNumber,
-        messageKey,
-        messageArguments,
-        offsetStart,
-        offsetEnd,
-        readableMessage);
+        super.hashCode(), messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
   }
 
   @Override
   public String toString() {
-    return String.format("%s:%d: (%s) %s", file, lineNumber, messageKey, readableMessage);
+    return String.format("%s:%d:%s: (%s) %s", file, lineNumber, kind, messageKey, readableMessage);
   }
 
   /** String format for debugging use. */
@@ -174,6 +166,7 @@ final class DetailMessage extends TestDiagnostic {
     return toStringHelper(this)
         .add("file", file)
         .add("lineNumber", lineNumber)
+        .add("kind", kind)
         .add("messageKey", messageKey)
         .add("messageArguments", messageArguments)
         .add("offsetStart", offsetStart)
