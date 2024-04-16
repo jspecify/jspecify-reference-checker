@@ -138,7 +138,6 @@ final class NullSpecAnnotatedTypeFactory
       new TypeUseLocation[] {
         TypeUseLocation.CONSTRUCTOR_RESULT,
         TypeUseLocation.EXCEPTION_PARAMETER,
-        TypeUseLocation.IMPLICIT_LOWER_BOUND,
         TypeUseLocation.RECEIVER,
       };
 
@@ -151,6 +150,7 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
+        TypeUseLocation.IMPLICIT_LOWER_BOUND,
         TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER,
         TypeUseLocation.TYPE_VARIABLE_USE,
         TypeUseLocation.OTHERWISE
@@ -638,6 +638,9 @@ final class NullSpecAnnotatedTypeFactory
       if (supertype.getKind() == TYPEVAR
           && !supertype.hasAnnotation(minusNull)
           && isNullnessSubtype(subtype, ((AnnotatedTypeVariable) supertype).getLowerBound())) {
+        return true;
+      }
+      if (!isLeastConvenientWorld && subtype.hasEffectiveAnnotation(nullnessOperatorUnspecified)) {
         return true;
       }
       return isNullInclusiveUnderEveryParameterization(supertype)
