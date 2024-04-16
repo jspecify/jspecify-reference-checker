@@ -55,13 +55,12 @@ final class DetailMessage extends TestDiagnostic {
   final String readableMessage;
 
   /**
-   * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
-   * match the expected format.
+   * Returns an object parsed from a diagnostic message.
    *
    * @param rootDirectory if not null, a root directory prefix to remove from the file part of the
    *     message
    */
-  static @Nullable DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
+  static DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(input.getMessage());
     if (!detailsMatcher.matches()) {
       // Return a message with no key or parts.
@@ -142,7 +141,8 @@ final class DetailMessage extends TestDiagnostic {
       return false;
     }
     DetailMessage that = (DetailMessage) o;
-    return super.equals(that)
+    return lineNumber == that.lineNumber
+        && file.equals(that.file)
         && messageKey.equals(that.messageKey)
         && messageArguments.equals(that.messageArguments)
         && Objects.equals(offsetStart, that.offsetStart)
@@ -153,7 +153,7 @@ final class DetailMessage extends TestDiagnostic {
   @Override
   public int hashCode() {
     return Objects.hash(
-        super.hashCode(), messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
+        file, lineNumber, messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
   }
 
   @Override
