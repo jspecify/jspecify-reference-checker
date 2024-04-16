@@ -392,8 +392,8 @@ final class NullSpecAnnotatedTypeFactory
       } else {
         withMostConvenientWorld.setRoot(root);
       }
+      settingRoot = false;
     }
-    settingRoot = false;
   }
 
   @Override
