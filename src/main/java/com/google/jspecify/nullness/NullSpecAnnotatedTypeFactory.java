@@ -375,7 +375,7 @@ final class NullSpecAnnotatedTypeFactory
     }
   }
 
-  /** Too ensure setRoot is called on both worlds exactly once. */
+  /** To ensure setRoot is called on both worlds exactly once. */
   private boolean settingRoot = false;
 
   /**
