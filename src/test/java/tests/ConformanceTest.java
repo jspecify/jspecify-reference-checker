@@ -29,7 +29,6 @@ import com.google.jspecify.nullness.NullSpecChecker;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -143,7 +142,6 @@ public final class ConformanceTest {
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
         .map(d -> DetailMessage.parse(d, testDirectory))
-        .filter(Objects::nonNull)
         // Do not filter out messages without details.
         // .filter(DetailMessage::hasDetails)
         .map(DetailMessageReportedFact::new)

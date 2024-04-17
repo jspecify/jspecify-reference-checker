@@ -55,18 +55,22 @@ final class DetailMessage extends TestDiagnostic {
   final String readableMessage;
 
   /**
-   * Returns an object parsed from a diagnostic message, or {@code null} if the message doesn't
-   * match the expected format.
+   * Returns an object parsed from a diagnostic message.
    *
    * @param rootDirectory if not null, a root directory prefix to remove from the file part of the
    *     message
    */
-  static @Nullable DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
+  static DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
+    Path file = input.getFile();
+    if (rootDirectory != null && file.startsWith(rootDirectory)) {
+      file = rootDirectory.relativize(file);
+    }
+
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(input.getMessage());
     if (!detailsMatcher.matches()) {
       // Return a message with no key or parts.
       return new DetailMessage(
-          input.getFile(),
+          file,
           input.getLineNumber(),
           input.getKind(),
           "",
@@ -74,10 +78,6 @@ final class DetailMessage extends TestDiagnostic {
           null,
           null,
           input.getMessage());
-    }
-    Path file = input.getFile();
-    if (rootDirectory != null) {
-      file = rootDirectory.relativize(file);
     }
 
     int messagePartCount = parseInt(detailsMatcher.group("messagePartCount"));
