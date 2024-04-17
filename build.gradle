@@ -138,8 +138,10 @@ tasks.withType(Test).configureEach {
 
 test {
     include '**/NullSpecTest$Minimal.class'
-
     inputs.files("${rootDir}/tests/minimal")
+
+    include '**/NullSpecTest$Regression.class'
+    inputs.files("${rootDir}/tests/regression")
 }
 
 tasks.register('jspecifySamplesTest', Test) {
