@@ -63,7 +63,6 @@ final class DetailMessage extends TestDiagnostic {
   static DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
     Path file = input.getFile();
     if (rootDirectory != null && file.startsWith(rootDirectory)) {
-      // Empty file strings cannot be relativized.
       file = rootDirectory.relativize(file);
     }
 
