@@ -142,7 +142,8 @@ final class DetailMessage extends TestDiagnostic {
       return false;
     }
     DetailMessage that = (DetailMessage) o;
-    return super.equals(that)
+    return lineNumber == that.lineNumber
+        && file.equals(that.file)
         && messageKey.equals(that.messageKey)
         && messageArguments.equals(that.messageArguments)
         && Objects.equals(offsetStart, that.offsetStart)
@@ -153,7 +154,7 @@ final class DetailMessage extends TestDiagnostic {
   @Override
   public int hashCode() {
     return Objects.hash(
-        super.hashCode(), messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
+        file, lineNumber, messageKey, messageArguments, offsetStart, offsetEnd, readableMessage);
   }
 
   @Override
