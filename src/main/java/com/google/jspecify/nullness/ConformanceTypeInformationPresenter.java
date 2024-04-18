@@ -16,7 +16,6 @@ package com.google.jspecify.nullness;
 
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import java.util.List;
@@ -85,9 +84,6 @@ public final class ConformanceTypeInformationPresenter extends AbstractTypeInfor
           String methodName = calledElem.getSimpleName().toString();
           AnnotatedExecutableType calledType = (AnnotatedExecutableType) type;
           List<? extends AnnotatedTypeMirror> params = calledType.getParameterTypes();
-          MethodInvocationTree mit = (MethodInvocationTree) tree;
-          List<? extends ExpressionTree> args = mit.getArguments();
-          assert params.size() == args.size();
 
           for (int i = 0; i < params.size(); ++i) {
             String paramName = calledElem.getParameters().get(i).getSimpleName().toString();
