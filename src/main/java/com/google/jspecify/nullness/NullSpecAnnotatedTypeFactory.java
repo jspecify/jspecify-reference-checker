@@ -14,7 +14,7 @@
 
 package com.google.jspecify.nullness;
 
-import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArray.IS_DECLARED_OR_ARRAY;
+import static com.google.jspecify.nullness.NullSpecAnnotatedTypeFactory.IsDeclaredOrArrayOrNull.IS_DECLARED_OR_ARRAY_OR_NULL;
 import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.IDENTIFIER;
 import static com.sun.source.tree.Tree.Kind.MEMBER_SELECT;
@@ -29,6 +29,7 @@ import static java.util.Collections.unmodifiableList;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.type.TypeKind.ARRAY;
 import static javax.lang.model.type.TypeKind.DECLARED;
+import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.TYPEVAR;
 import static javax.lang.model.type.TypeKind.WILDCARD;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
@@ -151,6 +152,9 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
+        // Lower bounds could be MinusNull, but all uses in unmarked code would become unspecified
+        // anyways.
+        // Revisit once https://github.com/eisop/checker-framework/issues/741 is fixed.
         TypeUseLocation.IMPLICIT_LOWER_BOUND,
         TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER,
         TypeUseLocation.TYPE_VARIABLE_USE,
@@ -662,9 +666,6 @@ final class NullSpecAnnotatedTypeFactory
           && isNullnessSubtype(subtype, ((AnnotatedTypeVariable) supertype).getLowerBound())) {
         return true;
       }
-      if (!isLeastConvenientWorld && subtype.hasEffectiveAnnotation(nullnessOperatorUnspecified)) {
-        return true;
-      }
       return isNullInclusiveUnderEveryParameterization(supertype)
           || isNullExclusiveUnderEveryParameterization(subtype)
           || (nullnessEstablishingPathExists(subtype, supertype)
@@ -702,7 +703,7 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   boolean isNullExclusiveUnderEveryParameterization(AnnotatedTypeMirror type) {
-    return nullnessEstablishingPathExists(type, IS_DECLARED_OR_ARRAY);
+    return nullnessEstablishingPathExists(type, IS_DECLARED_OR_ARRAY_OR_NULL);
   }
 
   private boolean nullnessEstablishingPathExists(
@@ -1855,12 +1856,12 @@ final class NullSpecAnnotatedTypeFactory
 
   // Avoid lambdas so that our Predicates can have a useful toString() for logging purposes.
 
-  enum IsDeclaredOrArray implements Predicate<TypeMirror> {
-    IS_DECLARED_OR_ARRAY;
+  enum IsDeclaredOrArrayOrNull implements Predicate<TypeMirror> {
+    IS_DECLARED_OR_ARRAY_OR_NULL;
 
     @Override
     public boolean test(TypeMirror t) {
-      return t.getKind() == DECLARED || t.getKind() == ARRAY;
+      return t.getKind() == DECLARED || t.getKind() == ARRAY || t.getKind() == NULL;
     }
   }
 
