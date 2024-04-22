@@ -61,11 +61,16 @@ final class DetailMessage extends TestDiagnostic {
    *     message
    */
   static DetailMessage parse(TestDiagnostic input, @Nullable Path rootDirectory) {
+    Path file = input.getFile();
+    if (rootDirectory != null && file.startsWith(rootDirectory)) {
+      file = rootDirectory.relativize(file);
+    }
+
     Matcher detailsMatcher = DETAIL_MESSAGE_PATTERN.matcher(input.getMessage());
     if (!detailsMatcher.matches()) {
       // Return a message with no key or parts.
       return new DetailMessage(
-          input.getFile(),
+          file,
           input.getLineNumber(),
           input.getKind(),
           "",
@@ -73,10 +78,6 @@ final class DetailMessage extends TestDiagnostic {
           null,
           null,
           input.getMessage());
-    }
-    Path file = input.getFile();
-    if (rootDirectory != null) {
-      file = rootDirectory.relativize(file);
     }
 
     int messagePartCount = parseInt(detailsMatcher.group("messagePartCount"));
