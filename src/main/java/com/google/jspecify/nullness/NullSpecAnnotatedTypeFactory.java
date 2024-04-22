@@ -32,6 +32,7 @@ import static javax.lang.model.type.TypeKind.DECLARED;
 import static javax.lang.model.type.TypeKind.NULL;
 import static javax.lang.model.type.TypeKind.TYPEVAR;
 import static javax.lang.model.type.TypeKind.WILDCARD;
+import static org.checkerframework.framework.util.AnnotatedTypes.areCorrespondingTypeVariables;
 import static org.checkerframework.framework.util.AnnotatedTypes.asSuper;
 import static org.checkerframework.javacutil.AnnotationUtils.areSame;
 import static org.checkerframework.javacutil.TreePathUtil.enclosingClass;
@@ -665,6 +666,21 @@ final class NullSpecAnnotatedTypeFactory
           && !supertype.hasAnnotation(minusNull)
           && isNullnessSubtype(subtype, ((AnnotatedTypeVariable) supertype).getLowerBound())) {
         return true;
+      }
+      if (subtype.getKind() == TYPEVAR && supertype.getKind() == TYPEVAR) {
+        // Work around wonkyness of CF override checks.
+        AnnotatedTypeVariable subTV = (AnnotatedTypeVariable) subtype;
+        if (isCapturedTypeVariable(subTV.getUnderlyingType())) {
+          AnnotatedTypeMirror subTVBnd = subTV.getUpperBound();
+          if (subTVBnd instanceof AnnotatedTypeVariable) {
+            subTV = (AnnotatedTypeVariable) subTVBnd;
+          }
+        }
+        AnnotatedTypeVariable superTV = (AnnotatedTypeVariable) supertype;
+        if (areCorrespondingTypeVariables(elements, subTV, superTV)) {
+          return isSubtype(subTV.getUpperBound(), superTV.getUpperBound())
+              && isSubtype(superTV.getLowerBound(), subTV.getLowerBound());
+        }
       }
       return isNullInclusiveUnderEveryParameterization(supertype)
           || isNullExclusiveUnderEveryParameterization(subtype)
