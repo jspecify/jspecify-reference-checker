@@ -667,7 +667,10 @@ final class NullSpecAnnotatedTypeFactory
         // Work around wonkyness of CF override checks.
         AnnotatedTypeVariable subTV = (AnnotatedTypeVariable) subtype;
         if (isCapturedTypeVariable(subTV.getUnderlyingType())) {
-          subTV = (AnnotatedTypeVariable) subTV.getUpperBound();
+          AnnotatedTypeMirror subTVBnd = subTV.getUpperBound();
+          if (subTVBnd instanceof AnnotatedTypeVariable) {
+            subTV = (AnnotatedTypeVariable) subTVBnd;
+          }
         }
         AnnotatedTypeVariable superTV = (AnnotatedTypeVariable) supertype;
         if (areCorrespondingTypeVariables(elements, subTV, superTV)) {
