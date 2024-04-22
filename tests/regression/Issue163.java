@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test case for Issue 163:
+// https://github.com/jspecify/jspecify-reference-checker/issues/163
+
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 @NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
+class Issue163NullForUnspecVoid {
+  void x(Issue163Value val, Issue163Visitor<Void> vis) {
+    val.accept(vis, null);
   }
 }
+
+interface Issue163Value {
+  <P> void accept(Issue163Visitor<P> visitor, P param);
+}
+
+interface Issue163Visitor<P> {}

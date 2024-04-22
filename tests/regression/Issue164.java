@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test case for Issue 164:
+// https://github.com/jspecify/jspecify-reference-checker/issues/164
+
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 @NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
-  }
+interface Issue164SuperWildcardParent {
+  <T extends @Nullable Object> void x(Issue164Foo<? super T> foo);
 }
+
+@NullMarked
+interface Issue164SuperWildcardOverride extends Issue164SuperWildcardParent {
+  @Override
+  <U extends @Nullable Object> void x(Issue164Foo<? super U> foo);
+}
+
+@NullMarked
+interface Issue164Foo<V extends @Nullable Object> {}
