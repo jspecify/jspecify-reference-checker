@@ -19,15 +19,14 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 @NullMarked
-interface Issue164SuperWildcardParent {
-  <T extends @Nullable Object> void x(Issue164Foo<? super T> foo);
-}
+class Issue164More {
+  interface Super<T extends @Nullable Object> {
+    <U extends T> void foo(Lib<? extends U> lib);
+  }
 
-@NullMarked
-interface Issue164SuperWildcardOverride extends Issue164SuperWildcardParent {
-  @Override
-  <U extends @Nullable Object> void x(Issue164Foo<? super U> foo);
-}
+  interface Sub<V extends @Nullable Object> extends Super<V> {
+    <W extends V> void foo(Lib<? extends W> lib);
+  }
 
-@NullMarked
-interface Issue164Foo<V extends @Nullable Object> {}
+  interface Lib<X extends @Nullable Object> {}
+}
