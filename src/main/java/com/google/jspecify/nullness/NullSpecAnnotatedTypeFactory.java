@@ -664,7 +664,11 @@ final class NullSpecAnnotatedTypeFactory
         return true;
       }
       if (subtype.getKind() == TYPEVAR && supertype.getKind() == TYPEVAR) {
+        // Work around wonkyness of CF override checks.
         AnnotatedTypeVariable subTV = (AnnotatedTypeVariable) subtype;
+        if (isCapturedTypeVariable(subTV.getUnderlyingType())) {
+          subTV = (AnnotatedTypeVariable) subTV.getUpperBound();
+        }
         AnnotatedTypeVariable superTV = (AnnotatedTypeVariable) supertype;
         if (areCorrespondingTypeVariables(elements, subTV, superTV)) {
           return isSubtype(subTV.getUpperBound(), superTV.getUpperBound())
