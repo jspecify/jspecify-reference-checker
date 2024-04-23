@@ -21,6 +21,10 @@ class Issue172<E> {
   E e() {
     return null;
   }
+
+  void p(E p) {
+    p = null;
+  }
 }
 
 class Issue172UnmarkedUse {
