@@ -71,6 +71,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -639,5 +640,10 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   protected NullSpecAnnotatedTypeFactory createTypeFactory() {
     // Reading util this way is ugly but necessary. See discussion in NullSpecChecker.
     return new NullSpecAnnotatedTypeFactory(checker, ((NullSpecChecker) checker).util);
+  }
+
+  @Override
+  protected TypeValidator createTypeValidator() {
+    return new NullSpecTypeValidator(checker, this, atypeFactory, ((NullSpecChecker) checker).util);
   }
 }
