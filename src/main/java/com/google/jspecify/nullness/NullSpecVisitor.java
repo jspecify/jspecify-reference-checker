@@ -590,10 +590,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
       Set.of(
           "org.jspecify.annotations.NonNull",
           "org.jspecify.annotations.Nullable",
-          "org.jspecify.annotations.NullnessUnspecified",
-          "org.jspecify.nullness.NonNull",
-          "org.jspecify.nullness.Nullable",
-          "org.jspecify.nullness.NullnessUnspecified");
+          "org.jspecify.annotations.NullnessUnspecified");
 
   @Override
   protected boolean checkMethodReferenceAsOverride(MemberReferenceTree tree, Void p) {
