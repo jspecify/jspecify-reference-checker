@@ -588,16 +588,16 @@ final class NullSpecAnnotatedTypeFactory
       case TYPEVAR:
         return singletonList(((AnnotatedTypeVariable) type).getUpperBound());
 
-      /*
-       * We used to have a case here for WILDCARD. It shouldn't be necessary now that we've merged
-       * the CF implementation capture conversion. That said, we shouldn't need wildcard handling
-       * in isNullnessSubtype, either, and yet we do.
-       *
-       * So we could consider restoring wildcard handling here, too. But for now, we've left it
-       * out, since its implementation required some digging into javac internal types and calling
-       * getAnnotatedType (always a little scary, as discussed in
-       * NullSpecTreeAnnotator.visitMethodInvocation and elsewhere).
-       */
+        /*
+         * We used to have a case here for WILDCARD. It shouldn't be necessary now that we've merged
+         * the CF implementation capture conversion. That said, we shouldn't need wildcard handling
+         * in isNullnessSubtype, either, and yet we do.
+         *
+         * So we could consider restoring wildcard handling here, too. But for now, we've left it
+         * out, since its implementation required some digging into javac internal types and calling
+         * getAnnotatedType (always a little scary, as discussed in
+         * NullSpecTreeAnnotator.visitMethodInvocation and elsewhere).
+         */
 
       default:
         return emptyList();
