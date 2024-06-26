@@ -30,6 +30,6 @@ final class NullSpecStore extends CFAbstractStore<CFValue, NullSpecStore> {
   @Override
   protected boolean shouldInsert(
       JavaExpression expr, CFValue value, boolean permitNondeterministic) {
-    return super.shouldInsert(expr, value, /*permitNondeterministic=*/ true);
+    return super.shouldInsert(expr, value, /* permitNondeterministic= */ true);
   }
 }
