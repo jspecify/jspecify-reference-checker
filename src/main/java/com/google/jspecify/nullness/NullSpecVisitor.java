@@ -88,7 +88,7 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   }
 
   private void ensureNonNull(Tree tree) {
-    ensureNonNull(tree, /*messageKey=*/ "dereference");
+    ensureNonNull(tree, /* messageKey= */ "dereference");
   }
 
   private void ensureNonNull(Tree tree, String messageKey) {
