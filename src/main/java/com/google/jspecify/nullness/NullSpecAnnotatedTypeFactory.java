@@ -185,7 +185,7 @@ final class NullSpecAnnotatedTypeFactory
 
   /** Constructor that takes all configuration from the provided {@code checker}. */
   NullSpecAnnotatedTypeFactory(BaseTypeChecker checker, Util util) {
-    this(checker, util, checker.hasOption("strict"), /*withOtherWorld=*/ null);
+    this(checker, util, checker.hasOption("strict"), /* withOtherWorld= */ null);
   }
 
   /**
@@ -210,8 +210,6 @@ final class NullSpecAnnotatedTypeFactory
 
     addAliasedTypeAnnotation(
         "org.jspecify.annotations.NullnessUnspecified", nullnessOperatorUnspecified);
-    addAliasedTypeAnnotation(
-        "org.jspecify.nullness.NullnessUnspecified", nullnessOperatorUnspecified);
 
     // Yes, it's valid to pass declaration annotations to addAliased*Type*Annotation.
     NULLABLE_ANNOTATIONS.forEach(a -> addAliasedTypeAnnotation(a, unionNull));
@@ -267,10 +265,6 @@ final class NullSpecAnnotatedTypeFactory
         "org.jspecify.annotations.NullMarked",
         DefaultQualifier.List.class.getCanonicalName(),
         nullMarkedDefaultQual);
-    addAliasedDeclAnnotation(
-        "org.jspecify.nullness.NullMarked",
-        DefaultQualifier.List.class.getCanonicalName(),
-        nullMarkedDefaultQual);
     // TODO: does this work as intended?
     /*
      * We assume that ProtoNonnullApi is like NullMarked in that it guarantees that *all* types
@@ -316,10 +310,6 @@ final class NullSpecAnnotatedTypeFactory
         "org.jspecify.annotations.NullUnmarked",
         DefaultQualifier.List.class.getCanonicalName(),
         nullUnmarkedDefaultQual);
-    addAliasedDeclAnnotation(
-        "org.jspecify.nullness.NullUnmarked",
-        DefaultQualifier.List.class.getCanonicalName(),
-        nullUnmarkedDefaultQual);
 
     this.isLeastConvenientWorld = isLeastConvenientWorld;
 
@@ -340,7 +330,7 @@ final class NullSpecAnnotatedTypeFactory
     if (!givenOtherWorld) {
       withOtherWorld =
           new NullSpecAnnotatedTypeFactory(
-              checker, util, !isLeastConvenientWorld, /*withOtherWorld=*/ this);
+              checker, util, !isLeastConvenientWorld, /* withOtherWorld= */ this);
     }
     if (isLeastConvenientWorld) {
       withLeastConvenientWorld = this;
@@ -494,7 +484,7 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     protected QualifierKindHierarchy createQualifierKindHierarchy(
         Collection<Class<? extends Annotation>> qualifierClasses) {
-      return new DefaultQualifierKindHierarchy(qualifierClasses, /*bottom=*/ MinusNull.class) {
+      return new DefaultQualifierKindHierarchy(qualifierClasses, /* bottom= */ MinusNull.class) {
         @Override
         protected Map<DefaultQualifierKind, Set<DefaultQualifierKind>> createDirectSuperMap() {
           DefaultQualifierKind minusNullKind =
@@ -851,13 +841,13 @@ final class NullSpecAnnotatedTypeFactory
 
     @Override
     protected boolean checkOrAreEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-      Boolean pastResult = visitHistory.get(type1, type2, /*hierarchy=*/ unionNull);
+      Boolean pastResult = visitHistory.get(type1, type2, /* hierarchy= */ unionNull);
       if (pastResult != null) {
         return pastResult;
       }
 
       boolean result = areEqual(type1, type2);
-      this.visitHistory.put(type1, type2, /*hierarchy=*/ unionNull, result);
+      this.visitHistory.put(type1, type2, /* hierarchy= */ unionNull, result);
       return result;
     }
 
@@ -947,7 +937,7 @@ final class NullSpecAnnotatedTypeFactory
     @Override
     protected AnnotatedTypeMirror substituteTypeVariable(
         AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
-      AnnotatedTypeMirror substitute = argument.deepCopy(/*copyAnnotations=*/ true);
+      AnnotatedTypeMirror substitute = argument.deepCopy(/* copyAnnotations= */ true);
 
       /*
        * The isNullExclusiveUnderEveryParameterization check handles cases like
@@ -1541,7 +1531,7 @@ final class NullSpecAnnotatedTypeFactory
       @Override
       public String formatAnnotationString(
           Collection<? extends AnnotationMirror> annos, boolean printInvisible) {
-        return super.formatAnnotationString(annos, /*printInvisible=*/ false);
+        return super.formatAnnotationString(annos, /* printInvisible= */ false);
       }
     };
   }
@@ -1554,7 +1544,7 @@ final class NullSpecAnnotatedTypeFactory
   private final class NullSpecAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
     @Override
     public String format(AnnotatedTypeMirror type) {
-      return format(type, /*printVerbose=*/ false);
+      return format(type, /* printVerbose= */ false);
     }
 
     @Override
@@ -1845,7 +1835,7 @@ final class NullSpecAnnotatedTypeFactory
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
   private <T extends AnnotatedTypeMirror> T withMinusNull(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
-    type = (T) type.deepCopy(/*copyAnnotations=*/ true);
+    type = (T) type.deepCopy(/* copyAnnotations= */ true);
     /*
      * TODO(cpovirk): In the case of a type-variable usage, I feel like we should need to *remove*
      * any existing annotation but then not *add* minusNull. (This is because of the difference
@@ -1860,14 +1850,14 @@ final class NullSpecAnnotatedTypeFactory
   @SuppressWarnings("unchecked") // safety guaranteed by API docs
   private <T extends AnnotatedTypeMirror> T withUnionNull(T type) {
     // Remove the annotation from the *root* type, but preserve other annotations.
-    type = (T) type.deepCopy(/*copyAnnotations=*/ true);
+    type = (T) type.deepCopy(/* copyAnnotations= */ true);
     type.replaceAnnotation(unionNull);
     return type;
   }
 
   private AnnotatedDeclaredType createType(TypeElement element) {
     return (AnnotatedDeclaredType)
-        AnnotatedTypeMirror.createType(element.asType(), this, /*isDeclaration=*/ false);
+        AnnotatedTypeMirror.createType(element.asType(), this, /* isDeclaration= */ false);
   }
 
   // Avoid lambdas so that our Predicates can have a useful toString() for logging purposes.
@@ -1962,7 +1952,6 @@ final class NullSpecAnnotatedTypeFactory
                 "org.jetbrains.annotations.Nullable",
                 "org.jmlspecs.annotation.Nullable",
                 "org.jspecify.annotations.Nullable",
-                "org.jspecify.nullness.Nullable",
                 "org.json.Nullable",
                 "org.netbeans.api.annotations.common.CheckForNull",
                 "org.netbeans.api.annotations.common.NullAllowed",
@@ -2009,7 +1998,6 @@ final class NullSpecAnnotatedTypeFactory
                 "org.jetbrains.annotations.NotNull",
                 "org.jmlspecs.annotation.NonNull",
                 "org.jspecify.annotations.NonNull",
-                "org.jspecify.nullness.NonNull",
                 "org.json.NonNull",
                 "org.netbeans.api.annotations.common.NonNull",
                 "org.springframework.lang.NonNull",
