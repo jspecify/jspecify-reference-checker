@@ -141,6 +141,7 @@ final class NullSpecAnnotatedTypeFactory
       new TypeUseLocation[] {
         TypeUseLocation.CONSTRUCTOR_RESULT,
         TypeUseLocation.EXCEPTION_PARAMETER,
+        TypeUseLocation.IMPLICIT_LOWER_BOUND,
         TypeUseLocation.RECEIVER,
       };
 
@@ -153,10 +154,6 @@ final class NullSpecAnnotatedTypeFactory
 
   private static final TypeUseLocation[] defaultLocationsUnspecified =
       new TypeUseLocation[] {
-        // Lower bounds could be MinusNull, but all uses in unmarked code would become unspecified
-        // anyways.
-        // Revisit once https://github.com/eisop/checker-framework/issues/741 is fixed.
-        TypeUseLocation.IMPLICIT_LOWER_BOUND,
         TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER,
         TypeUseLocation.TYPE_VARIABLE_USE,
         TypeUseLocation.OTHERWISE
