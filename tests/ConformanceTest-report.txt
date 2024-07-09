@@ -1,4 +1,4 @@
-# 90 pass; 24 fail; 114 total; 78.9% score
+# 93 pass; 24 fail; 117 total; 79.5% score
 PASS: Basic.java:28:test:expression-type:Object?:nullable
 PASS: Basic.java:28:test:sink-type:Object!:return
 PASS: Basic.java:28:test:cannot-convert:Object? to Object!
@@ -44,6 +44,7 @@ PASS: irrelevantannotations/notnullmarked/Other.java:Nullable local variable arr
 PASS: irrelevantannotations/notnullmarked/Other.java:NonNull local variable array:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/notnullmarked/Other.java:Nullable exception parameter:test:irrelevant-annotation:Nullable
 PASS: irrelevantannotations/notnullmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/notnullmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/notnullmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
 FAIL: irrelevantannotations/notnullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/notnullmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
@@ -75,6 +76,7 @@ PASS: irrelevantannotations/nullmarked/Other.java:Nullable local variable array:
 PASS: irrelevantannotations/nullmarked/Other.java:NonNull local variable array:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/nullmarked/Other.java:Nullable exception parameter:test:irrelevant-annotation:Nullable
 PASS: irrelevantannotations/nullmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/nullmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
 FAIL: irrelevantannotations/nullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/nullmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
@@ -107,6 +109,7 @@ PASS: irrelevantannotations/nullunmarked/Other.java:Nullable local variable arra
 PASS: irrelevantannotations/nullunmarked/Other.java:NonNull local variable array:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/nullunmarked/Other.java:Nullable exception parameter:test:irrelevant-annotation:Nullable
 PASS: irrelevantannotations/nullunmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullunmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/nullunmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
 FAIL: irrelevantannotations/nullunmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/nullunmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
