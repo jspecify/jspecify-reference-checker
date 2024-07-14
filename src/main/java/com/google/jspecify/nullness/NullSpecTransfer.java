@@ -412,7 +412,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
             argument.getUnderlyingType(),
             getter,
             setterCall.getReceiver(),
-            /*arguments=*/ emptyList());
+            /* arguments= */ emptyList());
     return overwrite(getterCall, argument, store);
   }
 
@@ -788,7 +788,7 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
   private AnnotatedTypeMirror typeWithTopLevelAnnotationsOnly(
       TransferInput<CFValue, NullSpecStore> input, Node node) {
     Set<AnnotationMirror> annotations = input.getValueOfSubNode(node).getAnnotations();
-    AnnotatedTypeMirror type = createType(node.getType(), atypeFactory, /*isDeclaration=*/ false);
+    AnnotatedTypeMirror type = createType(node.getType(), atypeFactory, /* isDeclaration= */ false);
     type.addAnnotations(annotations);
     return type;
   }
