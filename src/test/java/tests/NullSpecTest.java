@@ -92,7 +92,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
   private static String[] checkerOptions(boolean strict) {
     ImmutableList.Builder<String> options = ImmutableList.builder();
     options.add(
-        "-AassumePure", "-Adetailedmsgtext", "-AcheckImpl", "-AsuppressWarnings=conditional");
+        "-AassumePure", "-AcheckImpl", "-AsuppressWarnings=conditional");
     if (strict) {
       options.add("-Astrict");
     }
@@ -146,15 +146,6 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
    * unexpected}, a reported diagnostic.
    */
   private boolean corresponds(TestDiagnostic missing, TestDiagnostic unexpected) {
-    return unexpected instanceof DetailedTestDiagnostic
-        && corresponds(missing, (DetailedTestDiagnostic) unexpected);
-  }
-
-  /**
-   * Returns {@code true} if {@code missing} is a JSpecify directive that matches {@code
-   * unexpected}, a reported diagnostic.
-   */
-  private boolean corresponds(TestDiagnostic missing, DetailedTestDiagnostic unexpected) {
     // First, make sure the two diagnostics are on the same file and line.
     if (!missing.getFilename().equals(unexpected.getFilename())
         || missing.getLineNumber() != unexpected.getLineNumber()) {
