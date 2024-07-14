@@ -54,6 +54,18 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     }
   }
 
+  /** A small set of strict regression tests. */
+  public static class RegressionStrict extends NullSpecTest {
+    public RegressionStrict(List<File> testFiles) {
+      super(testFiles, true);
+    }
+
+    @Parameters
+    public static String[] getTestDirs() {
+      return new String[] {"regression-strict"};
+    }
+  }
+
   /** A test that ignores cases where there is limited nullness information. */
   public static class Lenient extends NullSpecTest {
     public Lenient(List<File> testFiles) {
