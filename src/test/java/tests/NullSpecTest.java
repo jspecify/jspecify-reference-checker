@@ -91,8 +91,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
   private static String[] checkerOptions(boolean strict) {
     ImmutableList.Builder<String> options = ImmutableList.builder();
-    options.add(
-        "-AassumePure", "-AcheckImpl", "-AsuppressWarnings=conditional");
+    options.add("-AassumePure", "-AcheckImpl", "-AsuppressWarnings=conditional");
     if (strict) {
       options.add("-Astrict");
     }
