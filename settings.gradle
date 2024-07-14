@@ -10,12 +10,10 @@ exec {
     executable './initialize-project'
 }
 
-includeBuild("../checker-framework")
-
 dependencyResolutionManagement {
     versionCatalogs {
         libs {
-            version("checkerFramework", "3.42.0-eisop3-SNAPSHOT")
+            version("checkerFramework", "3.42.0-eisop4")
 
             library("checkerFramework-checker", "io.github.eisop", "checker").versionRef("checkerFramework")
             library("checkerFramework-checker-qual", "io.github.eisop", "checker-qual").versionRef("checkerFramework")
