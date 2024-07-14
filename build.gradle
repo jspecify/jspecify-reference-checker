@@ -139,7 +139,7 @@ tasks.register('includeJSpecifyJDK')  {
     // This directory needs to be stored at the top-level of the resulting .jar file.
     // org.checkerframework.framework.stub.AnnotationFileElementTypes will then load
     // the JDK classes from here instead of from checker.jar.
-    def dstDir = "${buildDir}/generated/resources/annotated-jdk/"
+    def dstDir = "${buildDir}/generated/resources/annotated-jdk/src/"
 
     inputs.dir file(srcDir)
     outputs.dir file(dstDir)
