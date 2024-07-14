@@ -15,6 +15,14 @@ if [ ! -e "${jspecify}" ]; then
       -DoutputDirectory="$(dirname "${jspecify}")"
   fi
 fi
+
+checkerFrameworkDir="${dir}/../checker-framework/"
+checkerFrameworkJar="${checkerFrameworkDir}/checker/dist/checker.jar"
+if [ ! -e "${checkerFrameworkJar}" ]; then
+  echo "Ensure you clone and build the EISOP Checker Framework in ${checkerFrameworkDir}."
+  exit
+fi
+
 jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify_reference_checker}" ]; then
   echo "Assembling jspecify-reference-checker"
@@ -25,7 +33,7 @@ ourclasspath="${jspecify}:${jspecify_reference_checker}"
 
 export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
-$dir/../checker-framework/checker/bin/javac \
+$checkerFrameworkDir/checker/bin/javac \
   -processorpath "${ourclasspath}" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
   -AcheckImpl \
