@@ -19,8 +19,14 @@ fi
 checkerFrameworkDir="${dir}/../checker-framework/"
 checkerFrameworkJar="${checkerFrameworkDir}/checker/dist/checker.jar"
 if [ ! -e "${checkerFrameworkJar}" ]; then
-  echo "Ensure you clone and build the EISOP Checker Framework in ${checkerFrameworkDir}."
-  exit
+  cfVersion="3.42.0-eisop4"
+  checkerFrameworkJar="${dir}/build/checker-${cfVersion}.jar"
+  if [ ! -e "${checkerFrameworkJar}" ]; then
+    echo "Downloading $(basename "${checkerFrameworkJar}") from Maven central"
+    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+      -Dartifact="io.github.eisop:checker:${version}" \
+      -DoutputDirectory="$(dirname "${checkerFrameworkJar}")"
+  fi
 fi
 
 jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker-0.0.0-SNAPSHOT.jar"
@@ -33,7 +39,7 @@ ourclasspath="${jspecify}:${jspecify_reference_checker}"
 
 export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
-$checkerFrameworkDir/checker/bin/javac \
+java -jar "${checkerFrameworkJar}" \
   -processorpath "${ourclasspath}" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
   -AcheckImpl \
