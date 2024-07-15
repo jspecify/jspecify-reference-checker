@@ -20,11 +20,11 @@ checkerFrameworkDir="${dir}/../checker-framework/"
 checkerFrameworkJar="${checkerFrameworkDir}/checker/dist/checker.jar"
 if [ ! -e "${checkerFrameworkJar}" ]; then
   cfVersion="3.42.0-eisop4"
-  checkerFrameworkJar="${dir}/build/checker-${cfVersion}.jar"
+  checkerFrameworkJar="${dir}/build/checker-${cfVersion}-all.jar"
   if [ ! -e "${checkerFrameworkJar}" ]; then
     echo "Downloading $(basename "${checkerFrameworkJar}") from Maven central"
     mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
-      -Dartifact="io.github.eisop:checker:${cfVersion}" \
+      -Dartifact="io.github.eisop:checker:${cfVersion}:jar:all" \
       -DoutputDirectory="$(dirname "${checkerFrameworkJar}")"
   fi
 fi
@@ -42,6 +42,8 @@ export CLASSPATH="${ourclasspath}:$CLASSPATH"
 java -jar "${checkerFrameworkJar}" \
   -processorpath "${ourclasspath}" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
+  -checkerQualJar "${checkerFrameworkJar}" \
+  -checkerUtilJar "${checkerFrameworkJar}" \
   -AcheckImpl \
   -AassumePure \
   -AsuppressWarnings=contracts.conditional.postcondition.false.methodref,contracts.conditional.postcondition.false.override,contracts.conditional.postcondition.true.methodref,contracts.conditional.postcondition.true.override,purity.methodref,purity.overriding,type.anno.before.decl.anno,type.anno.before.modifier \
