@@ -6,13 +6,16 @@ import org.jspecify.annotations.Nullable;
 
 @NullMarked
 class Demo {
+  // Error about usage on primitive, also a warning from Error Prone.
   void conflict(@Nullable int i) {}
 
   Object incompatible(@Nullable Object in) {
+    // Error about incompatible return.
     return in;
   }
 
   String deref(@Nullable Object in) {
+    // Error about dereference of nullable reference.
     return in.toString();
   }
 
