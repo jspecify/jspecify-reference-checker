@@ -17,9 +17,9 @@ But that's its *only* job. Notably, it is:
 
 ## Relationship to Checker Framework and EISOP
 
-The [EISOP project](https://eisop.github.io/) maintains a fork of [Checker Framework](https://checkerframework.org/), and JSpecify conformance is one of its primary goals.
+The [EISOP project](https://eisop.github.io/) maintains a fork of the [Checker Framework](https://checkerframework.org/), and JSpecify conformance is one of its goals.
 
-This tool happens to be built on top of another fork of these ([here](https://github.com/jspecify/checker-framework)). However, please view this relationship as **implementation detail** only. Building a reference checker from scratch would simply have been too difficult, so we needed to base it on some existing tool. The choice of which tool was made purely for expediency and is **subject to change**.
+This tool is built on top of the [EISOP Checker Framework](https://github.com/eisop/checker-framework). However, please view this relationship as **implementation detail** only. Building a reference checker from scratch would simply have been too difficult, so we needed to base it on some existing tool. The choice of which tool was made purely for expediency and is **subject to change**.
 
 ## Usage
 
