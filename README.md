@@ -23,7 +23,7 @@ This tool is built on top of the [EISOP Checker Framework](https://github.com/ei
 
 ## Usage
 
-Building and running this tool requires building code from several other repositories, but these instructions will take care of that automatically.
+Building and running this tool depends on code from several other repositories, but these instructions will take care of that automatically.
 
 These instructions might require workarounds or fail outright. Please file an issue if you have any trouble!
 
@@ -31,7 +31,7 @@ These instructions might require workarounds or fail outright. Please file an is
 
 Ideally set `JAVA_HOME` to a JDK 11 or JDK 18 installation.
 
-Make sure you have Apache Maven installed and in your PATH, or the Gradle build will fail:
+Make sure you have Apache Maven installed and in your PATH, or the `demo` script will fail:
 
 ```sh
 mvn
