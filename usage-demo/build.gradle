@@ -10,7 +10,7 @@ plugins {
 ext {
     versions = [
         eisopVersion: '3.42.0-eisop4',
-        jspecifyVersion: '0.3.0',
+        jspecifyVersion: '1.0.0',
         jspecifyReferenceCheckerVersion: '0.0.0-SNAPSHOT'
     ]
 }
