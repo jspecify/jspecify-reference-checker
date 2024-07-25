@@ -29,7 +29,7 @@ clone the repo (or your fork) somewhere, and pass
 `--include-build path/to/jspecify` to Gradle when building. The local clone will
 be used for both the annotations and the conformance test suite.
 
-By default the reference checker depends on version `0.3.0` of the annotations,
+By default the reference checker depends on version `1.0.0` of the annotations,
 and version `0.0.0-SNAPSHOT` of the conformance test suite.
 
 In order to depend on a different published version of either artifact, set
