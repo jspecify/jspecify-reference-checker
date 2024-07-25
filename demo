@@ -6,7 +6,7 @@
 dir=$(dirname $0)
 jspecify="${dir}/../jspecify/build/libs/jspecify-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify}" ]; then
-  version=0.3.0
+  version=1.0.0
   jspecify="${dir}/build/jspecify-${version}.jar"
   if [ ! -e "${jspecify}" ]; then
     echo "Downloading $(basename "${jspecify}") from Maven central"

@@ -333,3 +333,47 @@ eclipse.classpath {
         }
     }
 }
+
+publishing {
+    publications {
+        jspecifyReferenceChecker(MavenPublication) {
+            pom {
+                groupId = 'org.jspecify.reference'
+                artifactId = 'checker'
+                version = project.version
+                name = 'JSpecify Reference Checker'
+                description = 'The JSpecify Reference Checker'
+                url = 'http://jspecify.org/'
+                from components.java
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
+                    developerConnection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
+                    url = 'https://github.com/jspecify/jspecify-reference-checker'
+                }
+                developers {
+                    developer {
+                        id = 'cpovirk'
+                        name = 'Chris Povirk'
+                        email = 'cpovirk@google.com'
+                    }
+                    developer {
+                        id = 'netdpb'
+                        name = 'David P. Baker'
+                        email = 'dpb@google.com'
+                    }
+                    developer {
+                        id = 'wmdietl'
+                        name = 'Werner M. Dietl'
+                        email = 'wdietl@gmail.com'
+                    }
+                }
+            }
+        }
+    }
+}
