@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.ListIterator;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.checkerframework.framework.test.TypecheckResult;
+import org.checkerframework.framework.test.diagnostics.DetailedTestDiagnostic;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
 import org.checkerframework.framework.test.diagnostics.TestDiagnostic;
 import org.checkerframework.javacutil.BugInCF;
@@ -50,6 +51,18 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
     @Parameters
     public static String[] getTestDirs() {
       return new String[] {"regression"};
+    }
+  }
+
+  /** A small set of strict regression tests. */
+  public static class RegressionStrict extends NullSpecTest {
+    public RegressionStrict(List<File> testFiles) {
+      super(testFiles, true);
+    }
+
+    @Parameters
+    public static String[] getTestDirs() {
+      return new String[] {"regression-strict"};
     }
   }
 
@@ -90,8 +103,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
   private static String[] checkerOptions(boolean strict) {
     ImmutableList.Builder<String> options = ImmutableList.builder();
-    options.add(
-        "-AassumePure", "-Adetailedmsgtext", "-AcheckImpl", "-AsuppressWarnings=conditional");
+    options.add("-AassumePure", "-AcheckImpl", "-AsuppressWarnings=conditional");
     if (strict) {
       options.add("-Astrict");
     }
@@ -117,10 +129,8 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     for (ListIterator<TestDiagnostic> i = unexpected.listIterator(); i.hasNext(); ) {
       TestDiagnostic diagnostic = i.next();
-      DetailMessage detailMessage = DetailMessage.parse(diagnostic, null);
-      if (detailMessage.hasDetails()) {
-        // Replace diagnostics that can be parsed with DetailMessage diagnostics.
-        i.set(detailMessage);
+      if (diagnostic instanceof DetailedTestDiagnostic) {
+        // Keep all detailed test diagnostics.
       } else if (diagnostic.getKind() != DiagnosticKind.Error) {
         // Remove warnings like explicit.annotation.ignored and deprecation.
         i.remove();
@@ -147,15 +157,6 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
    * unexpected}, a reported diagnostic.
    */
   private boolean corresponds(TestDiagnostic missing, TestDiagnostic unexpected) {
-    return unexpected instanceof DetailMessage
-        && corresponds(missing, ((DetailMessage) unexpected));
-  }
-
-  /**
-   * Returns {@code true} if {@code missing} is a JSpecify directive that matches {@code
-   * unexpected}, a reported diagnostic.
-   */
-  private boolean corresponds(TestDiagnostic missing, DetailMessage unexpected) {
     // First, make sure the two diagnostics are on the same file and line.
     if (!missing.getFilename().equals(unexpected.getFilename())
         || missing.getLineNumber() != unexpected.getLineNumber()) {
@@ -167,7 +168,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
         || missing.getMessage().contains("jspecify_nullness_not_enough_information")
         || missing.getMessage().contains("jspecify_nullness_mismatch")
         || missing.getMessage().contains("test:cannot-convert")) {
-      switch (unexpected.messageKey) {
+      switch (unexpected.getMessageKey()) {
         case "argument.type.incompatible":
         case "assignment.type.incompatible":
         case "atomicreference.must.include.null":
@@ -190,7 +191,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
 
     switch (missing.getMessage()) {
       case "jspecify_nullness_intrinsically_not_nullable":
-        switch (unexpected.messageKey) {
+        switch (unexpected.getMessageKey()) {
           case "enum.constant.annotated":
           case "outer.annotated":
           case "primitive.annotated":
@@ -199,7 +200,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
             return false;
         }
       case "jspecify_unrecognized_location":
-        switch (unexpected.messageKey) {
+        switch (unexpected.getMessageKey()) {
             /*
              * We'd rather avoid this `bound` error (in part because it suggests that the annotation
              * is having some effect, which we don't want!), but the most important thing is that the
@@ -217,7 +218,7 @@ abstract class NullSpecTest extends CheckerFrameworkPerDirectoryTest {
             return false;
         }
       case "jspecify_conflicting_annotations":
-        switch (unexpected.messageKey) {
+        switch (unexpected.getMessageKey()) {
           case "type.invalid.conflicting.annos":
           case "type.invalid.super.wildcard":
             return true;
