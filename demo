@@ -15,6 +15,20 @@ if [ ! -e "${jspecify}" ]; then
       -DoutputDirectory="$(dirname "${jspecify}")"
   fi
 fi
+
+checkerFrameworkDir="${dir}/../checker-framework/"
+checkerFrameworkJar="${checkerFrameworkDir}/checker/dist/checker.jar"
+if [ ! -e "${checkerFrameworkJar}" ]; then
+  cfVersion="3.42.0-eisop4"
+  checkerFrameworkJar="${dir}/build/checker-${cfVersion}-all.jar"
+  if [ ! -e "${checkerFrameworkJar}" ]; then
+    echo "Downloading $(basename "${checkerFrameworkJar}") from Maven central"
+    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+      -Dartifact="io.github.eisop:checker:${cfVersion}:jar:all" \
+      -DoutputDirectory="$(dirname "${checkerFrameworkJar}")"
+  fi
+fi
+
 jspecify_reference_checker="${dir}/build/libs/jspecify-reference-checker-0.0.0-SNAPSHOT.jar"
 if [ ! -e "${jspecify_reference_checker}" ]; then
   echo "Assembling jspecify-reference-checker"
@@ -25,9 +39,11 @@ ourclasspath="${jspecify}:${jspecify_reference_checker}"
 
 export CLASSPATH="${ourclasspath}:$CLASSPATH"
 
-$dir/../checker-framework/checker/bin/javac \
+java -jar "${checkerFrameworkJar}" \
   -processorpath "${ourclasspath}" \
   -processor com.google.jspecify.nullness.NullSpecChecker \
+  -checkerQualJar "${checkerFrameworkJar}" \
+  -checkerUtilJar "${checkerFrameworkJar}" \
   -AcheckImpl \
   -AassumePure \
   -AsuppressWarnings=contracts.conditional.postcondition.false.methodref,contracts.conditional.postcondition.false.override,contracts.conditional.postcondition.true.methodref,contracts.conditional.postcondition.true.override,purity.methodref,purity.overriding,type.anno.before.decl.anno,type.anno.before.modifier \

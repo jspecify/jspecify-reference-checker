@@ -1,14 +1,14 @@
 # Development
 
-## Codevelopment with Checker Framework fork
+## Codevelopment with the EISOP Checker Framework
 
-This project depends on
-an [unreleased fork of the Checker Framework][jspecify-checker-framework].
-(The [main-eisop branch] represents ongoing work to depend on a released version
-of the [EISOP] fork instead.)
+This project depends on the [EISOP Checker Framework][EISOP].
 
-Because of that dependency, this build clones that unreleased fork into the
-sibling directory `../checker-framwork`.
+To codevelop changes with the EISOP Checker Framework, clone it into the
+sibling directory `../checker-framwork` and pass
+`--include-build path/to/checker-framework` to Gradle when building
+this project.
+
 _That_ build then clones some other projects into other sibling directories. It
 expects `../jdk` to contain an annotated JDK, so our build
 clones [JSpecify's][jspecify-jdk] there.
@@ -40,7 +40,6 @@ Gradle properties on the command line.
   of the conformance test suite.
 
 [EISOP]: https://github.com/eisop/checker-framework
-[jspecify-checker-framework]: https://github.com/jspecify/checker-framework
 [jspecify-jdk]: https://github.com/jspecify/jdk
 [jspecify-jspecify]: https://github.com/jspecify/jspecify
 [main-eisop branch]: https://github.com/jspecify/jspecify-reference-checker/tree/main-eisop
