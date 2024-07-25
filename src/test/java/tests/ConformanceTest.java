@@ -29,6 +29,7 @@ import com.google.jspecify.nullness.NullSpecChecker;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -37,7 +38,9 @@ import org.checkerframework.framework.test.TestConfigurationBuilder;
 import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
+import org.checkerframework.framework.test.diagnostics.DetailedTestDiagnostic;
 import org.checkerframework.framework.test.diagnostics.DiagnosticKind;
+import org.checkerframework.framework.test.diagnostics.TestDiagnostic;
 import org.jspecify.annotations.Nullable;
 import org.jspecify.conformance.ConformanceTestRunner;
 import org.jspecify.conformance.ExpectedFact;
@@ -141,10 +144,7 @@ public final class ConformanceTest {
             TestUtilities.getShouldEmitDebugInfo());
     TypecheckResult result = new TypecheckExecutor().runTest(config);
     return result.getUnexpectedDiagnostics().stream()
-        .map(d -> DetailMessage.parse(d, testDirectory))
-        // Do not filter out messages without details.
-        // .filter(DetailMessage::hasDetails)
-        .map(DetailMessageReportedFact::new)
+        .map(d -> new DetailMessageReportedFact(testDirectory, d))
         .collect(toImmutableSet());
   }
 
@@ -177,60 +177,67 @@ public final class ConformanceTest {
             "type.parameter.annotated",
             "wildcard.annotated");
 
-    private final DetailMessage detailMessage;
+    private final TestDiagnostic diagnostic;
 
-    DetailMessageReportedFact(DetailMessage detailMessage) {
-      super(detailMessage.getFile(), detailMessage.getLineNumber());
-      this.detailMessage = detailMessage;
+    DetailMessageReportedFact(@Nullable Path testDirectory, TestDiagnostic diag) {
+      super(
+          (testDirectory != null && diag.getFile().startsWith(testDirectory))
+              ? testDirectory.relativize(diag.getFile())
+              : diag.getFile(),
+          diag.getLineNumber());
+      this.diagnostic = diag;
     }
 
     @Override
     protected boolean matches(ExpectedFact expectedFact) {
       if (expectedFact.isNullnessMismatch()) {
-        return DEREFERENCE.equals(detailMessage.messageKey)
-            || CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey);
+        return DEREFERENCE.equals(diagnostic.getMessageKey())
+            || CANNOT_CONVERT_KEYS.contains(diagnostic.getMessageKey());
       }
       return super.matches(expectedFact);
     }
 
     @Override
     protected boolean mustBeExpected() {
-      return detailMessage.getKind().equals(DiagnosticKind.Error);
+      return diagnostic.getKind().equals(DiagnosticKind.Error);
     }
 
     @Override
     protected String getFactText() {
-      if (CANNOT_CONVERT_KEYS.contains(detailMessage.messageKey)) {
-        if (detailMessage.messageArguments.size() < 2) {
+      if (!(diagnostic instanceof DetailedTestDiagnostic)) {
+        return toString();
+      }
+      List<String> args = ((DetailedTestDiagnostic) diagnostic).getAdditionalTokens();
+      if (CANNOT_CONVERT_KEYS.contains(diagnostic.getMessageKey())) {
+        if (args.size() < 2) {
           // The arguments must end with sourceType and sinkType.
           return toString();
         }
-        ImmutableList<String> reversedArguments = detailMessage.messageArguments.reverse();
-        String sourceType = fixType(reversedArguments.get(1)); // penultimate
-        String sinkType = fixType(reversedArguments.get(0)); // last
+        String sourceType = fixType(args.get(args.size() - 2)); // penultimate
+        String sinkType = fixType(args.get(args.size() - 1)); // last
         return cannotConvert(sourceType, sinkType);
       }
-      if (IRRELEVANT_ANNOTATION_KEYS.contains(detailMessage.messageKey)) {
-        if (detailMessage.messageArguments.isEmpty()) {
+      if (IRRELEVANT_ANNOTATION_KEYS.contains(diagnostic.getMessageKey())) {
+        if (args.isEmpty()) {
           // arguments must start with the annotation
           return toString();
         }
         return irrelevantAnnotation(
             // Remove the package name (and any enclosing element name); emit just the simple name.
-            detailMessage.messageArguments.get(0).replaceFirst(".*\\.", ""));
+            args.get(0).replaceFirst(".*\\.", ""));
       }
-      switch (detailMessage.messageKey) {
+      switch (diagnostic.getMessageKey()) {
         case "sourceType":
           {
-            String expressionType = fixType(detailMessage.messageArguments.get(0));
-            String expression = detailMessage.messageArguments.get(1);
+            String expressionType = fixType(args.get(0));
+            String expression = args.get(1);
             return expressionType(expressionType, expression);
           }
         case "sinkType":
           {
-            String sinkType = fixType(detailMessage.messageArguments.get(0));
+            String sinkType = fixType(args.get(0));
             // Remove the simple name of the class and the dot before the method name.
-            String sink = detailMessage.messageArguments.get(1).replaceFirst("^[^.]+\\.", "");
+            String sink = args.get(1).replaceFirst("^[^.]+\\.", "");
             return sinkType(sinkType, sink);
           }
       }
@@ -239,7 +246,7 @@ public final class ConformanceTest {
 
     @Override
     public String toString() {
-      return String.format("(%s) %s", detailMessage.messageKey, detailMessage.readableMessage);
+      return String.format("(%s) %s", diagnostic.getMessageKey(), diagnostic.getMessage());
     }
 
     /**
