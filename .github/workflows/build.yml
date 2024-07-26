@@ -19,6 +19,11 @@ jobs:
         with:
           repository: jspecify/jspecify
           path: jspecify
+      - name: Check out eisop/checker-framework
+        uses: actions/checkout@v4
+        with:
+          repository: eisop/checker-framework
+          path: checker-framework
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -27,7 +32,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v3
       - name: Build and Test
-        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
+        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify --include-build ../checker-framework
         env:
           SHALLOW: 1
           JSPECIFY_CONFORMANCE_TEST_MODE: details
@@ -39,7 +44,7 @@ jobs:
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
-        run: ./gradlew jspecifySamplesTest --include-build ../jspecify
+        run: ./gradlew jspecifySamplesTest --include-build ../jspecify --include-build ../checker-framework
 
   publish-snapshot:
     name: Publish Conformance Test Framework Snapshot
