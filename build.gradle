@@ -9,6 +9,8 @@ plugins {
     id 'com.diffplug.spotless' version '6.25.0'
     id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
     id 'net.ltgt.errorprone' version '3.0.1'
+    // To show task list as a tree, run: ./gradlew <taskname> taskTree
+    id 'com.dorongold.task-tree' version '4.0.0'
 }
 
 // Nexus Publish plugin requires a group/version at the root project.
@@ -133,7 +135,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.register('includeJSpecifyJDK')  {
     group = 'Build'
-    shouldRunAfter 'compileJava'
+    dependsOn 'compileJava'
 
     def srcDir = "${jspecifyJdkHome}/src"
     // This directory needs to be stored at the top-level of the resulting .jar file.
