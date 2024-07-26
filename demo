@@ -10,7 +10,7 @@ if [ ! -e "${jspecify}" ]; then
   jspecify="${dir}/build/jspecify-${version}.jar"
   if [ ! -e "${jspecify}" ]; then
     echo "Downloading $(basename "${jspecify}") from Maven central"
-    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.7.1:copy \
       -Dartifact="org.jspecify:jspecify:${version}" \
       -DoutputDirectory="$(dirname "${jspecify}")"
   fi

@@ -29,7 +29,7 @@ These instructions might require workarounds or fail outright. Please file an is
 
 ### Prework
 
-Ideally set `JAVA_HOME` to a JDK 11 or JDK 18 installation.
+Ideally set `JAVA_HOME` to a JDK 11 or JDK 17 installation.
 
 Make sure you have Apache Maven installed and in your PATH, or the `demo` script will fail:
 
