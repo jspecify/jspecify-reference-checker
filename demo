@@ -23,7 +23,7 @@ if [ ! -e "${checkerFrameworkJar}" ]; then
   checkerFrameworkJar="${dir}/build/checker-${cfVersion}-all.jar"
   if [ ! -e "${checkerFrameworkJar}" ]; then
     echo "Downloading $(basename "${checkerFrameworkJar}") from Maven central"
-    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+    mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.7.1:copy \
       -Dartifact="io.github.eisop:checker:${cfVersion}:jar:all" \
       -DoutputDirectory="$(dirname "${checkerFrameworkJar}")"
   fi
