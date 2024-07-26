@@ -70,6 +70,11 @@ public final class NullSpecChecker extends BaseTypeChecker {
   }
 
   @Override
+  protected String suppressWarningsString(String messageKey) {
+    return "nullness";
+  }
+
+  @Override
   public void initChecker() {
     super.initChecker();
 
