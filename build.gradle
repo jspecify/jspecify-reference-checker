@@ -98,7 +98,7 @@ dependencies {
 // If built with `--include-build path/to/checker-framework` then
 // assemble checker-framework when assembling the reference checker.
 if (checkerFramework != null) {
-    assemble.dependsOn(checkerFramework.task(":checker:assembleForJavac"))
+    compileJava.dependsOn(checkerFramework.task(":checker:assembleForJavac"))
 }
 
 // If built with `--include-build path/to/jspecify` then
