@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test case for Issue 172:
+// https://github.com/jspecify/jspecify-reference-checker/issues/172
+
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+
+class Issue172<E> {
+  E e() {
+    return null;
+  }
+
+  void p(E p) {
+    p = null;
+  }
+}
+
+class Issue172UnmarkedUse {
+  void foo(Issue172<Object> p) {}
+}
 
 @NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
-  }
+class Issue172MarkedUse {
+  void foo(Issue172<Object> p) {}
 }
