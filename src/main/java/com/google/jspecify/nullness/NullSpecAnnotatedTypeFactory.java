@@ -532,6 +532,14 @@ final class NullSpecAnnotatedTypeFactory
   }
 
   @Override
+  public AnnotatedTypeMirror applyCaptureConversion(
+      AnnotatedTypeMirror type, TypeMirror typeMirror) {
+    return this == withLeastConvenientWorld
+        ? super.applyCaptureConversion(type, typeMirror)
+        : withLeastConvenientWorld.applyCaptureConversion(type, typeMirror);
+  }
+
+  @Override
   protected TypeHierarchy createTypeHierarchy() {
     return new NullSpecTypeHierarchy(
         checker,
