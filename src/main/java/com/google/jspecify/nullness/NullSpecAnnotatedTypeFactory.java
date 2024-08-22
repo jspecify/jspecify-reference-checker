@@ -104,12 +104,10 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotationFormatter;
-import org.checkerframework.framework.util.Contract.ConditionalPostcondition;
-import org.checkerframework.framework.util.Contract.Postcondition;
-import org.checkerframework.framework.util.Contract.Precondition;
 import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
 import org.checkerframework.framework.util.DefaultQualifierKindHierarchy;
+import org.checkerframework.framework.util.NoContractsFromMethod;
 import org.checkerframework.framework.util.QualifierKindHierarchy;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -1037,23 +1035,7 @@ final class NullSpecAnnotatedTypeFactory
   // Disable checking of contracts.
   @Override
   protected ContractsFromMethod createContractsFromMethod() {
-    return new ContractsFromMethod(this) {
-      @Override
-      public Set<ConditionalPostcondition> getConditionalPostconditions(
-          ExecutableElement methodElement) {
-        return emptySet();
-      }
-
-      @Override
-      public Set<Precondition> getPreconditions(ExecutableElement executableElement) {
-        return emptySet();
-      }
-
-      @Override
-      public Set<Postcondition> getPostconditions(ExecutableElement executableElement) {
-        return emptySet();
-      }
-    };
+    return new NoContractsFromMethod();
   }
 
   @Override
