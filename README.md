@@ -17,13 +17,13 @@ But that's its *only* job. Notably, it is:
 
 ## Relationship to Checker Framework and EISOP
 
-The [EISOP project](https://eisop.github.io/) maintains a fork of [Checker Framework](https://checkerframework.org/), and JSpecify conformance is one of its primary goals.
+The [EISOP project](https://eisop.github.io/) maintains a fork of the [Checker Framework](https://checkerframework.org/), and JSpecify conformance is one of its goals.
 
-This tool happens to be built on top of another fork of these ([here](https://github.com/jspecify/checker-framework)). However, please view this relationship as **implementation detail** only. Building a reference checker from scratch would simply have been too difficult, so we needed to base it on some existing tool. The choice of which tool was made purely for expediency and is **subject to change**.
+This tool is built on top of the [EISOP Checker Framework](https://github.com/eisop/checker-framework). However, please view this relationship as **implementation detail** only. Building a reference checker from scratch would simply have been too difficult, so we needed to base it on some existing tool. The choice of which tool was made purely for expediency and is **subject to change**.
 
 ## Usage
 
-Building and running this tool requires building code from several other repositories, but these instructions will take care of that automatically.
+Building and running this tool depends on code from several other repositories, but these instructions will take care of that automatically.
 
 These instructions might require workarounds or fail outright. Please file an issue if you have any trouble!
 
@@ -31,7 +31,7 @@ These instructions might require workarounds or fail outright. Please file an is
 
 Ideally set `JAVA_HOME` to a JDK 11 or JDK 17 installation.
 
-Make sure you have Apache Maven installed and in your PATH, or the Gradle build will fail:
+Make sure you have Apache Maven installed and in your PATH, or the `demo` script will fail:
 
 ```sh
 mvn

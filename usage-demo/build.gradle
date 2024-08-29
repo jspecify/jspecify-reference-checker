@@ -1,0 +1,70 @@
+// EISOP Checker Framework and JSpecify Reference Checker example.
+
+plugins {
+    id 'java'
+    id 'com.diffplug.spotless' version '6.25.0'
+    id 'net.ltgt.errorprone' version '3.1.0'
+    id 'org.checkerframework' version '0.6.42' apply false
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.42.0-eisop4',
+        jspecifyVersion: '1.0.0',
+        jspecifyReferenceCheckerVersion: '0.0.0-SNAPSHOT'
+    ]
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+// Project dependencies, e.g. error prone.
+dependencies {
+    errorprone 'com.google.errorprone:error_prone_core:2.23.0'
+}
+
+// Dependency on JSpecify annotations.
+dependencies {
+    implementation "org.jspecify:jspecify:${versions.jspecifyVersion}"
+}
+
+
+apply plugin: 'org.checkerframework'
+
+// Configure EISOP and JSpecify Reference Checker
+dependencies {
+    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+
+    compileOnly "org.jspecify.reference:checker:${versions.jspecifyReferenceCheckerVersion}"
+    checkerFramework "org.jspecify.reference:checker:${versions.jspecifyReferenceCheckerVersion}"
+}
+
+checkerFramework {
+    checkers = [
+        'com.google.jspecify.nullness.NullSpecChecker',
+    ]
+    extraJavacArgs = [
+        // Check implementation code, i.e. method bodies.
+        '-AcheckImpl',
+        // Output the EISOP version, to ensure configuration is correct.
+        '-Aversion'
+    ]
+}
+
+spotless {
+    java {
+        target '**/*.java'
+        googleJavaFormat()
+        formatAnnotations()
+    }
+    groovyGradle {
+        target '**/*.gradle'
+        greclipse()
+        indentWithSpaces(4)
+        trimTrailingWhitespace()
+    }
+}

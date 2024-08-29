@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test case for Issue 197:
+// https://github.com/jspecify/jspecify-reference-checker/issues/197
+
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-@NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
+class Issue197<E> {
+  interface Function<A, B> {}
+
+  interface Super<E> {
+    void i(Function<? super E, ? extends E> p);
+  }
+
+  @NullMarked
+  interface Sub<E extends @Nullable Object> extends Super<E> {
+    @Override
+    void i(Function<? super E, ? extends E> p);
   }
 }
