@@ -1963,7 +1963,7 @@ final class NullSpecAnnotatedTypeFactory
                 "com.google.gerrit.common.Nullable",
                 "com.google.protobuf.Internal.ProtoMethodAcceptsNullParameter",
                 "com.google.protobuf.Internal.ProtoMethodMayReturnNull",
-                // TODO(cpovirk): Treat this like a @PolyNull instead:
+                // TODO(cpovirk): Give this proper @PolyNull behavior:
                 "com.google.protobuf.Internal.ProtoPassThroughNullness",
                 "com.mongodb.lang.Nullable",
                 "com.sun.istack.Nullable",
@@ -1995,6 +1995,8 @@ final class NullSpecAnnotatedTypeFactory
                 "org.checkerframework.checker.nullness.compatqual.NullableType",
                 "org.checkerframework.checker.nullness.qual.MonotonicNonNull",
                 "org.checkerframework.checker.nullness.qual.Nullable",
+                // TODO(cpovirk): Give this proper @PolyNull behavior:
+                "org.checkerframework.checker.nullness.qual.PolyNull",
                 "org.codehaus.commons.nullanalysis.Nullable",
                 "org.eclipse.jdt.annotation.Nullable",
                 "org.eclipse.jgit.annotations.Nullable",
