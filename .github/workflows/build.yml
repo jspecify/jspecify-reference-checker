@@ -19,11 +19,12 @@ jobs:
         with:
           repository: jspecify/jspecify
           path: jspecify
-      - name: Check out eisop/checker-framework
-        uses: actions/checkout@v4
-        with:
-          repository: eisop/checker-framework
-          path: checker-framework
+# Clone the EISOP CF if necessary:
+#      - name: Check out eisop/checker-framework
+#        uses: actions/checkout@v4
+#        with:
+#          repository: eisop/checker-framework
+#          path: checker-framework
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -32,7 +33,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v3
       - name: Build and Test
-        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify --include-build ../checker-framework
+        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
+# If a cloned EISOP CF is needed, use the following:
+#        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify --include-build ../checker-framework
         env:
           SHALLOW: 1
           JSPECIFY_CONFORMANCE_TEST_MODE: details
