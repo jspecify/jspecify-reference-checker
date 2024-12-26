@@ -13,7 +13,7 @@ exec {
 dependencyResolutionManagement {
     versionCatalogs {
         libs {
-            version("checkerFramework", "3.42.0-eisop4")
+            version("checkerFramework", "3.42.0-eisop5")
 
             library("checkerFramework-checker", "io.github.eisop", "checker").versionRef("checkerFramework")
             library("checkerFramework-checker-qual", "io.github.eisop", "checker-qual").versionRef("checkerFramework")
