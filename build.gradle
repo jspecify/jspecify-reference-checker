@@ -109,6 +109,12 @@ if (jspecify != null) {
     assemble.dependsOn(jspecify.task(':assemble'))
 }
 
+// Enable exec/javaexec
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-Xlint:all")
     // ErrorProne makes suppressing these easier
@@ -146,6 +152,8 @@ tasks.register('includeJSpecifyJDK')  {
     inputs.dir file(srcDir)
     outputs.dir file(dstDir)
 
+    def injected = project.objects.newInstance(InjectedExecOps)
+
     doLast {
         FileTree srcTree = fileTree(dir: srcDir)
         NavigableSet<String> specFiles = new TreeSet<>();
@@ -168,7 +176,7 @@ tasks.register('includeJSpecifyJDK')  {
                 include specFile.substring(srcPrefixSize)
             }
         }
-        javaexec {
+        injected.execOps.javaexec {
             classpath = sourceSets.main.runtimeClasspath
             standardOutput = System.out
             errorOutput = System.err
@@ -202,7 +210,7 @@ tasks.withType(Test).configureEach {
         showStackTraces = false
         showStandardStreams = true
         events "failed"
-        exceptionFormat "full"
+        exceptionFormat = "full"
     }
 }
 
@@ -293,10 +301,11 @@ if (checkerFramework != null) {
     def cfQualJar =
             checkerFramework.projectDir.toPath()
             .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
+    def injected = project.objects.newInstance(InjectedExecOps)
 
     if (!cfQualJar.toFile().exists()) {
         mkdir(cfQualJar.parent)
-        exec {
+        injected.execOps.exec {
             executable 'jar'
             args = [
                 'cf',
