@@ -61,7 +61,6 @@ import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
@@ -72,10 +71,12 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory> {
   private final boolean checkImpl;
@@ -101,9 +102,11 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     }
   }
 
+  /* TODO: implement feature to add extra args to return type errors.
+   *
   @Override
   protected String extraArgForReturnTypeError(Tree tree) {
-    /*
+    /
      * We call originStringIfTernary, not originString:
      *
      * If the statement is `return foo.bar()`, then the problem is obvious, so we don't want our
@@ -116,10 +119,11 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
      * the possibly null value (possibly both!). However, this gets tricky: If the branches return
      * `Foo?` and `Foo*`, then we ideally want to emphasize the `Foo?` branch *but*, at least in
      * "strict mode," not altogether ignore the `Foo*` branch.
-     */
+      /
     String origin = originStringIfTernary(tree);
     return origin.isEmpty() ? "" : (origin + "\n");
   }
+  */
 
   private String originString(Tree tree) {
     while (tree instanceof ParenthesizedTree) {
@@ -625,13 +629,18 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
   }
 
   @Override
-  protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-    return new HashSet<>(asList(AnnotationBuilder.fromClass(elements, MinusNull.class)));
+  protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
+    return new AnnotationMirrorSet(asList(AnnotationBuilder.fromClass(elements, MinusNull.class)));
   }
 
   @Override
   protected NullSpecAnnotatedTypeFactory createTypeFactory() {
     // Reading util this way is ugly but necessary. See discussion in NullSpecChecker.
     return new NullSpecAnnotatedTypeFactory(checker, ((NullSpecChecker) checker).util);
+  }
+
+  @Override
+  protected TypeValidator createTypeValidator() {
+    return new NullSpecTypeValidator(checker, this, atypeFactory, ((NullSpecChecker) checker).util);
   }
 }

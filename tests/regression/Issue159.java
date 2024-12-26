@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Test case for Issue 159:
+// https://github.com/jspecify/jspecify-reference-checker/issues/159
+
+import java.util.ArrayList;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 @NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
+class Issue159<E> extends ArrayList<E> {
+  <F> Issue159<F> foo() {
+    return new Issue159<F>();
   }
 }

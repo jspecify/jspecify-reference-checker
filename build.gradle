@@ -9,11 +9,24 @@ plugins {
     id 'com.diffplug.spotless' version '6.25.0'
     id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'
     id 'net.ltgt.errorprone' version '3.0.1'
+    // To show task list as a tree, run: ./gradlew <taskname> taskTree
+    id 'com.dorongold.task-tree' version '4.0.0'
 }
 
 // Nexus Publish plugin requires a group/version at the root project.
 group = 'org.jspecify.reference'
 version = '0.0.0-SNAPSHOT'
+
+sourceSets {
+    main {
+        resources {
+            // Minimized jspecify/jdk
+            srcDirs += [
+                "${buildDir}/generated/resources"
+            ]
+        }
+    }
+}
 
 repositories {
     mavenLocal()
@@ -35,10 +48,14 @@ nexusPublishing {
 }
 
 ext {
-    checkerFramework = gradle.includedBuild("checker-framework")
+    // null if not included with `--include-build path/to/checker-framework`
+    checkerFramework = gradle.includedBuilds.find { it.name == 'checker-framework' }
 
     // null if not included with `--include-build path/to/jspecify`
     jspecify = gradle.includedBuilds.find { it.name == 'jspecify' }
+
+    // Location of the jspecify/jdk clone, relative to this directory
+    jspecifyJdkHome = '../jdk'
 }
 
 configurations {
@@ -61,8 +78,10 @@ java {
 dependencies {
     implementation libs.checkerFramework.checker
     implementation libs.checkerFramework.checker.qual
-    implementation libs.checkerFramework.framework
-    implementation libs.checkerFramework.javacutil
+    // Eventually, we would want to only depend on `framework` and
+    // `javacutil` artifacts instead of the entire `checker`.
+    // implementation libs.checkerFramework.framework
+    // implementation libs.checkerFramework.javacutil
 
     implementation libs.jspecify
 
@@ -78,8 +97,11 @@ dependencies {
     errorprone libs.errorProne.core
 }
 
-// Assemble checker-framework when assembling the reference checker.
-assemble.dependsOn(checkerFramework.task(":assemble"))
+// If built with `--include-build path/to/checker-framework` then
+// assemble checker-framework when assembling the reference checker.
+if (checkerFramework != null) {
+    compileJava.dependsOn(checkerFramework.task(":checker:assembleForJavac"))
+}
 
 // If built with `--include-build path/to/jspecify` then
 // assemble jspecify when assembling the reference checker.
@@ -111,6 +133,54 @@ tasks.withType(JavaCompile).configureEach {
             .collect { "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
 }
 
+tasks.register('includeJSpecifyJDK')  {
+    group = 'Build'
+    dependsOn 'compileJava'
+
+    def srcDir = "${jspecifyJdkHome}/src"
+    // This directory needs to be stored at the top-level of the resulting .jar file.
+    // org.checkerframework.framework.stub.AnnotationFileElementTypes will then load
+    // the JDK classes from here instead of from checker.jar.
+    def dstDir = "${buildDir}/generated/resources/annotated-jdk/src/"
+
+    inputs.dir file(srcDir)
+    outputs.dir file(dstDir)
+
+    doLast {
+        FileTree srcTree = fileTree(dir: srcDir)
+        NavigableSet<String> specFiles = new TreeSet<>();
+        srcTree.visit { FileVisitDetails fvd ->
+            if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')) {
+                fvd.getFile().readLines().any { line ->
+                    if (line.contains('org.jspecify')) {
+                        specFiles.add(fvd.file.absolutePath)
+                        return true;
+                    }
+                }
+            }
+        }
+        String absoluteSrcDir = file(srcDir).absolutePath
+        int srcPrefixSize = absoluteSrcDir.size()
+        copy {
+            from(srcDir)
+            into(dstDir)
+            for (String specFile : specFiles) {
+                include specFile.substring(srcPrefixSize)
+            }
+        }
+        javaexec {
+            classpath = sourceSets.main.runtimeClasspath
+            standardOutput = System.out
+            errorOutput = System.err
+
+            mainClass = 'org.checkerframework.framework.stub.JavaStubifier'
+            args dstDir
+        }
+    }
+}
+
+processResources.dependsOn(includeJSpecifyJDK)
+
 tasks.withType(Test).configureEach {
     if (!JavaVersion.current().java9Compatible) {
         jvmArgs "-Xbootclasspath/p:${configurations.errorproneJavac.asPath}"
@@ -138,8 +208,10 @@ tasks.withType(Test).configureEach {
 
 test {
     include '**/NullSpecTest$Minimal.class'
-
     inputs.files("${rootDir}/tests/minimal")
+
+    include '**/NullSpecTest$Regression.class'
+    inputs.files("${rootDir}/tests/regression")
 }
 
 tasks.register('jspecifySamplesTest', Test) {
@@ -217,24 +289,27 @@ tasks.register('demoTest', Exec)  {
  See https://github.com/jspecify/jspecify-reference-checker/issues/81
  */
 
-def cfQualJar =
-        checkerFramework.projectDir.toPath()
-        .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
+if (checkerFramework != null) {
+    def cfQualJar =
+            checkerFramework.projectDir.toPath()
+            .resolve("checker-qual/build/libs/checker-qual-${libs.versions.checkerFramework.get()}.jar")
 
-if (!cfQualJar.toFile().exists()) {
-    mkdir(cfQualJar.parent)
-    exec {
-        executable 'jar'
-        args = [
-            'cf',
-            cfQualJar,
-            buildFile.path // Use this build script file!
-        ]
+    if (!cfQualJar.toFile().exists()) {
+        mkdir(cfQualJar.parent)
+        exec {
+            executable 'jar'
+            args = [
+                'cf',
+                cfQualJar,
+                buildFile.path // Use this build script file!
+            ]
+        }
     }
 }
 
 spotless {
     java {
+        target '**/*.java'
         googleJavaFormat()
         formatAnnotations()
     }
@@ -256,6 +331,50 @@ eclipse.classpath {
             }
             if (cpe instanceof Output) {
                 cpe.path = cpe.path.replace "bin/", "build/"
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        jspecifyReferenceChecker(MavenPublication) {
+            pom {
+                groupId = 'org.jspecify.reference'
+                artifactId = 'checker'
+                version = project.version
+                name = 'JSpecify Reference Checker'
+                description = 'The JSpecify Reference Checker'
+                url = 'http://jspecify.org/'
+                from components.java
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
+                    developerConnection = 'scm:git:git@github.com:jspecify/jspecify-reference-checker.git'
+                    url = 'https://github.com/jspecify/jspecify-reference-checker'
+                }
+                developers {
+                    developer {
+                        id = 'cpovirk'
+                        name = 'Chris Povirk'
+                        email = 'cpovirk@google.com'
+                    }
+                    developer {
+                        id = 'netdpb'
+                        name = 'David P. Baker'
+                        email = 'dpb@google.com'
+                    }
+                    developer {
+                        id = 'wmdietl'
+                        name = 'Werner M. Dietl'
+                        email = 'wdietl@gmail.com'
+                    }
+                }
             }
         }
     }

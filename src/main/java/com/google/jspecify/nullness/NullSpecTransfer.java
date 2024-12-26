@@ -18,7 +18,6 @@ import static com.google.jspecify.nullness.Util.nameMatches;
 import static com.sun.source.tree.Tree.Kind.NULL_LITERAL;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static org.checkerframework.dataflow.expression.JavaExpression.fromNode;
@@ -71,6 +70,7 @@ import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, NullSpecTransfer> {
   private final Util util;
@@ -1019,7 +1019,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
     if (target == null) {
       return false;
     }
-    return atypeFactory.getQualifierHierarchy().greatestLowerBound(existing, target) == existing;
+    return atypeFactory.getQualifierHierarchy().greatestLowerBoundQualifiersOnly(existing, target)
+        == existing;
   }
 
   private static boolean isNullLiteral(Node node) {
@@ -1052,7 +1053,8 @@ final class NullSpecTransfer extends CFAbstractTransfer<CFValue, NullSpecStore, 
      * if (clazz.cast(foo) != null) { return class.cast(foo); }
      */
     result.setResultValue(
-        analysis.createAbstractValue(singleton(qual), result.getResultValue().getUnderlyingType()));
+        analysis.createAbstractValue(
+            AnnotationMirrorSet.singleton(qual), result.getResultValue().getUnderlyingType()));
   }
 
   private JavaExpression expressionToStoreFor(Node node) {

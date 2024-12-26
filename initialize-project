@@ -11,7 +11,7 @@
 # Set SHALLOW=1 to clone sibling projects at depth 1.
 #
 # This script automatically tries to download your fork of
-# jspecify/checker-framework, jspecify/jspecify, or jspecify/jdk, if they exist.
+# eisop/checker-framework, jspecify/jspecify, or jspecify/jdk, if they exist.
 # It uses the URL of the origin remote (the default remote created when cloning
 # a repo) to determine that.
 #
@@ -19,8 +19,6 @@
 # that contains your forks. For example, FORK=git@github.com:myorg means this
 # script tries to clone the following before falling back to the JSpecify repos:
 #
-# git@github:myorg/checker-framework.git
-# git@github:myorg/jspecify.git
 # git@github:myorg/jdk.git
 
 set -eu
@@ -55,14 +53,19 @@ git_clone() {
 
   local forking_org
   forking_org="$(forking_org)"
-  if [[ -n "${forking_org}" ]]; then
+  if [[ -n "${forking_org}" ]] \
+    && [[ "${forking_org}" != "https://github.com/jspecify" ]] \
+    && [[ "${forking_org}" != "git@github.com:jspecify" ]] ; then
     if run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"; then
       return
     fi
   fi
-  run "${git[@]}" "https://github.com/jspecify/${repo}.git" "../${repo}"
+  if [[ "${repo}" == "checker-framework" ]]; then
+    forking_org=https://github.com/eisop
+  else
+    forking_org=https://github.com/jspecify
+  fi
+  run "${git[@]}" "${forking_org}/${repo}.git" "../${repo}"
 }
 
 git_clone jdk --depth 1 --single-branch
-
-git_clone checker-framework

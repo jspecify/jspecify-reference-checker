@@ -23,7 +23,7 @@ import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Log;
-import java.util.SortedSet;
+import java.util.NavigableSet;
 import java.util.TreeSet;
 import javax.lang.model.element.TypeElement;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -39,9 +39,10 @@ import org.checkerframework.framework.source.SupportedOptions;
  *   <li>"strict": Whether the checker should be a sound, strict type system. Does not imply that
  *       implementation code is checked.
  *   <li>"checkImpl": Whether implementation code should be checked.
+ *   <li>"showTypes": Whether to output type information for the conformance test suite.
  * </ol>
  */
-@SupportedOptions({"strict", "checkImpl"})
+@SupportedOptions({"strict", "checkImpl", "showTypes"})
 public final class NullSpecChecker extends BaseTypeChecker {
   /*
    * A non-final field is ugly, but we can't create our Util instance in the constructor because the
@@ -62,10 +63,15 @@ public final class NullSpecChecker extends BaseTypeChecker {
   public NullSpecChecker() {}
 
   @Override
-  public SortedSet<String> getSuppressWarningsPrefixes() {
-    SortedSet<String> prefixes = new TreeSet<>();
+  public NavigableSet<String> getSuppressWarningsPrefixes() {
+    TreeSet<String> prefixes = new TreeSet<>();
     prefixes.add("nullness");
     return prefixes;
+  }
+
+  @Override
+  protected String suppressWarningsString(String messageKey) {
+    return "nullness";
   }
 
   @Override

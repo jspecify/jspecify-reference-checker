@@ -19,6 +19,12 @@ jobs:
         with:
           repository: jspecify/jspecify
           path: jspecify
+# Clone the EISOP CF if necessary:
+#      - name: Check out eisop/checker-framework
+#        uses: actions/checkout@v4
+#        with:
+#          repository: eisop/checker-framework
+#          path: checker-framework
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -28,17 +34,22 @@ jobs:
         uses: gradle/gradle-build-action@v3
       - name: Build and Test
         run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
+# If a cloned EISOP CF is needed, use the following:
+#        run: ./gradlew build conformanceTests demoTest --include-build ../jspecify --include-build ../checker-framework
         env:
           SHALLOW: 1
-      - name: Check out jspecify/samples-google-prototype
+          JSPECIFY_CONFORMANCE_TEST_MODE: details
+      - name: Check out jspecify/samples-google-prototype-eisop
         if: always()
         run: |
-          git fetch --depth=1 origin samples-google-prototype
-          git checkout samples-google-prototype
+          git fetch --depth=1 origin samples-google-prototype-eisop
+          git checkout samples-google-prototype-eisop
         working-directory: jspecify
       - name: Run Samples Tests
         if: always()
         run: ./gradlew jspecifySamplesTest --include-build ../jspecify
+# If a cloned EISOP CF is needed, use the following:
+#        run: ./gradlew jspecifySamplesTest --include-build ../jspecify --include-build ../checker-framework
 
   publish-snapshot:
     name: Publish Conformance Test Framework Snapshot

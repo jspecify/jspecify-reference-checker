@@ -1,4 +1,4 @@
-// Copyright 2020 The JSpecify Authors
+// Copyright 2024 The JSpecify Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
+package com.google.jspecify.nullness;
 
-@NullMarked
-class Demo {
-  Object mismatch(@Nullable Object o) {
-    // :: error: jspecify_nullness_mismatch
-    return o;
-  }
-}
+import static java.lang.annotation.ElementType.TYPE_USE;
+
+import java.lang.annotation.Target;
+import org.checkerframework.framework.qual.InvisibleQualifier;
+import org.checkerframework.framework.qual.ParametricTypeVariableUseQualifier;
+
+/** Internal implementation detail; not usable in user code. */
+@Target(TYPE_USE)
+@InvisibleQualifier
+@ParametricTypeVariableUseQualifier(Nullable.class)
+@interface ParametricNull {}
