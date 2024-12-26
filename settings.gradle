@@ -8,7 +8,7 @@ includeBuild(".")
 
 providers.exec {
     executable './initialize-project'
-}
+}.result.get()
 
 dependencyResolutionManagement {
     versionCatalogs {
