@@ -3,13 +3,13 @@
 plugins {
     id 'java'
     id 'com.diffplug.spotless' version '6.25.0'
-    id 'net.ltgt.errorprone' version '3.1.0'
-    id 'org.checkerframework' version '0.6.42' apply false
+    id 'net.ltgt.errorprone' version '4.1.0'
+    id 'org.checkerframework' version '0.6.48' apply false
 }
 
 ext {
     versions = [
-        eisopVersion: '3.42.0-eisop4',
+        eisopVersion: '3.42.0-eisop5',
         jspecifyVersion: '1.0.0',
         jspecifyReferenceCheckerVersion: '0.0.0-SNAPSHOT'
     ]
@@ -22,7 +22,7 @@ repositories {
 
 // Project dependencies, e.g. error prone.
 dependencies {
-    errorprone 'com.google.errorprone:error_prone_core:2.23.0'
+    errorprone 'com.google.errorprone:error_prone_core:2.36.0'
 }
 
 // Dependency on JSpecify annotations.
@@ -37,6 +37,7 @@ apply plugin: 'org.checkerframework'
 dependencies {
     compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
     testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
     checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
 
     compileOnly "org.jspecify.reference:checker:${versions.jspecifyReferenceCheckerVersion}"
