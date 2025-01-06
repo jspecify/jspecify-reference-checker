@@ -9,3 +9,13 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/conformance-test-framework"
+  schedule:
+    interval: "daily"
+
+- package-ecosystem: "gradle"
+  directory: "/usage-demo"
+  schedule:
+    interval: "daily"
