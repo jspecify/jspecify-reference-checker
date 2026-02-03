@@ -1,4 +1,4 @@
-# 93 pass; 24 fail; 117 total; 79.5% score
+# 99 pass; 18 fail; 117 total; 84.6% score
 PASS: Basic.java:28:test:expression-type:Object?:nullable
 PASS: Basic.java:28:test:sink-type:Object!:return
 PASS: Basic.java:28:test:cannot-convert:Object? to Object!
@@ -46,10 +46,10 @@ PASS: irrelevantannotations/notnullmarked/Other.java:Nullable exception paramete
 PASS: irrelevantannotations/notnullmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/notnullmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/notnullmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/notnullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/notnullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/notnullmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/notnullmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNulll
-FAIL: irrelevantannotations/notnullmarked/Other.java: no unexpected facts
+FAIL: irrelevantannotations/notnullmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/notnullmarked/Other.java: no unexpected facts
 PASS: irrelevantannotations/nullmarked/AnnotatedTypeParameters.java:Nullable on simple type parameter on method:test:irrelevant-annotation:Nullable
 PASS: irrelevantannotations/nullmarked/AnnotatedTypeParameters.java:NonNull on simple type parameter on method:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/nullmarked/AnnotatedTypeParameters.java:Nullable on bounded type parameter on method:test:irrelevant-annotation:Nullable
@@ -78,10 +78,10 @@ PASS: irrelevantannotations/nullmarked/Other.java:Nullable exception parameter:t
 PASS: irrelevantannotations/nullmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/nullmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/nullmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/nullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/nullmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/nullmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNulll
-FAIL: irrelevantannotations/nullmarked/Other.java: no unexpected facts
+FAIL: irrelevantannotations/nullmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullmarked/Other.java: no unexpected facts
 PASS: irrelevantannotations/nullmarked/package-info.java: no unexpected facts
 PASS: irrelevantannotations/nullunmarked/AnnotatedTypeParameters.java:Nullable on simple type parameter on method:test:irrelevant-annotation:Nullable
 PASS: irrelevantannotations/nullunmarked/AnnotatedTypeParameters.java:NonNull on simple type parameter on method:test:irrelevant-annotation:NonNull
@@ -111,8 +111,8 @@ PASS: irrelevantannotations/nullunmarked/Other.java:Nullable exception parameter
 PASS: irrelevantannotations/nullunmarked/Other.java:NonNull exception parameter:test:irrelevant-annotation:NonNull
 PASS: irrelevantannotations/nullunmarked/Other.java:Intrinsically NonNull exception parameter cannot be assigned null:test:cannot-convert:null? to RuntimeException!
 PASS: irrelevantannotations/nullunmarked/Other.java:Nullable try-with-resources:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/nullunmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullunmarked/Other.java:NonNull try-with-resources:test:irrelevant-annotation:NonNull
 FAIL: irrelevantannotations/nullunmarked/Other.java:Nullable exception type:test:irrelevant-annotation:Nullable
-FAIL: irrelevantannotations/nullunmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNulll
-FAIL: irrelevantannotations/nullunmarked/Other.java: no unexpected facts
+FAIL: irrelevantannotations/nullunmarked/Other.java:NonNull exception type:test:irrelevant-annotation:NonNull
+PASS: irrelevantannotations/nullunmarked/Other.java: no unexpected facts
 PASS: irrelevantannotations/nullunmarked/package-info.java: no unexpected facts

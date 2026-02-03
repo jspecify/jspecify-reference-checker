@@ -149,11 +149,11 @@ FAIL: IfCondition.java: no unexpected facts
 PASS: InferenceChoosesNullableTypeVariable.java: no unexpected facts
 FAIL: InstanceOfCheck.java:44:jspecify_nullness_mismatch
 FAIL: InstanceOfCheck.java: no unexpected facts
-FAIL: IntersectionSupertype.java:74:jspecify_nullness_mismatch
-FAIL: IntersectionSupertype.java:76:jspecify_nullness_mismatch
-FAIL: IntersectionSupertype.java:78:jspecify_nullness_mismatch
-FAIL: IntersectionSupertype.java:80:jspecify_nullness_mismatch
-FAIL: IntersectionSupertype.java:86:jspecify_nullness_mismatch
+FAIL: IntersectionSupertype.java:98:jspecify_nullness_mismatch
+FAIL: IntersectionSupertype.java:101:jspecify_nullness_mismatch
+FAIL: IntersectionSupertype.java:104:jspecify_nullness_mismatch
+FAIL: IntersectionSupertype.java:107:jspecify_nullness_mismatch
+FAIL: IntersectionSupertype.java:116:jspecify_nullness_mismatch
 FAIL: IntersectionSupertype.java: no unexpected facts
 FAIL: LocalVariable.java:44:jspecify_nullness_mismatch
 FAIL: LocalVariable.java: no unexpected facts
