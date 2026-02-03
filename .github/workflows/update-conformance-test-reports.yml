@@ -25,13 +25,13 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Check out JSpecify
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: jspecify/jspecify
           ref: main
           path: jspecify
       - name: Check out the Reference Checker
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           path: reference-checker
