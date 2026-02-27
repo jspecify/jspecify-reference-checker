@@ -467,7 +467,10 @@ final class NullSpecVisitor extends BaseTypeVisitor<NullSpecAnnotatedTypeFactory
     if (util.hasSuppressWarningsNullness(annotations)) {
       return null;
     }
-
+    // implicit lambda parameter types
+    if (tree.getType() == null) {
+      return null;
+    }
     if (isPrimitiveOrArrayOfPrimitive(tree.getType())) {
       checkNoNullnessAnnotations(tree, annotations, "primitive.annotated");
     } else if (tree.getType().getKind() == MEMBER_SELECT) {
