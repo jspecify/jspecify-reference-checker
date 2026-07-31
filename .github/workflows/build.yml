@@ -2,6 +2,9 @@ name: Continuous Integration
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Build and Test
@@ -27,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
       - name: Build and Test
         run: ./gradlew build conformanceTests demoTest --include-build ../jspecify
         env:
@@ -58,7 +61,7 @@ jobs:
         distribution: temurin
         java-version: 17
     - name: Set up Gradle
-      uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1
+      uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
     - name: Publish snapshot
       run: ./gradlew publishConformanceTestFrameworkPublicationToSonatypeRepository
       env:
