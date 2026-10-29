@@ -24,7 +24,7 @@ dependencyResolutionManagement {
             library("checkerFramework-javacutil", "org.checkerframework", "javacutil").versionRef("checkerFramework")
             library("errorProne-core", "com.google.errorprone:error_prone_core:2.18.0")
             library("errorProne-javac", "com.google.errorprone:javac:9+181-r4173-1")
-            library("guava", "com.google.guava:guava:31.1-jre")
+            library("guava", "com.google.guava:guava:33.7.2-jre")
 
             // Related JSpecify project versions are specified in gradle.properties, and can be overridden on the Gradle command line.
             library("jspecify", libraryVersion('org.jspecify:jspecify'))
